@@ -17,11 +17,11 @@ of this repository.
 You may need to install some dependencies to get the pre-commit hooks to work.
 
 ```
+pip install pre-commit
 sudo apt-get install cppcheck
-pip install cpplint
+cd /path/to/cora
+pre-commit install
 ```
-
-
 
 
 ## Standing on the Shoulders of Giants
