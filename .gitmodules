@@ -1,6 +1,9 @@
 [submodule "libs/Preconditioners"]
 	path = libs/Preconditioners
-	url = git@github.com:david-m-rosen/Preconditioners.git
+	url = https://github.com/david-m-rosen/Preconditioners.git
 [submodule "libs/Optimization"]
 	path = libs/Optimization
-	url = git@github.com:david-m-rosen/Optimization.git
+	url = https://github.com/david-m-rosen/Optimization.git
+[submodule "libs/Catch2"]
+	path = libs/Catch2
+	url = https://github.com/catchorg/Catch2.git
