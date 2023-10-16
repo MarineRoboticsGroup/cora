@@ -34,6 +34,8 @@ set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
 set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
 set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings.")
+# Build tests using Catch2
+set (BUILD_TESTS ON CACHE BOOL "Build Catch2 tests.")
 
 # Add the .cmake files that ship with Eigen3 to the CMake module path (useful for finding other stuff)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE STRING "The CMake module path used for this project")
@@ -77,11 +79,15 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 # set the libs directory
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
+# Testing
+set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
+
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
 
 # Run the Optimization package's CMake file
 add_subdirectory(${OPTIMIZATION_DIR})
+add_subdirectory(${CATCH2_DIR})
 
 # Find Preconditioners library
 set(PRECONDITIONERS_DIR ${LIBS_DIR}/Preconditioners/ CACHE PATH "Path to top-level directory of Preconditioners library (the one containing CMakeLists.txt)")
@@ -103,6 +109,7 @@ set(CORA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(CORA_HDR_DIR ${CORA_INCLUDE_DIR}/CORA)
 set(CORA_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(CORA_EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/examples)
+set(CORA_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
 # The CORA headers and and Eigen 3, SPQR, and Cholmod are all referenced by the
 # header files of the CORA library, hence must be PUBLICLY included (i.e.
@@ -136,6 +143,12 @@ endif()
 # If python bindings are enabled, set warning that this is not implemented yet
 if(${BUILD_PYTHON_BINDINGS})
 message(WARNING "Python bindings are not implemented yet.")
+endif()
+
+# Tests
+if(${BUILD_TESTS})
+message(STATUS "Building tests")
+  add_subdirectory(${CORA_TEST_DIR})
 endif()
 
 # Examples
