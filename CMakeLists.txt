@@ -1,7 +1,7 @@
 # Based on original by David M. Rosen
 # Modified for CORA by Alan Papalia
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 project(CORA LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
@@ -30,6 +30,8 @@ set(ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP (if available)")
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
 set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+# Build C++ examples
+set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
 set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings.")
 
@@ -137,7 +139,10 @@ message(WARNING "Python bindings are not implemented yet.")
 endif()
 
 # Examples
-add_subdirectory(${CORA_EXAMPLES_DIR})
+if(${BUILD_EXAMPLES})
+message(STATUS "Building c++ examples")
+  add_subdirectory(${CORA_EXAMPLES_DIR})
+endif()
 
 # export CORA library
 
