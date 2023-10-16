@@ -8,6 +8,21 @@ for more details.
 
 *TODO*: write up usage after we have a working version.
 
+## Contributing
+
+Any contributions should pass all checks in our `.pre-commit-config.yaml` file.
+To install the pre-commit hooks, run `pre-commit install` in the root directory
+of this repository.
+
+You may need to install some dependencies to get the pre-commit hooks to work.
+
+```
+sudo apt-get install cppcheck
+pip install cpplint
+```
+
+
+
 
 ## Standing on the Shoulders of Giants
 
