@@ -13,9 +13,9 @@ We detail our observations on them below along with relevant pros/cons
 
 ### David Rosen's Optimization
 
-**Capabilities**: This is a generic, header-only library that supports both convex and unconstrained Riemannian optimization. 
+**Capabilities**: This is a generic, header-only library that supports unconstrained Riemannian optimization. 
 
-**Software compatibility**: This is packaged with relatively modern CMake. It's easy to run and integrate into a system.
+**Software compatibility**: This is packaged with relatively modern CMake. It's easy to run and integrate into a system. We have personally done this before.
 
 **Feature completeness**: This library supports both truncated-Newton trust-region (TNT) and least-squares (TNLS) solvers. 
 The solvers are provided a set of operations (e.g., choice of metric and retraction) that represent 
@@ -41,3 +41,45 @@ TNLS(const Mapping<VariableX, VectorY, Args...> &F,
 
 **Added features**: this library also supports a LOBPCG eigensolver, this is a key advantage.
 
+### ROPTLIB
+
+**Capabilities**: This is a typical C++ library which for Riemannian optimization. It seems to only support unconstrained Riemannian optimization. This is fine for us! 
+
+**Software compatibility**: This comes with a handwritten `Makefile`, which is
+cause for brief hesitation. We know of other systems 
+([DPGO](https://github.com/mit-acl/dpgo)) that have used
+`ROPTLIB` so that suggests it's easy enough to use. We are waiting to hear back
+from Yulun Tian (author of DPGO) to get his opinion on ROPTLIB.
+
+**Feature completeness**: This library supports a massive number of solvers, 
+manifolds, and problems. Additionally, the documentation indicates that the
+library has test utilities to empirically validate that the gradient and Hessian
+operators are correctly implemented, similar to [manopt](https://www.manopt.org/).
+
+
+### Takeaways
+
+At the surface-level, the primary advantages of David Rosen's library are
+
+- modern CMake and known to be easy to integrate
+- implementation of LOBPCG solver
+- slightly greater familiarity with codebase
+
+The primary advantages of ROPTLIB are:
+
+- more building blocks already exist so less work will (in theory) need to be done
+- utilities to test correct implementation of gradients etc.
+- in-depth user manual and documentation
+
+Importantly, both libraries are viable with no clear issue in their usage.
+
+### Uncertainties
+
+**Performance**: it is unclear if either library is substantially more performant 
+than the other. As
+we'd like to deploy these systems on compute-constrained platforms this is an
+important point to consider.
+
+**Ease of use**: primarily, it is unclear how easy ROPTLIB is to use in external
+libraries. It seems not too challenging, but is currently unclear how cross-platform
+compatible it may be.
