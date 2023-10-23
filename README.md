@@ -4,6 +4,24 @@ This is an efficient C++ implementation of the certifiably correct range-aided
 SLAM algorithm (CORA). Please see the [paper](https://arxiv.org/abs/2302.11614)
 for more details.
 
+## Building
+
+Install dependencies
+```bash
+sudo apt-get install build-essential cmake-gui libeigen3-dev liblapack-dev libblas-dev libsuitesparse-dev -y
+```
+
+Install submodules and build with CMake
+```bash
+git clone git@github.com:MarineRoboticsGroup/cora-plus-plus.git
+cd cora-plus-plus
+git submodule update --init
+mkdir build
+cd build
+cmake ..
+make -j
+```
+
 ## Usage
 
 *TODO*: write up usage after we have a working version.
