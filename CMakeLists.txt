@@ -87,13 +87,16 @@ set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level dir
 
 # Run the Optimization package's CMake file
 add_subdirectory(${OPTIMIZATION_DIR})
-add_subdirectory(${CATCH2_DIR})
+get_property(OPTIMIZATION_INCLUDE_DIR TARGET Optimization PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
 # Find Preconditioners library
 set(PRECONDITIONERS_DIR ${LIBS_DIR}/Preconditioners/ CACHE PATH "Path to top-level directory of Preconditioners library (the one containing CMakeLists.txt)")
 
 # Run the Preconditioners package's CMake file
 add_subdirectory(${PRECONDITIONERS_DIR})
+
+# Find the Catch2 library
+add_subdirectory(${CATCH2_DIR})
 
 # PERFORMANCE IMPROVEMENTS
 if(${ENABLE_OPENMP})
@@ -135,7 +138,7 @@ ${CORA_SOURCE_DIR}/Symbol.cpp
 
 # The CORA library
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
 
 if(OPENMP_FOUND)
