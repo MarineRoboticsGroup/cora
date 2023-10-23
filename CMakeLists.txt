@@ -171,3 +171,4 @@ set(CMAKE_EXPORT_PACKAGE_REGISTRY TRUE)
 export(PACKAGE ${PROJECT_NAME})
 
 # configure and install CORAConfig.cmake
+message(WARNING "Currently not installing CORAConfig.cmake -- this is not implemented yet.")
