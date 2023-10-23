@@ -24,7 +24,7 @@ namespace CORA {
  * the un-marginalized data matrix, so the last row/column of A is ignored. When
  * applying the preconditioner, the last row/column of the input vector is
  * mapped to zero. In SLAM, this corresponds to pinning the last translation
- * to the origin.
+ * to the origin. See Appendix D of the CORA paper for more details.
  *
  * @param A the matrix to precondition (should be symmetric positive definite)
  * @param block_sizes the sizes of the blocks (should sum to A.rows() - 1)
