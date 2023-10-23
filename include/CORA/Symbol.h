@@ -48,8 +48,8 @@ public:
   bool operator<(const Key &other) const { return key() < other; }
 };
 
-uint64_t symIndex(Key key) { return Symbol(key).index(); }
-unsigned char symChar(Key key) { return Symbol(key).chr(); }
+inline uint64_t symIndex(Key key) { return Symbol(key).index(); }
+inline unsigned char symChar(Key key) { return Symbol(key).chr(); }
 inline Key symbol(unsigned char c, uint64_t j) { return Symbol(c, j).key(); }
 
 namespace shorthand {

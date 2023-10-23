@@ -21,6 +21,7 @@
  */
 
 #include <CORA/Symbol.h>
+#include <climits>
 
 namespace CORA {
 
