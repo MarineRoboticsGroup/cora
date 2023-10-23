@@ -1,4 +1,4 @@
-/** @file 
+/** @file
     @brief The main header file for the CORA library.
 
     This file provides the primary interface to the CORA library. All
@@ -9,7 +9,4 @@
 
 #include <CORA/CORA_types.h>
 
-namespace CORA
-{
-
-}
+namespace CORA {}

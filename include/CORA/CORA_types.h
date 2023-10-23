@@ -10,6 +10,12 @@
 
 #include "Optimization/Riemannian/TNT.h"
 
+class NotImplementedException : public std::logic_error {
+public:
+  NotImplementedException()
+      : std::logic_error("Function or feature not implemented") {}
+};
+
 namespace CORA {
 
 typedef double Scalar;
