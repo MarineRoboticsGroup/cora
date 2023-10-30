@@ -87,13 +87,16 @@ set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level dir
 
 # Run the Optimization package's CMake file
 add_subdirectory(${OPTIMIZATION_DIR})
-add_subdirectory(${CATCH2_DIR})
+get_property(OPTIMIZATION_INCLUDE_DIR TARGET Optimization PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
 # Find Preconditioners library
 set(PRECONDITIONERS_DIR ${LIBS_DIR}/Preconditioners/ CACHE PATH "Path to top-level directory of Preconditioners library (the one containing CMakeLists.txt)")
 
 # Run the Preconditioners package's CMake file
 add_subdirectory(${PRECONDITIONERS_DIR})
+
+# Find the Catch2 library
+add_subdirectory(${CATCH2_DIR})
 
 # PERFORMANCE IMPROVEMENTS
 if(${ENABLE_OPENMP})
@@ -119,15 +122,23 @@ set(CORA_INCLUDES ${CORA_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIR} ${SPQR_INCLUDES} CAC
 # The CORA header and source files
 set(CORA_HDRS
 ${CORA_HDR_DIR}/CORA.h
+${CORA_HDR_DIR}/CORA_types.h
+${CORA_HDR_DIR}/CORA_problem.h
+${CORA_HDR_DIR}/CORA_preconditioners.h
+${CORA_HDR_DIR}/Symbol.h
+${CORA_HDR_DIR}/Measurements.h
+${CORA_HDR_DIR}/pyfg_text_parser.h
 )
 
 set(CORA_SRCS
 ${CORA_SOURCE_DIR}/CORA.cpp
+${CORA_SOURCE_DIR}/CORA_problem.cpp
+${CORA_SOURCE_DIR}/Symbol.cpp
 )
 
 # The CORA library
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
 
 if(OPENMP_FOUND)
@@ -163,3 +174,4 @@ set(CMAKE_EXPORT_PACKAGE_REGISTRY TRUE)
 export(PACKAGE ${PROJECT_NAME})
 
 # configure and install CORAConfig.cmake
+message(WARNING "Currently not installing CORAConfig.cmake -- this is not implemented yet.")
