@@ -2,6 +2,7 @@
 #include <CORA/CORA_types.h>
 
 #include <cstdint>
+#include <random>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/generators/catch_generators_adapters.hpp>
@@ -10,8 +11,13 @@
 uint32_t factorial(uint32_t number) {
   return number <= 1 ? number : factorial(number - 1) * number;
 }
+std::uniform_real_distribution<double> unif(0.1, 1.0);
+std::default_random_engine re;
 
-double get_random_double() { return static_cast<double>(rand_r()) / RAND_MAX; }
+double get_random_double() {
+  double a_random_double = unif(re);
+  return a_random_double;
+}
 
 TEST_CASE("Factorials are computed", "[factorial]") {
   REQUIRE(factorial(1) == 1);
@@ -21,8 +27,9 @@ TEST_CASE("Factorials are computed", "[factorial]") {
 }
 
 /**
- * @brief Tests the case in which the matrix is a single block and deterministic
- * (i.e., we are just factoring a single matrix, which we have hand-coded)
+ * @brief Tests the case in which the matrix is a single block and
+ * deterministic (i.e., we are just factoring a single matrix, which we have
+ * hand-coded)
  *
  */
 TEST_CASE("Single Cholesky solves work okay for fixed matrix", "[cholesky]") {
@@ -79,8 +86,9 @@ TEST_CASE("Single Cholesky solves work okay for fixed matrix", "[cholesky]") {
 }
 
 /**
- * @brief Tests the case in which the matrix is a single block and random (i.e.,
- * we are just factoring a single matrix, which we are generating randomly)
+ * @brief Tests the case in which the matrix is a single block and random
+ * (i.e., we are just factoring a single matrix, which we are generating
+ * randomly)
  *
  */
 TEST_CASE("Single Cholesky solves work okay for random matrices",
@@ -149,8 +157,8 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
 
 /**
  * @brief Test the case in which we take several blocks of the same size
- * and factorize them. The matrix is deterministic (i.e., we are just factoring
- * a single matrix, which we have hand-coded)
+ * and factorize them. The matrix is deterministic (i.e., we are just
+ * factoring a single matrix, which we have hand-coded)
  */
 TEST_CASE("Block Cholesky solves work okay for fixed matrix",
           "[block cholesky]") {
