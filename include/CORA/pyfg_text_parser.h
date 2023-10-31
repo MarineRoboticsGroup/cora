@@ -27,9 +27,6 @@ namespace CORA {
  * @param filename the name of the file to parse
  * @return CORA::Problem the parsed problem
  */
-CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
-  // TODO(magoun): implement this function
-  throw NotImplementedException();
-}
+CORA::Problem parsePyfgTextToProblem(const std::string &filename);
 
 } // namespace CORA
