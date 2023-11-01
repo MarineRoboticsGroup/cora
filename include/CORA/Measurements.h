@@ -13,6 +13,7 @@
 
 #include <CORA/CORA_types.h>
 #include <CORA/Symbol.h>
+#include <utility>
 #include <vector>
 
 namespace CORA {
@@ -27,22 +28,17 @@ struct RelativePoseMeasurement {
   /** Translational measurement */
   Vector t;
 
-  /** Rotational measurement precision */
-  Scalar rot_precision;
+  /** Covariance Matrix */
+  Matrix cov;
 
-  /** Translational measurement precision */
-  Scalar tran_precision;
-
-  RelativePoseMeasurement(Symbol first_id, Symbol second_id,
-                          const Matrix &R_measurement,
-                          const Vector &t_measurement, Scalar R_precision,
-                          Scalar t_precision)
+  RelativePoseMeasurement(const Symbol &first_id, const Symbol &second_id,
+                          Matrix R_measurement, Vector t_measurement,
+                          Matrix cov)
       : first_id(first_id),
         second_id(second_id),
-        R(R_measurement),
-        t(t_measurement),
-        rot_precision(R_precision),
-        tran_precision(t_precision) {}
+        R(std::move(R_measurement)),
+        t(std::move(t_measurement)),
+        cov(std::move(cov)) {}
 };
 
 struct RangeMeasurement {
@@ -52,29 +48,25 @@ struct RangeMeasurement {
   /** Range measurement */
   Scalar r;
 
-  /** Range measurement precision */
-  Scalar precision;
+  /** Range measurement covariance */
+  Scalar cov;
 
-  RangeMeasurement(Symbol first_id, Symbol second_id, Scalar r_measurement,
-                   Scalar r_precision)
-      : first_id(first_id),
-        second_id(second_id),
-        r(r_measurement),
-        precision(r_precision) {}
+  RangeMeasurement(const Symbol &first_id, const Symbol &second_id,
+                   Scalar r_measurement, Scalar cov)
+      : first_id(first_id), second_id(second_id), r(r_measurement), cov(cov) {}
 };
 
 struct PosePrior {
   Symbol id;
   Matrix R;
   Vector t;
-  Scalar rot_precision;
-  Scalar tran_precision;
+  Matrix cov;
 };
 
 struct LandmarkPrior {
   Symbol id;
   Vector p;
-  Scalar precision;
+  Matrix cov;
 };
 
 typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_measurements_t;
