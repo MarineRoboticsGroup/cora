@@ -54,6 +54,10 @@ struct RangeMeasurement {
   RangeMeasurement(const Symbol &first_id, const Symbol &second_id,
                    Scalar r_measurement, Scalar cov)
       : first_id(first_id), second_id(second_id), r(r_measurement), cov(cov) {}
+
+  std::pair<Symbol, Symbol> getSymbolPair() const {
+    return std::make_pair(first_id, second_id);
+  }
 };
 
 struct PosePrior {
