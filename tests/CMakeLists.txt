@@ -1,4 +1,4 @@
-add_executable(tests test.cpp test_parse_pyfg.cpp)
+add_executable(tests test.cpp test_parse_pyfg.cpp test_construct_problem.cpp)
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
 target_link_libraries(tests PUBLIC CORA)
