@@ -33,7 +33,9 @@ public:
   /// Conversion operators
   operator Key() const { return key(); }
   Key key() const;
-  operator std::string() const;
+  operator std::string() const {
+    return std::string(1, c_) + std::to_string(j_);
+  }
   std::string string() const { return std::string(*this); }
 
   ///  Comparison operators
