@@ -67,20 +67,18 @@ TEST_CASE("Single Cholesky solves work okay for fixed matrix", "[cholesky]") {
 
   // test on identity matrix
   CORA::Matrix I = CORA::Matrix::Identity(block_size, block_size);
-  CORA::Matrix I_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, I);
+  CORA::Matrix I_x = CORA::blockCholeskySolve(block_cholesky_factors, I);
   REQUIRE(I_x.isApprox(A_inv));
 
   // solve on itself should be identity
   CORA::Matrix A_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, A.toDense());
+      CORA::blockCholeskySolve(block_cholesky_factors, A.toDense());
   REQUIRE(A_x.isApprox(CORA::Matrix::Identity(block_size, block_size)));
 
   // test vector to solve against
   CORA::Vector b(block_size);
   b << 1.0, 2.0, 3.0;
-  CORA::Matrix x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, b);
+  CORA::Matrix x = CORA::blockCholeskySolve(block_cholesky_factors, b);
   CORA::Vector expected_x = A_inv * b;
   REQUIRE(x.isApprox(expected_x));
 }
@@ -127,8 +125,7 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
 
   // test on identity matrix
   CORA::Matrix I = CORA::Matrix::Identity(block_size, block_size);
-  CORA::Matrix I_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, I);
+  CORA::Matrix I_x = CORA::blockCholeskySolve(block_cholesky_factors, I);
 
   bool inverseCorrect = I_x.isApprox(A_inv);
   REQUIRE(inverseCorrect);
@@ -139,7 +136,7 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
 
   // solve on itself should be identity
   CORA::Matrix A_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, A.toDense());
+      CORA::blockCholeskySolve(block_cholesky_factors, A.toDense());
   REQUIRE(A_x.isApprox(CORA::Matrix::Identity(block_size, block_size)));
 
   // test vector to solve against
@@ -149,8 +146,7 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
     b(i) = get_random_double();
   }
 
-  CORA::Matrix x =
-      CORA::blockCholeskySolve(block_cholesky_factors, block_size, b);
+  CORA::Matrix x = CORA::blockCholeskySolve(block_cholesky_factors, b);
   CORA::Vector expected_x = A_inv * b;
   REQUIRE(x.isApprox(expected_x));
 }
@@ -211,20 +207,18 @@ TEST_CASE("Block Cholesky solves work okay for fixed matrix",
 
   // test on identity matrix
   CORA::Matrix I = CORA::Matrix::Identity(mat_size, mat_size);
-  CORA::Matrix I_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, mat_size, I);
+  CORA::Matrix I_x = CORA::blockCholeskySolve(block_cholesky_factors, I);
   REQUIRE(I_x.isApprox(A_block_diags_inv));
 
   // solve on block diagonals should be identity
   CORA::Matrix A_x =
-      CORA::blockCholeskySolve(block_cholesky_factors, mat_size, A_block_diags);
+      CORA::blockCholeskySolve(block_cholesky_factors, A_block_diags);
   REQUIRE(A_x.isApprox(CORA::Matrix::Identity(mat_size, mat_size)));
 
   // test vector to solve against
   CORA::Vector b(mat_size);
   b << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0;
-  CORA::Matrix x =
-      CORA::blockCholeskySolve(block_cholesky_factors, mat_size, b);
+  CORA::Matrix x = CORA::blockCholeskySolve(block_cholesky_factors, b);
   CORA::Vector expected_x = A_block_diags_inv * b;
   REQUIRE(x.isApprox(expected_x));
 }
