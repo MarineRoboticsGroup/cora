@@ -78,13 +78,45 @@ private:
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
 
+  // a flag to check if range data has been modified since last call to
+  // fillRangeSubmatrices()
+  bool range_submatrices_up_to_date_ = false;
+
+  void set_range_submatrices_up_to_date(bool up_to_date) {
+    range_submatrices_up_to_date_ = up_to_date;
+    if (!up_to_date) {
+      data_matrix_up_to_date_ = false;
+    }
+  }
+
+  // a flag to check if relative pose data has been modified since last call to
+  // fillRelPoseSubmatrices()
+  bool rel_pose_submatrices_up_to_date_ = false;
+
+  void set_rel_pose_submatrices_up_to_date(bool up_to_date) {
+    rel_pose_submatrices_up_to_date_ = up_to_date;
+    if (!up_to_date) {
+      data_matrix_up_to_date_ = false;
+    }
+  }
+
+  // a flag to check if any data has been modified since last call to
+  // constructDataMatrix()
+  bool data_matrix_up_to_date_ = false;
+
   // the full size of the data matrix
   size_t getDataMatrixSize() const;
 
+  // function to fill all of the submatrices built from range measurements.
+  // Should only be called from constructDataMatrix()
   void fillRangeSubmatrices();
 
+  // function to fill all of the submatrices built from relative pose
+  // measurements. Should only be called from constructDataMatrix()
   void fillRelPoseSubmatrices();
 
+  // function to construct the rotation connection Laplacian. Should only be
+  // called from fillRelPoseSubmatrices()
   void fillRotConnLaplacian();
 
   template <typename... Matrices>
@@ -96,8 +128,11 @@ private:
   size_t getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const;
 
 public:
-  Problem(size_t dim, size_t relaxation_rank)
-      : dim_(dim), relaxation_rank_(relaxation_rank) {
+  Problem(size_t dim, size_t relaxation_rank,
+          Formulation formulation = Formulation::Explicit)
+      : dim_(dim),
+        relaxation_rank_(relaxation_rank),
+        formulation_(formulation) {
     // relaxation rank must be >= dim
     assert(relaxation_rank >= dim);
   }
@@ -108,10 +143,14 @@ public:
   void addPoseVariable(std::string pose_id) {
     addPoseVariable(Symbol(pose_id));
   }
+  void addPoseVariable(Key pose_key) { addPoseVariable(Symbol(pose_key)); }
 
   void addLandmarkVariable(Symbol landmark_id);
   void addLandmarkVariable(std::string landmark_id) {
     addLandmarkVariable(Symbol(landmark_id));
+  }
+  void addLandmarkVariable(Key landmark_key) {
+    addLandmarkVariable(Symbol(landmark_key));
   }
 
   void addRangeMeasurement(RangeMeasurement range_measurement);
@@ -159,6 +198,7 @@ public:
    *
    */
   void constructDataMatrix();
+  SparseMatrix getDataMatrix();
 
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
