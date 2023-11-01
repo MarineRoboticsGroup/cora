@@ -13,6 +13,7 @@
 
 #include <CORA/CORA_types.h>
 #include <CORA/Symbol.h>
+#include <utility>
 #include <vector>
 
 namespace CORA {
@@ -61,6 +62,10 @@ struct RangeMeasurement {
         second_id(second_id),
         r(r_measurement),
         precision(r_precision) {}
+
+  std::pair<Symbol, Symbol> getSymbolPair() const {
+    return std::make_pair(first_id, second_id);
+  }
 };
 
 struct PosePrior {
