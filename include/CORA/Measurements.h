@@ -39,6 +39,9 @@ struct RelativePoseMeasurement {
         R(std::move(R_measurement)),
         t(std::move(t_measurement)),
         cov(std::move(cov)) {}
+
+  Scalar getRotPrecision() const { throw NotImplementedException(); }
+  Scalar getTransPrecision() const { throw NotImplementedException(); }
 };
 
 struct RangeMeasurement {
@@ -58,6 +61,8 @@ struct RangeMeasurement {
   std::pair<Symbol, Symbol> getSymbolPair() const {
     return std::make_pair(first_id, second_id);
   }
+
+  Scalar getPrecision() const { return 1.0 / cov; }
 };
 
 struct PosePrior {

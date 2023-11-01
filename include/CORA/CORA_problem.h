@@ -19,6 +19,46 @@
 #include <vector>
 
 namespace CORA {
+
+/**
+ * @brief the submatrices that are used to construct the data matrix.
+ * All of these matrices are sparse and most have sparsity structures
+ * relating to the underlying graph structure of the problem.
+ */
+struct CoraDataSubmatrices {
+  SparseMatrix range_incidence_matrix;
+  DiagonalMatrix range_precision_matrix;
+  DiagonalMatrix range_dist_matrix;
+  SparseMatrix rel_pose_incidence_matrix;
+  SparseMatrix rel_pose_translation_data_matrix;
+  SparseMatrix rotation_conn_laplacian;
+  DiagonalMatrix rel_pose_translation_precision_matrix;
+  DiagonalMatrix rel_pose_rotation_precision_matrix;
+  DiagonalMatrix pose_prior_precision_matrix;
+  DiagonalMatrix landmark_prior_precision_matrix;
+
+  CoraDataSubmatrices(
+      const SparseMatrix &range_incidence_matrix,
+      const DiagonalMatrix &range_precision_matrix,
+      const DiagonalMatrix &range_dist_matrix,
+      const SparseMatrix &rel_pose_incidence_matrix,
+      const DiagonalMatrix &rel_pose_translation_precision_matrix,
+      const DiagonalMatrix &rel_pose_rotation_precision_matrix,
+      const DiagonalMatrix &pose_prior_precision_matrix,
+      const DiagonalMatrix &landmark_prior_precision_matrix)
+      : range_incidence_matrix(range_incidence_matrix),
+        range_precision_matrix(range_precision_matrix),
+        range_dist_matrix(range_dist_matrix),
+        rel_pose_incidence_matrix(rel_pose_incidence_matrix),
+        rel_pose_translation_precision_matrix(
+            rel_pose_translation_precision_matrix),
+        rel_pose_rotation_precision_matrix(rel_pose_rotation_precision_matrix),
+        pose_prior_precision_matrix(pose_prior_precision_matrix),
+        landmark_prior_precision_matrix(landmark_prior_precision_matrix) {}
+
+  CoraDataSubmatrices() {}
+};
+
 class Problem {
 private:
   /** dimension of the pose and landmark variables e.g., SO(dim_) */
@@ -36,7 +76,7 @@ private:
 
   /** maps from range measurement symbol pair to range measurement index
    * (e.g., r1 -> 0, r2 -> 1, etc.) */
-  std::map<std::pair<Symbol, Symbol>, int> range_measurement_symbol_idxs_;
+  std::map<SymbolPair, int> range_measurement_symbol_idxs_;
 
   // the range measurements that are used to construct the problem
   std::vector<RangeMeasurement> range_measurements_;
@@ -49,6 +89,28 @@ private:
 
   // the landmark priors that are used to construct the problem
   std::vector<LandmarkPrior> landmark_priors_;
+
+  // the formulation of the problem (e.g., translation-explicit vs -implicit)
+  Formulation formulation_;
+
+  // the data matrix that is used to construct the problem
+  SparseMatrix data_matrix_;
+
+  // the submatrices that are used to construct the data matrix
+  CoraDataSubmatrices data_submatrices_;
+
+  // the full size of the data matrix
+  size_t getDataMatrixSize() const;
+
+  void fillRangeSubmatrices();
+
+  void fillRelPoseSubmatrices();
+
+  void fillRotConnLaplacian();
+
+  size_t getRotationIdx(Symbol pose_symbol) const;
+  size_t getRangeIdxInExplicitDataMatrix(SymbolPair range_symbol_pair) const;
+  size_t getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const;
 
 public:
   Problem(size_t dim, size_t relaxation_rank)
@@ -66,11 +128,14 @@ public:
   void addPosePrior(PosePrior pose_prior);
   void addLandmarkPrior(LandmarkPrior landmark_prior);
 
+  void constructDataMatrix();
+
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
   size_t numRangeMeasurements() const {
     return range_measurement_symbol_idxs_.size();
   }
+  size_t numTranslationalStates() const { return numPoses() + numLandmarks(); }
 }; // class Problem
 
 } // namespace CORA
