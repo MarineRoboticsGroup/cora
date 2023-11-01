@@ -12,6 +12,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 namespace CORA {
 
@@ -48,6 +49,7 @@ public:
   bool operator<(const Key &other) const { return key() < other; }
 };
 
+using SymbolPair = std::pair<Symbol, Symbol>;
 inline uint64_t symIndex(Key key) { return Symbol(key).index(); }
 inline unsigned char symChar(Key key) { return Symbol(key).chr(); }
 inline Key symbol(unsigned char c, uint64_t j) { return Symbol(c, j).key(); }
