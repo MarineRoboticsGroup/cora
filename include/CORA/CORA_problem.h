@@ -15,6 +15,7 @@
 #include <CORA/Measurements.h>
 #include <CORA/Symbol.h>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -27,34 +28,15 @@ namespace CORA {
  */
 struct CoraDataSubmatrices {
   SparseMatrix range_incidence_matrix;
-  DiagonalMatrix range_precision_matrix;
-  DiagonalMatrix range_dist_matrix;
+  SparseMatrix range_precision_matrix;
+  SparseMatrix range_dist_matrix;
   SparseMatrix rel_pose_incidence_matrix;
   SparseMatrix rel_pose_translation_data_matrix;
   SparseMatrix rotation_conn_laplacian;
-  DiagonalMatrix rel_pose_translation_precision_matrix;
-  DiagonalMatrix rel_pose_rotation_precision_matrix;
-  DiagonalMatrix pose_prior_precision_matrix;
-  DiagonalMatrix landmark_prior_precision_matrix;
-
-  CoraDataSubmatrices(
-      const SparseMatrix &range_incidence_matrix,
-      const DiagonalMatrix &range_precision_matrix,
-      const DiagonalMatrix &range_dist_matrix,
-      const SparseMatrix &rel_pose_incidence_matrix,
-      const DiagonalMatrix &rel_pose_translation_precision_matrix,
-      const DiagonalMatrix &rel_pose_rotation_precision_matrix,
-      const DiagonalMatrix &pose_prior_precision_matrix,
-      const DiagonalMatrix &landmark_prior_precision_matrix)
-      : range_incidence_matrix(range_incidence_matrix),
-        range_precision_matrix(range_precision_matrix),
-        range_dist_matrix(range_dist_matrix),
-        rel_pose_incidence_matrix(rel_pose_incidence_matrix),
-        rel_pose_translation_precision_matrix(
-            rel_pose_translation_precision_matrix),
-        rel_pose_rotation_precision_matrix(rel_pose_rotation_precision_matrix),
-        pose_prior_precision_matrix(pose_prior_precision_matrix),
-        landmark_prior_precision_matrix(landmark_prior_precision_matrix) {}
+  SparseMatrix rel_pose_translation_precision_matrix;
+  SparseMatrix rel_pose_rotation_precision_matrix;
+  SparseMatrix pose_prior_precision_matrix;
+  SparseMatrix landmark_prior_precision_matrix;
 
   CoraDataSubmatrices() {}
 };
@@ -93,9 +75,6 @@ private:
   // the formulation of the problem (e.g., translation-explicit vs -implicit)
   Formulation formulation_;
 
-  // the data matrix that is used to construct the problem
-  SparseMatrix data_matrix_;
-
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
 
@@ -107,6 +86,10 @@ private:
   void fillRelPoseSubmatrices();
 
   void fillRotConnLaplacian();
+
+  template <typename... Matrices>
+  DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
+                                const Matrices &...matrices);
 
   size_t getRotationIdx(Symbol pose_symbol) const;
   size_t getRangeIdxInExplicitDataMatrix(SymbolPair range_symbol_pair) const;
@@ -122,12 +105,59 @@ public:
   ~Problem() {}
 
   void addPoseVariable(Symbol pose_id);
+  void addPoseVariable(std::string pose_id) {
+    addPoseVariable(Symbol(pose_id));
+  }
+
   void addLandmarkVariable(Symbol landmark_id);
+  void addLandmarkVariable(std::string landmark_id) {
+    addLandmarkVariable(Symbol(landmark_id));
+  }
+
   void addRangeMeasurement(RangeMeasurement range_measurement);
   void addRelativePoseMeasurement(RelativePoseMeasurement rel_pose_measure);
   void addPosePrior(PosePrior pose_prior);
   void addLandmarkPrior(LandmarkPrior landmark_prior);
 
+  void printProblem() const;
+
+  // the data matrix that is used to construct the problem
+  SparseMatrix data_matrix_;
+
+  /**
+   * @brief The data matrix Q is a symmetric block matrix of the form:
+   *            dn                r                 n + l
+   * __________________________________________________________________
+   * |     Lrho + Sigma   |       0         |   T^T * Omega_t * A_t   |  dn
+   * |        ****        | Omega_r * D * D |     D * Omega_r * A_r   |  r
+   * |        ****        |     ****        |       L_r + L_t         |  n + l
+   * _________________________________________________________________
+   *
+   * We will alternatively write this as:
+   *
+   * __________________________________________________________________
+   * |         Q11        |        0         |         Q13             |  dn
+   * |        ****        |       Q22        |         Q23             |  r
+   * |        ****        |       ****       |         Q33             |  n + l
+   * _________________________________________________________________
+   *
+   *
+   *  where we ignore the lower-triangular section due to symmetry
+   *
+   *  where we define the matrices as follows:
+   *
+   *  Lrho = rotation connection Laplacian
+   *  Sigma = T^T Omega_t T
+   *  T = rel_pose_translation_data_matrix
+   *  Omega_t = rel_pose_translation_precision_matrix
+   *  Omega_r = range_precision_matrix
+   *  D = range_dist_matrix
+   *  L_r = A_r^T * Omega_r * A_r
+   *  L_t = A_t^T * Omega_t * A_t
+   *  A_r = range_incidence_matrix
+   *  A_t = rel_pose_incidence_matrix
+   *
+   */
   void constructDataMatrix();
 
   size_t numPoses() const { return pose_symbol_idxs_.size(); }

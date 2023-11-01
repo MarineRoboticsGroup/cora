@@ -53,23 +53,21 @@ void Problem::fillRangeSubmatrices() {
   // initialize the submatrices to the correct sizes
   data_submatrices_.range_incidence_matrix =
       SparseMatrix(num_range_measurements, num_translations);
-  data_submatrices_.range_dist_matrix = DiagonalMatrix(num_range_measurements);
+  data_submatrices_.range_dist_matrix =
+      SparseMatrix(num_range_measurements, num_range_measurements);
   data_submatrices_.range_precision_matrix =
-      DiagonalMatrix(num_range_measurements);
+      SparseMatrix(num_range_measurements, num_range_measurements);
 
   // for diagonal matrices, get the diagonal vector and set the values
-  DiagonalMatrix::DiagonalVectorType &dist_diagonal =
-      data_submatrices_.range_dist_matrix.diagonal();
-  DiagonalMatrix::DiagonalVectorType &precision_diagonal =
-      data_submatrices_.range_precision_matrix.diagonal();
-
   for (int measure_idx = 0; measure_idx < range_measurements_.size();
        measure_idx++) {
     RangeMeasurement measure = range_measurements_[measure_idx];
 
     // update the diagonal matrices
-    dist_diagonal(measure_idx) = measure.r;
-    precision_diagonal(measure_idx) = measure.getPrecision();
+    data_submatrices_.range_dist_matrix.insert(measure_idx, measure_idx) =
+        measure.r;
+    data_submatrices_.range_precision_matrix.insert(measure_idx, measure_idx) =
+        measure.getPrecision();
 
     // update the incidence matrix
     int id1 = getTranslationIdxInExplicitDataMatrix(measure.first_id) -
@@ -87,10 +85,10 @@ void Problem::fillRelPoseSubmatrices() {
       SparseMatrix(rel_pose_measurements_.size(), numTranslationalStates());
   data_submatrices_.rel_pose_translation_data_matrix =
       SparseMatrix(rel_pose_measurements_.size(), dim_ * numPoses());
-  data_submatrices_.rel_pose_translation_precision_matrix =
-      DiagonalMatrix(rel_pose_measurements_.size());
-  data_submatrices_.rel_pose_rotation_precision_matrix =
-      DiagonalMatrix(rel_pose_measurements_.size());
+  data_submatrices_.rel_pose_translation_precision_matrix = SparseMatrix(
+      rel_pose_measurements_.size(), rel_pose_measurements_.size());
+  data_submatrices_.rel_pose_rotation_precision_matrix = SparseMatrix(
+      rel_pose_measurements_.size(), rel_pose_measurements_.size());
 
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
@@ -98,18 +96,15 @@ void Problem::fillRelPoseSubmatrices() {
   int translation_offset = numPoses() * dim_ + numRangeMeasurements();
 
   // for diagonal matrices, get the diagonal vector and set the values
-  DiagonalMatrix::DiagonalVectorType &translation_precision_diagonal =
-      data_submatrices_.rel_pose_translation_precision_matrix.diagonal();
-  DiagonalMatrix::DiagonalVectorType &rotation_precision_diagonal =
-      data_submatrices_.rel_pose_rotation_precision_matrix.diagonal();
-
   for (int measure_idx = 0; measure_idx < rel_pose_measurements_.size();
        measure_idx++) {
     RelativePoseMeasurement rpm = rel_pose_measurements_[measure_idx];
 
     // fill in precision matrices
-    translation_precision_diagonal(measure_idx) = rpm.getTransPrecision();
-    rotation_precision_diagonal(measure_idx) = rpm.getRotPrecision();
+    data_submatrices_.rel_pose_translation_precision_matrix.insert(
+        measure_idx, measure_idx) = rpm.getTransPrecision();
+    data_submatrices_.rel_pose_rotation_precision_matrix.insert(
+        measure_idx, measure_idx) = rpm.getRotPrecision();
 
     // fill in incidence matrix
     int id1 = getTranslationIdxInExplicitDataMatrix(rpm.first_id) -
@@ -179,11 +174,119 @@ void Problem::fillRotConnLaplacian() {
                                                             triplets.end());
 }
 
+template <typename... Matrices>
+DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
+                              const Matrices &...matrices) {
+  // Check dimensions
+  const int numRows = first.rows();
+  auto checkDimensions = [numRows](const DiagonalMatrix &mat) {
+    assert(mat.rows() == numRows);
+  };
+  (checkDimensions(matrices), ...);
+
+  DiagonalMatrix result = first; // Start with the first matrix
+  auto multiplyIntoResult = [&result](const DiagonalMatrix &mat) {
+    for (int i = 0; i < result.rows(); i++) {
+      result.diagonal()(i) *= mat.diagonal()(i);
+    }
+  };
+  (multiplyIntoResult(matrices), ...);
+
+  return result;
+}
+
+void Problem::printProblem() const {
+  // print out all of the pose variables
+  std::cout << "Pose variables:" << std::endl;
+  for (auto pose_symbol_idx_pair : pose_symbol_idxs_) {
+    std::cout << pose_symbol_idx_pair.first << " -> "
+              << pose_symbol_idx_pair.second << std::endl;
+  }
+}
+
 void Problem::constructDataMatrix() {
   size_t data_matrix_size = getDataMatrixSize();
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
 
-  throw NotImplementedException();
+  size_t n = numPoses();
+  size_t dn = dim_ * n;
+  size_t r = numRangeMeasurements();
+  size_t l = numLandmarks();
+
+  /**
+   * @brief From here we form the subblocks of the data matrix Q
+   * and then assemble them into the full data matrix by adding the
+   * triplets together.
+   */
+
+  // Q11
+  // upper-left dn x dn block is:
+  // rotation connection Laplacian + T^T * Omega_t * T
+  SparseMatrix Q11 =
+      data_submatrices_.rotation_conn_laplacian +
+      data_submatrices_.rel_pose_translation_data_matrix.transpose() *
+          data_submatrices_.rel_pose_translation_precision_matrix *
+          data_submatrices_.rel_pose_translation_data_matrix;
+
+  // Q13
+  // upper-right dn x (n+l) block is: T^T * Omega_t * A_t
+  SparseMatrix Q13 =
+      data_submatrices_.rel_pose_translation_data_matrix.transpose() *
+      data_submatrices_.rel_pose_translation_precision_matrix *
+      data_submatrices_.rel_pose_incidence_matrix;
+
+  // Q22
+  // the next (r x r) block on the diagonal is: Omega_r * D * D
+  SparseMatrix OmegaRD = data_submatrices_.range_precision_matrix *
+                         data_submatrices_.range_dist_matrix;
+  SparseMatrix Q22 = OmegaRD * data_submatrices_.range_dist_matrix;
+
+  // Q23
+  // the next (r x (n+l)) block to the right of the (r x r) block on the
+  // diagonal is D * Omega_r * A_r
+  SparseMatrix Q23 = OmegaRD * data_submatrices_.range_incidence_matrix;
+
+  // Q33
+  // the bottom-right block on the diagonal is: L_r + L_t
+  SparseMatrix Q33 = (data_submatrices_.rel_pose_incidence_matrix.transpose() *
+                      data_submatrices_.rel_pose_translation_precision_matrix *
+                      data_submatrices_.rel_pose_incidence_matrix) +
+                     (data_submatrices_.range_incidence_matrix.transpose() *
+                      data_submatrices_.range_precision_matrix *
+                      data_submatrices_.range_incidence_matrix);
+
+  /**
+   * @brief Now we join all of the triplets together, properly offsetting the
+   * indices of the triplets to account for the fact that the submatrices are
+   * located in different parts of the data matrix.
+   */
+
+  std::vector<Eigen::Triplet<Scalar>> combined_triplets;
+  combined_triplets.reserve(Q11.nonZeros() + Q13.nonZeros() + Q22.nonZeros() +
+                            Q23.nonZeros() + Q33.nonZeros());
+
+  // lambda function to add triplets to the combined triplets vector
+  auto addTriplets = [&combined_triplets](const SparseMatrix &matrix,
+                                          size_t row_offset,
+                                          size_t col_offset) {
+    for (int k = 0; k < matrix.outerSize(); ++k) {
+      for (SparseMatrix::InnerIterator it(matrix, k); it; ++it) {
+        combined_triplets.emplace_back(it.row() + row_offset,
+                                       it.col() + col_offset, it.value());
+      }
+    }
+  };
+
+  // Q11, Q13, Q22, Q23, Q33
+  addTriplets(Q11, 0, 0);
+  addTriplets(Q13, 0, dn);
+  addTriplets(Q22, dn, dn);
+  addTriplets(Q23, dn, dn + r);
+  addTriplets(Q33, dn + r, dn + r);
+
+  // construct the data matrix
+  data_matrix_.setFromTriplets(combined_triplets.begin(),
+                               combined_triplets.end());
 }
 
 size_t Problem::getDataMatrixSize() const {
