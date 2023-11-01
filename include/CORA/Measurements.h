@@ -28,7 +28,7 @@ struct RelativePoseMeasurement {
   /** Translational measurement */
   Vector t;
 
-  /** Covariance Matrix */
+  /** Covariance Matrix in order of: translation, rotation */
   Matrix cov;
 
   RelativePoseMeasurement(const Symbol &first_id, const Symbol &second_id,
@@ -40,8 +40,39 @@ struct RelativePoseMeasurement {
         t(std::move(t_measurement)),
         cov(std::move(cov)) {}
 
-  Scalar getRotPrecision() const { throw NotImplementedException(); }
-  Scalar getTransPrecision() const { throw NotImplementedException(); }
+  /**
+   * @brief Computes the rotational (scalar) precision of the measurement
+   * from the covariance matrix. This is a bit more sophisticated b/c of
+   * the geometry of the rotation manifold.
+   *
+   * @return Scalar - the rotational precision
+   */
+  Scalar getRotPrecision() const {
+    if (cov.rows() == 6) {
+      // for 3D rotations the (information-divergence minimizing) precision is:
+      // 3.0 / (2*trace(cov(3:6, 3:6))))
+      return 1.5 / (cov(3, 3) + cov(4, 4) + cov(5, 5));
+    } else if (cov.rows() == 3) {
+      // for 2D rotations, the rotational variance is a scalar, so the
+      // precision is just the inverse of the variance
+      return 1.0 / cov(2, 2);
+    } else {
+      throw std::runtime_error(
+          "RelativePoseMeasurement::getRotPrecision() only implemented for "
+          "2D and 3D rotations");
+    }
+  }
+
+  /**
+   * @brief Compute the translational (scalar) precision of the measurement
+   * from the covariance matrix.
+   *
+   * @return Scalar - the translational precision
+   */
+  Scalar getTransPrecision() const {
+    size_t dim = t.size();
+    return dim / (cov.block(0, 0, dim, dim).trace());
+  }
 };
 
 struct RangeMeasurement {
