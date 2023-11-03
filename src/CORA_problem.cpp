@@ -80,8 +80,8 @@ void Problem::fillRangeSubmatrices() {
               translation_offset;
     int id2 = getTranslationIdxInExplicitDataMatrix(measure.second_id) -
               translation_offset;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = 1.0;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = -1.0;
+    data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = 1.0;
   }
 
   // mark range measurements as updated
@@ -122,8 +122,8 @@ void Problem::fillRelPoseSubmatrices() {
               translation_offset;
     int id2 = getTranslationIdxInExplicitDataMatrix(rpm.second_id) -
               translation_offset;
-    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = 1.0;
-    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = -1.0;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
     // fill in translation data matrix where the id1-th (1xdim_) block is -rpm.t
     // and all other blocks are 0
@@ -292,7 +292,7 @@ void Problem::printProblem() const {
 }
 
 SparseMatrix Problem::getDataMatrix() {
-  if (data_matrix_.nonZeros() == 0) {
+  if (data_matrix_.nonZeros() == 0 || !data_matrix_up_to_date_) {
     constructDataMatrix();
   }
   return data_matrix_;
@@ -380,13 +380,13 @@ void Problem::constructDataMatrix() {
 
   // Q11, Q13, Q22, Q23, Q33
   addTriplets(Q11, 0, 0);
-  addTriplets(Q13, 0, dn);
+  addTriplets(Q13, 0, dn + r);
   addTriplets(Q22, dn, dn);
   addTriplets(Q23, dn, dn + r);
   addTriplets(Q33, dn + r, dn + r);
 
   // also add Q13 and Q23 transposed to the triplets
-  addTriplets(Q13.transpose(), dn, 0);
+  addTriplets(Q13.transpose(), dn + r, 0);
   addTriplets(Q23.transpose(), dn + r, dn);
 
   // construct the data matrix
