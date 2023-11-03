@@ -29,7 +29,7 @@ public:
   /// CONSTRUCTORS AND MUTATORS
 
   // Default constructor -- sets all dimensions to 0
-  ObliqueManifold() {}
+  ObliqueManifold() = default;
 
   ObliqueManifold(size_t r, size_t n) : r_(r), n_(n) {}
 

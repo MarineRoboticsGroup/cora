@@ -31,7 +31,7 @@ public:
   /// CONSTRUCTORS AND MUTATORS
 
   // Default constructor -- sets all dimensions to 0
-  StiefelProduct() {}
+  StiefelProduct() = default;
 
   StiefelProduct(size_t k, size_t p, size_t n) : k_(k), p_(p), n_(n) {}
 
@@ -40,9 +40,9 @@ public:
   void set_n(size_t n) { n_ = n; }
 
   /// ACCESSORS
-  unsigned int get_k() const { return k_; }
-  unsigned int get_p() const { return p_; }
-  unsigned int get_n() const { return n_; }
+  size_t get_k() const { return k_; }
+  size_t get_p() const { return p_; }
+  size_t get_n() const { return n_; }
 
   /// GEOMETRY
 

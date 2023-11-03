@@ -13,14 +13,15 @@ Matrix StiefelProduct::project(const Matrix &A) const {
 
   Matrix P(p_, k_ * n_);
 
-#pragma omp parallel for
-  for (size_t i = 0; i < n_; ++i) {
+#pragma omp parallel for default(none) shared(A, P, Eigen::Dynamic)
+  for (auto i = 0; i < n_; ++i) {
+    auto start_col = static_cast<Index>(i * k_);
     // Compute the (thin) SVD of the ith block of A
-    Eigen::JacobiSVD<Matrix> SVD(A.block(0, i * k_, p_, k_),
+    Eigen::JacobiSVD<Matrix> SVD(A.block(0, start_col, p_, k_),
                                  Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     // Set the ith block of P to the SVD-based projection of the ith block of A
-    P.block(0, i * k_, p_, k_) = SVD.matrixU() * SVD.matrixV().transpose();
+    P.block(0, start_col, p_, k_) = SVD.matrixU() * SVD.matrixV().transpose();
   }
   return P;
 }
@@ -30,15 +31,16 @@ Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &B,
   // Preallocate result matrix
   Matrix R(p_, k_ * n_);
 
-#pragma omp parallel for
-  for (size_t i = 0; i < n_; ++i) {
+#pragma omp parallel for default(none) shared(A, B, C, R, Eigen::Dynamic)
+  for (auto i = 0; i < n_; ++i) {
+    auto start_col = static_cast<Index>(i * k_);
     // Compute block product Bi' * Ci
-    Matrix P =
-        B.block(0, i * k_, p_, k_).transpose() * C.block(0, i * k_, p_, k_);
+    Matrix P = B.block(0, start_col, p_, k_).transpose() *
+               C.block(0, start_col, p_, k_);
     // Symmetrize this block
     Matrix S = .5 * (P + P.transpose());
     // Compute Ai * S and set corresponding block of R
-    R.block(0, i * k_, p_, k_) = A.block(0, i * k_, p_, k_) * S;
+    R.block(0, start_col, p_, k_) = A.block(0, start_col, p_, k_) * S;
   }
   return R;
 }
@@ -60,7 +62,7 @@ Matrix StiefelProduct::random_sample(
   Matrix R(p_, k_ * n_);
   for (size_t r = 0; r < p_; ++r)
     for (size_t c = 0; c < k_ * n_; ++c)
-      R(r, c) = g(generator);
+      R(static_cast<Index>(r), static_cast<Index>(c)) = g(generator);
   return project(R);
 }
 } // namespace CORA
