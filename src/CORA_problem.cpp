@@ -56,6 +56,7 @@ void Problem::addPosePrior(const PosePrior &pose_prior) {
     throw std::invalid_argument("Pose prior already exists");
   }
   pose_priors_.push_back(pose_prior);
+  set_rel_pose_submatrices_up_to_date(false);
 }
 
 void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
@@ -64,6 +65,7 @@ void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
     throw std::invalid_argument("Landmark prior already exists");
   }
   landmark_priors_.push_back(landmark_prior);
+  set_rel_pose_submatrices_up_to_date(false);
 }
 
 void Problem::fillRangeSubmatrices() {
