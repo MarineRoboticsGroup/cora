@@ -160,6 +160,14 @@ public:
 
   void printProblem() const;
 
+  // function to get read-only references to the data submatrices
+  const CoraDataSubmatrices &getDataSubmatrices() {
+    if (!data_matrix_up_to_date_) {
+      constructDataMatrix();
+    }
+    return data_submatrices_;
+  }
+
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
