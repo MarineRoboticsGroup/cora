@@ -16,7 +16,7 @@ TEST_CASE("Loading PyFg", "[ParsePyFG::small_ra_slam_problem]") {
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
   std::string err_msg = checkSubmatricesAreCorrect(problem, data_subdir);
-  REQUIRE(err_msg == "");
+  REQUIRE(err_msg.empty());
 }
 
 TEST_CASE("Loading PyFg", "[ParsePyFG::single_range]") {
@@ -24,7 +24,7 @@ TEST_CASE("Loading PyFg", "[ParsePyFG::single_range]") {
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
   std::string err_msg = checkSubmatricesAreCorrect(problem, data_subdir);
-  REQUIRE(err_msg == "");
+  REQUIRE(err_msg.empty());
 }
 
 TEST_CASE("Loading PyFg", "[ParsePyFG::single_rpm]") {
@@ -32,7 +32,7 @@ TEST_CASE("Loading PyFg", "[ParsePyFG::single_rpm]") {
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
   std::string err_msg = checkSubmatricesAreCorrect(problem, data_subdir);
-  REQUIRE(err_msg == "");
+  REQUIRE(err_msg.empty());
 }
 
 } // namespace CORA

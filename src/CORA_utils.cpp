@@ -9,7 +9,7 @@
 
 CORA::SparseMatrix CORA::readMatrixMarketFile(const std::string &filename) {
   CORA::SparseMatrix A;
-  bool is_symmetric = false;
+  bool is_symmetric;
   // read the first line of the file to see if it is symmetric
   std::ifstream file(filename);
 
@@ -49,8 +49,8 @@ void CORA::printMatrixSparsityPattern(const Matrix &matrix) {
   // make sure that vertical spacing is the same as horizontal spacing
   std::cout << "Matrix sparsity pattern: " << std::endl;
 
-  int rows = matrix.rows();
-  int cols = matrix.cols();
+  auto rows = matrix.rows();
+  auto cols = matrix.cols();
 
   // Calculate the maximum width needed for any matrix element to ensure
   // consistent spacing
@@ -80,7 +80,8 @@ void CORA::printMatrixSparsityPattern(const Matrix &matrix) {
   }
 }
 
-std::string CORA::getTestDataFpath(std::string data_subdir, std::string fname) {
+std::string CORA::getTestDataFpath(const std::string &data_subdir,
+                                   const std::string &fname) {
   std::string curr_path = std::filesystem::current_path();
   std::string filepath =
       std::filesystem::path(curr_path) / "./bin/data" / data_subdir / fname;
@@ -94,12 +95,12 @@ std::string CORA::getTestDataFpath(std::string data_subdir, std::string fname) {
 }
 
 std::string CORA::checkSubmatricesAreCorrect(CORA::Problem prob,
-                                             std::string data_subdir) {
+                                             const std::string &data_subdir) {
   CORA::CoraDataSubmatrices data_submatrices = prob.getDataSubmatrices();
 
-  std::string error_msg = "";
+  std::string error_msg;
 
-  // map from file name to the submatrix
+  // map from file name to the sub matrix
   std::map<std::string, SparseMatrix> submatrices = {
       {"Arange.mm", data_submatrices.range_incidence_matrix},
       {"OmegaRange.mm", data_submatrices.range_precision_matrix},

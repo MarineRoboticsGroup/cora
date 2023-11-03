@@ -12,7 +12,6 @@
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_utils.h>
 
-#include <filesystem>
 #include <string>
 
 #include <catch2/catch_test_macros.hpp>
@@ -39,7 +38,7 @@ TEST_CASE("constructing single-odometry data matrix",
 
   SECTION("Matrices are correct") {
     std::string err_msg = checkSubmatricesAreCorrect(problem, "single_rpm");
-    REQUIRE(err_msg == "");
+    REQUIRE(err_msg.empty());
   }
 
   SECTION("GT values are in null space") {
@@ -69,7 +68,7 @@ TEST_CASE("constructing single-odometry data matrix",
     // matrix
     Matrix A(dim, dim);
     Eigen::JacobiSVD<Matrix> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    Matrix random_ortho = svd.matrixU();
+    const Matrix &random_ortho = svd.matrixU();
 
     mat_prod = data_matrix * (expected_state_vals * random_ortho);
     REQUIRE(mat_prod.norm() < 1e-12);
@@ -96,7 +95,7 @@ TEST_CASE("constructing single-range data matrix",
    */
   SECTION("Matrices are correct") {
     std::string err_msg = checkSubmatricesAreCorrect(problem, "single_range");
-    REQUIRE(err_msg == "");
+    REQUIRE(err_msg.empty());
   }
 
   /**

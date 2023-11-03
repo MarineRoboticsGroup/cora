@@ -8,22 +8,12 @@
 #include <catch2/generators/catch_generators_adapters.hpp>
 #include <catch2/generators/catch_generators_random.hpp>
 
-uint32_t factorial(uint32_t number) {
-  return number <= 1 ? number : factorial(number - 1) * number;
-}
 std::uniform_real_distribution<double> unif(0.1, 1.0);
 std::default_random_engine re;
 
 double get_random_double() {
   double a_random_double = unif(re);
   return a_random_double;
-}
-
-TEST_CASE("Factorials are computed", "[factorial]") {
-  REQUIRE(factorial(1) == 1);
-  REQUIRE(factorial(2) == 2);
-  REQUIRE(factorial(3) == 6);
-  REQUIRE(factorial(10) == 3'628'800);
 }
 
 /**
@@ -57,7 +47,7 @@ TEST_CASE("Single Cholesky solves work okay for fixed matrix", "[cholesky]") {
   A.makeCompressed();
 
   // factorize the matrix
-  CORA::Vector block_sizes(1);
+  CORA::VectorXi block_sizes(1);
   block_sizes << block_size;
   CORA::CholFactorPtrVector block_cholesky_factors =
       CORA::getBlockCholeskyFactorization(A, block_sizes);
@@ -115,7 +105,7 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
   }
 
   // factorize the matrix
-  CORA::Vector block_sizes(1);
+  CORA::VectorXi block_sizes(1);
   block_sizes << block_size;
   CORA::CholFactorPtrVector block_cholesky_factors =
       CORA::getBlockCholeskyFactorization(A, block_sizes);
@@ -178,7 +168,7 @@ TEST_CASE("Block Cholesky solves work okay for fixed matrix",
   A.makeCompressed();
 
   // set the block sizes
-  CORA::Vector block_sizes(2);
+  CORA::VectorXi block_sizes(2);
   block_sizes << 3, 3;
 
   // factorize the matrix
