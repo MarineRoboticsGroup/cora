@@ -104,7 +104,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
       // The GT pose is encoded but we ignore it
       if (iss >> timestamp >> sym1) {
         Symbol sym(sym1);
-        //        problem.addPoseVariable(sym);
+        problem.addPoseVariable(sym);
       } else {
         throw std::runtime_error("Could not read pose variable from line " +
                                  line);
@@ -118,7 +118,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         auto cov = readSymmetric(iss, 3);
         Symbol sym(sym1);
         PosePrior pose_prior{sym, R, xy, cov};
-        //        problem.addPosePrior(pose_prior);
+        problem.addPosePrior(pose_prior);
       } else {
         throw std::runtime_error("Could not read pose prior from line " + line);
       }
@@ -131,7 +131,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         auto cov = readSymmetric(iss, 6);
         Symbol sym(sym1);
         PosePrior pose_prior{sym, R, xyz, cov};
-        //        problem.addPosePrior(pose_prior);
+        problem.addPosePrior(pose_prior);
       } else {
         throw std::runtime_error("Could not read pose prior from line " + line);
       }
@@ -143,7 +143,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
       // timestamp in its text format
       if (iss >> sym1) {
         Symbol sym(sym1);
-        //        problem.addLandmarkVariable(sym);
+        problem.addLandmarkVariable(sym);
       } else {
         throw std::runtime_error("Could not read landmark variable from line " +
                                  line);
@@ -156,7 +156,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         auto cov = readSymmetric(iss, 2);
         Symbol sym(sym1);
         LandmarkPrior landmark_prior{sym, xy, cov};
-        //        problem.addLandmarkPrior(landmark_prior);
+        problem.addLandmarkPrior(landmark_prior);
       } else {
         throw std::runtime_error("Could not read landmark prior from line " +
                                  line);
@@ -169,7 +169,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         auto cov = readSymmetric(iss, 3);
         Symbol sym(sym1);
         LandmarkPrior landmark_prior{sym, xyz, cov};
-        //        problem.addLandmarkPrior(landmark_prior);
+        problem.addLandmarkPrior(landmark_prior);
       } else {
         throw std::runtime_error("Could not read landmark prior from line " +
                                  line);
@@ -184,7 +184,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         Symbol sym_a(sym1);
         Symbol sym_b(sym2);
         RelativePoseMeasurement rel_pose{sym_a, sym_b, R, xy, cov};
-        //        problem.addRelativePoseMeasurement(rel_pose);
+        problem.addRelativePoseMeasurement(rel_pose);
       } else {
         throw std::runtime_error(
             "Could not read relative pose measurement from line " + line);
@@ -199,7 +199,7 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         Symbol sym_a(sym1);
         Symbol sym_b(sym2);
         RelativePoseMeasurement rel_pose{sym_a, sym_b, R, xyz, cov};
-        //        problem.addRelativePoseMeasurement(rel_pose);
+        problem.addRelativePoseMeasurement(rel_pose);
       } else {
         throw std::runtime_error(
             "Could not read relative pose measurement from line " + line);
@@ -218,13 +218,13 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
         Symbol sym_a(sym1);
         Symbol sym_b(sym2);
         RangeMeasurement range_measurement{sym_a, sym_b, range, cov};
-        //        problem.addRangeMeasurement(range_measurement);
+        problem.addRangeMeasurement(range_measurement);
       } else {
         throw std::runtime_error("Could not read range measurement from line " +
                                  line);
       }
       break;
-    };
+    }
   }
   in_file.close();
   return problem;

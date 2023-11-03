@@ -67,20 +67,64 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
 }
 
 Matrix blockCholeskySolve(CholFactorPtrVector block_chol_factor_ptrs,
-                          int chol_size, const Matrix &rhs) {
-  Matrix result(chol_size, rhs.cols());
+                          const Matrix &rhs) {
+  // sum # rows of each block
+  int num_result_rows = 0;
+  for (int block_idx = 0; block_idx < block_chol_factor_ptrs.size();
+       block_idx++) {
+    num_result_rows += block_chol_factor_ptrs[block_idx]->rows();
+  }
+
+  // check that the number of rows of the result is the same as the number of
+  // rows of the input vector
+  if (num_result_rows != rhs.rows()) {
+    throw std::invalid_argument(
+        "The number of rows of the result must be the same as the number of "
+        "rows of the input vector for the CORA block Cholesky "
+        "preconditioner");
+  }
+
+  Matrix result(num_result_rows, rhs.cols());
   int block_start = 0;
   for (int block_idx = 0; block_idx < block_chol_factor_ptrs.size();
        block_idx++) {
+    // perform the solves in a block-wise ordering
     int block_size = block_chol_factor_ptrs[block_idx]->rows();
-
-    // print out the block Cholesky factor
     result.block(block_start, 0, block_size, rhs.cols()) =
         block_chol_factor_ptrs[block_idx]->solve(
             rhs.block(block_start, 0, block_size, rhs.cols()));
     block_start += block_size;
   }
+
   return result;
 }
+
+Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) {
+  throw NotImplementedException();
+  return Ydot - Y * Y.transpose() * Ydot;
+}
+
+class CoraPreconditioner {
+public:
+  CholFactorPtrVector block_chol_factor_ptrs_;
+  Formulation formulation_;
+  CoraPreconditioner(const SparseMatrix &A, const Vector &block_sizes,
+                     Formulation formulation)
+      : block_chol_factor_ptrs_(getBlockCholeskyFactorization(A, block_sizes)),
+        formulation_(formulation) {
+    if (formulation_ == Formulation::Implicit) {
+      throw std::invalid_argument("The implicit formulation is not currently "
+                                  "supported by the CORA preconditioner");
+    }
+  }
+
+  Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>
+  getPreconditioner() {
+    return [this](const Matrix &Y, const Matrix &Ydot, const Matrix &NablaF_Y) {
+      return tangent_space_projection(
+          Y, blockCholeskySolve(this->block_chol_factor_ptrs_, Ydot));
+    };
+  }
+};
 
 } // namespace CORA
