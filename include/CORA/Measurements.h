@@ -18,10 +18,35 @@
 
 namespace CORA {
 
-struct RelativePoseMeasurement {
+struct Measurement {
+  Symbol id;
+
+  explicit Measurement(const Symbol &id) : id(id) {}
+  bool operator==(const Measurement &other) const { return id == other.id; }
+};
+
+struct PairMeasurement {
   Symbol first_id;
   Symbol second_id;
 
+  PairMeasurement(const Symbol &first_id, const Symbol &second_id)
+      : first_id(first_id), second_id(second_id) {}
+
+  SymbolPair getSymbolPair() const {
+    return std::make_pair(first_id, second_id);
+  }
+
+  bool hasSymbolPair(const SymbolPair &pair) const {
+    return (first_id == pair.first && second_id == pair.second) ||
+           (first_id == pair.second && second_id == pair.first);
+  }
+
+  bool operator==(const PairMeasurement &other) const {
+    return hasSymbolPair(other.getSymbolPair());
+  }
+};
+
+struct RelativePoseMeasurement : PairMeasurement {
   /** Rotational measurement */
   Matrix R;
 
@@ -34,8 +59,7 @@ struct RelativePoseMeasurement {
   RelativePoseMeasurement(const Symbol &first_id, const Symbol &second_id,
                           Matrix R_measurement, Vector t_measurement,
                           Matrix cov)
-      : first_id(first_id),
-        second_id(second_id),
+      : PairMeasurement(first_id, second_id),
         R(std::move(R_measurement)),
         t(std::move(t_measurement)),
         cov(std::move(cov)) {}
@@ -71,14 +95,11 @@ struct RelativePoseMeasurement {
    */
   Scalar getTransPrecision() const {
     size_t dim = t.size();
-    return dim / (cov.block(0, 0, dim, dim).trace());
+    return static_cast<double>(dim) / (cov.block(0, 0, dim, dim).trace());
   }
 };
 
-struct RangeMeasurement {
-  Symbol first_id;
-  Symbol second_id;
-
+struct RangeMeasurement : PairMeasurement {
   /** Range measurement */
   Scalar r;
 
@@ -87,26 +108,29 @@ struct RangeMeasurement {
 
   RangeMeasurement(const Symbol &first_id, const Symbol &second_id,
                    Scalar r_measurement, Scalar cov)
-      : first_id(first_id), second_id(second_id), r(r_measurement), cov(cov) {}
-
-  std::pair<Symbol, Symbol> getSymbolPair() const {
-    return std::make_pair(first_id, second_id);
-  }
+      : PairMeasurement(first_id, second_id), r(r_measurement), cov(cov) {}
 
   Scalar getPrecision() const { return 1.0 / cov; }
 };
 
-struct PosePrior {
-  Symbol id;
+struct PosePrior : Measurement {
   Matrix R;
   Vector t;
   Matrix cov;
+
+  PosePrior(const Symbol &id, Matrix R, Vector t, Matrix cov)
+      : Measurement(id),
+        R(std::move(R)),
+        t(std::move(t)),
+        cov(std::move(cov)) {}
 };
 
-struct LandmarkPrior {
-  Symbol id;
+struct LandmarkPrior : Measurement {
   Vector p;
   Matrix cov;
+
+  LandmarkPrior(const Symbol &id, Vector p, Matrix cov)
+      : Measurement(id), p(std::move(p)), cov(std::move(cov)) {}
 };
 
 typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_measurements_t;

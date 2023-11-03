@@ -38,27 +38,23 @@ struct CoraDataSubmatrices {
   SparseMatrix pose_prior_precision_matrix;
   SparseMatrix landmark_prior_precision_matrix;
 
-  CoraDataSubmatrices() {}
+  CoraDataSubmatrices() = default;
 };
 
 class Problem {
 private:
   /** dimension of the pose and landmark variables e.g., SO(dim_) */
-  const size_t dim_;
+  const int64_t dim_;
 
   /** rank of the relaxation e.g., the latent embedding space of Stiefel
    * manifold */
-  size_t relaxation_rank_;
+  const int64_t relaxation_rank_;
 
   // maps from pose symbol to pose index (e.g., x1 -> 0, x2 -> 1, etc.)
   std::map<Symbol, int> pose_symbol_idxs_;
 
   // maps from landmark symbol to landmark index (e.g., l1 -> 0, l2 -> 1, etc.)
   std::map<Symbol, int> landmark_symbol_idxs_;
-
-  /** maps from range measurement symbol pair to range measurement index
-   * (e.g., r1 -> 0, r2 -> 1, etc.) */
-  std::map<SymbolPair, int> range_measurement_symbol_idxs_;
 
   // the range measurements that are used to construct the problem
   std::vector<RangeMeasurement> range_measurements_;
@@ -123,12 +119,13 @@ private:
   DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
                                 const Matrices &...matrices);
 
-  size_t getRotationIdx(Symbol pose_symbol) const;
-  size_t getRangeIdxInExplicitDataMatrix(SymbolPair range_symbol_pair) const;
-  size_t getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const;
+  Index getRotationIdx(const Symbol &pose_symbol) const;
+  Index
+  getRangeIdxInExplicitDataMatrix(const SymbolPair &range_symbol_pair) const;
+  Index getTranslationIdxInExplicitDataMatrix(const Symbol &trans_symbol) const;
 
 public:
-  Problem(size_t dim, size_t relaxation_rank,
+  Problem(int64_t dim, int64_t relaxation_rank,
           Formulation formulation = Formulation::Explicit)
       : dim_(dim),
         relaxation_rank_(relaxation_rank),
@@ -137,26 +134,27 @@ public:
     assert(relaxation_rank >= dim);
   }
 
-  ~Problem() {}
+  ~Problem() = default;
 
-  void addPoseVariable(Symbol pose_id);
+  void addPoseVariable(const Symbol &pose_id);
   void addPoseVariable(std::string pose_id) {
-    addPoseVariable(Symbol(pose_id));
+    addPoseVariable(Symbol(std::move(pose_id)));
   }
   void addPoseVariable(Key pose_key) { addPoseVariable(Symbol(pose_key)); }
 
-  void addLandmarkVariable(Symbol landmark_id);
+  void addLandmarkVariable(const Symbol &landmark_id);
   void addLandmarkVariable(std::string landmark_id) {
-    addLandmarkVariable(Symbol(landmark_id));
+    addLandmarkVariable(Symbol(std::move(landmark_id)));
   }
   void addLandmarkVariable(Key landmark_key) {
     addLandmarkVariable(Symbol(landmark_key));
   }
 
-  void addRangeMeasurement(RangeMeasurement range_measurement);
-  void addRelativePoseMeasurement(RelativePoseMeasurement rel_pose_measure);
-  void addPosePrior(PosePrior pose_prior);
-  void addLandmarkPrior(LandmarkPrior landmark_prior);
+  void addRangeMeasurement(const RangeMeasurement &range_measurement);
+  void
+  addRelativePoseMeasurement(const RelativePoseMeasurement &rel_pose_measure);
+  void addPosePrior(const PosePrior &pose_prior);
+  void addLandmarkPrior(const LandmarkPrior &landmark_prior);
 
   void printProblem() const;
 
@@ -210,9 +208,7 @@ public:
 
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
-  size_t numRangeMeasurements() const {
-    return range_measurement_symbol_idxs_.size();
-  }
+  size_t numRangeMeasurements() const { return range_measurements_.size(); }
   size_t numTranslationalStates() const { return numPoses() + numLandmarks(); }
 }; // class Problem
 

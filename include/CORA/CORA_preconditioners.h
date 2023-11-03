@@ -38,7 +38,7 @@ using CholFactorPtrVector = std::vector<CholFactorPtr>;
  * @return Optimization::Riemannian::LinearOperator<Matrix, Matrix>
  */
 CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
-                                                  const Vector &block_sizes) {
+                                                  const VectorXi &block_sizes) {
   if (block_sizes.sum() != A.rows()) {
     throw std::invalid_argument("The block sizes must sum to A.rows() for the "
                                 "CORA block Cholesky preconditioner");
@@ -50,13 +50,10 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
   // the Cholesky decomposition.
   int block_start = 0;
   CholFactorPtrVector block_cholesky_factors;
-  for (int block_idx = 0; block_idx < block_sizes.size(); block_idx++) {
-    int block_size = block_sizes[block_idx];
-
+  for (int blockSize : block_sizes) {
     // extract the block from A
     SparseMatrix block =
-        A.block(block_start, block_start, block_sizes[block_idx],
-                block_sizes[block_idx]);
+        A.block(block_start, block_start, blockSize, blockSize);
 
     // compute the Cholesky decomposition of the block
     block_cholesky_factors.emplace_back(
@@ -66,13 +63,12 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
   return block_cholesky_factors;
 }
 
-Matrix blockCholeskySolve(CholFactorPtrVector block_chol_factor_ptrs,
+Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
                           const Matrix &rhs) {
   // sum # rows of each block
   int num_result_rows = 0;
-  for (int block_idx = 0; block_idx < block_chol_factor_ptrs.size();
-       block_idx++) {
-    num_result_rows += block_chol_factor_ptrs[block_idx]->rows();
+  for (auto &block_chol_factor_ptr : block_chol_factor_ptrs) {
+    num_result_rows += block_chol_factor_ptr->rows();
   }
 
   // check that the number of rows of the result is the same as the number of
@@ -86,12 +82,11 @@ Matrix blockCholeskySolve(CholFactorPtrVector block_chol_factor_ptrs,
 
   Matrix result(num_result_rows, rhs.cols());
   int block_start = 0;
-  for (int block_idx = 0; block_idx < block_chol_factor_ptrs.size();
-       block_idx++) {
+  for (auto &block_chol_factor_ptr : block_chol_factor_ptrs) {
     // perform the solves in a block-wise ordering
-    int block_size = block_chol_factor_ptrs[block_idx]->rows();
+    int block_size = block_chol_factor_ptr->rows();
     result.block(block_start, 0, block_size, rhs.cols()) =
-        block_chol_factor_ptrs[block_idx]->solve(
+        block_chol_factor_ptr->solve(
             rhs.block(block_start, 0, block_size, rhs.cols()));
     block_start += block_size;
   }
@@ -108,7 +103,7 @@ class CoraPreconditioner {
 public:
   CholFactorPtrVector block_chol_factor_ptrs_;
   Formulation formulation_;
-  CoraPreconditioner(const SparseMatrix &A, const Vector &block_sizes,
+  CoraPreconditioner(const SparseMatrix &A, const VectorXi &block_sizes,
                      Formulation formulation)
       : block_chol_factor_ptrs_(getBlockCholeskyFactorization(A, block_sizes)),
         formulation_(formulation) {

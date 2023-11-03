@@ -12,19 +12,26 @@
 #include <CORA/CORA_problem.h>
 
 namespace CORA {
-void Problem::addPoseVariable(Symbol pose_id) {
+void Problem::addPoseVariable(const Symbol &pose_id) {
+  if (pose_symbol_idxs_.find(pose_id) != pose_symbol_idxs_.end()) {
+    throw std::invalid_argument("Pose variable already exists");
+  }
   pose_symbol_idxs_.insert(std::make_pair(pose_id, pose_symbol_idxs_.size()));
 }
 
-void Problem::addLandmarkVariable(Symbol landmark_id) {
+void Problem::addLandmarkVariable(const Symbol &landmark_id) {
+  if (landmark_symbol_idxs_.find(landmark_id) != landmark_symbol_idxs_.end()) {
+    throw std::invalid_argument("Landmark variable already exists");
+  }
   landmark_symbol_idxs_.insert(
       std::make_pair(landmark_id, landmark_symbol_idxs_.size()));
 }
 
-void Problem::addRangeMeasurement(RangeMeasurement range_measurement) {
-  range_measurement_symbol_idxs_.insert(
-      std::make_pair(range_measurement.getSymbolPair(),
-                     range_measurement_symbol_idxs_.size()));
+void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
+  if (std::find(range_measurements_.begin(), range_measurements_.end(),
+                range_measurement) != range_measurements_.end()) {
+    throw std::invalid_argument("Range measurement already exists");
+  }
   range_measurements_.push_back(range_measurement);
 
   // mark range measurements as not up to date
@@ -32,18 +39,30 @@ void Problem::addRangeMeasurement(RangeMeasurement range_measurement) {
 }
 
 void Problem::addRelativePoseMeasurement(
-    RelativePoseMeasurement rel_pose_measure) {
+    const RelativePoseMeasurement &rel_pose_measure) {
+  if (std::find(rel_pose_measurements_.begin(), rel_pose_measurements_.end(),
+                rel_pose_measure) != rel_pose_measurements_.end()) {
+    throw std::invalid_argument("Relative pose measurement already exists");
+  }
   rel_pose_measurements_.push_back(rel_pose_measure);
 
   // mark relative pose measurements as not up to date
   set_rel_pose_submatrices_up_to_date(false);
 }
 
-void Problem::addPosePrior(PosePrior pose_prior) {
+void Problem::addPosePrior(const PosePrior &pose_prior) {
+  if (std::find(pose_priors_.begin(), pose_priors_.end(), pose_prior) !=
+      pose_priors_.end()) {
+    throw std::invalid_argument("Pose prior already exists");
+  }
   pose_priors_.push_back(pose_prior);
 }
 
-void Problem::addLandmarkPrior(LandmarkPrior landmark_prior) {
+void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
+  if (std::find(landmark_priors_.begin(), landmark_priors_.end(),
+                landmark_prior) != landmark_priors_.end()) {
+    throw std::invalid_argument("Landmark prior already exists");
+  }
   landmark_priors_.push_back(landmark_prior);
 }
 
@@ -53,8 +72,8 @@ void Problem::fillRangeSubmatrices() {
   // translations
   size_t translation_offset = numPoses() * dim_ + numRangeMeasurements();
 
-  size_t num_translations = numTranslationalStates();
-  size_t num_range_measurements = range_measurements_.size();
+  auto num_translations = static_cast<Index>(numTranslationalStates());
+  auto num_range_measurements = static_cast<Index>(range_measurements_.size());
 
   // initialize the submatrices to the correct sizes
   data_submatrices_.range_incidence_matrix =
@@ -76,12 +95,14 @@ void Problem::fillRangeSubmatrices() {
         measure.getPrecision();
 
     // update the incidence matrix
-    int id1 = getTranslationIdxInExplicitDataMatrix(measure.first_id) -
-              translation_offset;
-    int id2 = getTranslationIdxInExplicitDataMatrix(measure.second_id) -
-              translation_offset;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = -1.0;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = 1.0;
+    auto id1 = getTranslationIdxInExplicitDataMatrix(measure.first_id) -
+               translation_offset;
+    auto id2 = getTranslationIdxInExplicitDataMatrix(measure.second_id) -
+               translation_offset;
+    data_submatrices_.range_incidence_matrix.insert(
+        measure_idx, static_cast<Index>(id1)) = -1.0;
+    data_submatrices_.range_incidence_matrix.insert(
+        measure_idx, static_cast<Index>(id2)) = 1.0;
   }
 
   // mark range measurements as updated
@@ -90,21 +111,24 @@ void Problem::fillRangeSubmatrices() {
 
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
-
+  auto num_pose_measurements =
+      static_cast<Index>(rel_pose_measurements_.size());
+  auto num_translations = static_cast<Index>(numTranslationalStates());
   // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_incidence_matrix =
-      SparseMatrix(rel_pose_measurements_.size(), numTranslationalStates());
-  data_submatrices_.rel_pose_translation_data_matrix =
-      SparseMatrix(rel_pose_measurements_.size(), dim_ * numPoses());
-  data_submatrices_.rel_pose_translation_precision_matrix = SparseMatrix(
-      rel_pose_measurements_.size(), rel_pose_measurements_.size());
-  data_submatrices_.rel_pose_rotation_precision_matrix = SparseMatrix(
-      rel_pose_measurements_.size(), rel_pose_measurements_.size());
+      SparseMatrix(num_pose_measurements, num_translations);
+  data_submatrices_.rel_pose_translation_data_matrix = SparseMatrix(
+      num_pose_measurements, static_cast<Index>(dim_ * numPoses()));
+  data_submatrices_.rel_pose_translation_precision_matrix =
+      SparseMatrix(num_pose_measurements, num_pose_measurements);
+  data_submatrices_.rel_pose_rotation_precision_matrix =
+      SparseMatrix(num_pose_measurements, num_pose_measurements);
 
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
-  int translation_offset = numPoses() * dim_ + numRangeMeasurements();
+  auto translation_offset =
+      static_cast<Index>(numPoses() * dim_ + numRangeMeasurements());
 
   // for diagonal matrices, get the diagonal vector and set the values
   for (int measure_idx = 0; measure_idx < rel_pose_measurements_.size();
@@ -118,15 +142,15 @@ void Problem::fillRelPoseSubmatrices() {
         measure_idx, measure_idx) = rpm.getRotPrecision();
 
     // fill in incidence matrix
-    int id1 = getTranslationIdxInExplicitDataMatrix(rpm.first_id) -
-              translation_offset;
-    int id2 = getTranslationIdxInExplicitDataMatrix(rpm.second_id) -
-              translation_offset;
+    Index id1 = getTranslationIdxInExplicitDataMatrix(rpm.first_id) -
+                translation_offset;
+    Index id2 = getTranslationIdxInExplicitDataMatrix(rpm.second_id) -
+                translation_offset;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
-    // fill in translation data matrix where the id1-th (1xdim_) block is -rpm.t
-    // and all other blocks are 0
+    // fill in translation data matrix where the id1-th (1 x dim_) block is
+    // -rpm.t and all other blocks are 0
     for (int k = 0; k < dim_; k++) {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
@@ -138,7 +162,7 @@ void Problem::fillRelPoseSubmatrices() {
 }
 
 void Problem::fillRotConnLaplacian() {
-  size_t d = dim_;
+  auto d{dim_};
 
   // Each measurement contributes 2*d elements along the diagonal of the
   // connection Laplacian, and 2*d^2 elements on a pair of symmetric
@@ -165,21 +189,21 @@ void Problem::fillRotConnLaplacian() {
                             measurement.getRotPrecision());
 
     // Elements of ij block
-    for (size_t r = 0; r < d; r++)
-      for (size_t c = 0; c < d; c++)
+    for (Index r = 0; r < d; r++)
+      for (Index c = 0; c < d; c++)
         triplets.emplace_back(i * d + r, j * d + c,
                               -measurement.getRotPrecision() *
                                   measurement.R(r, c));
 
     // Elements of ji block
-    for (size_t r = 0; r < d; r++)
-      for (size_t c = 0; c < d; c++)
+    for (Index r = 0; r < d; r++)
+      for (Index c = 0; c < d; c++)
         triplets.emplace_back(j * d + r, i * d + c,
                               -measurement.getRotPrecision() *
                                   measurement.R(c, r));
   }
 
-  size_t num_poses = numPoses();
+  auto num_poses = static_cast<Index>(numPoses());
 
   // Construct and return a sparse matrix from these triplets
   data_submatrices_.rotation_conn_laplacian =
@@ -192,7 +216,7 @@ template <typename... Matrices>
 DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
                               const Matrices &...matrices) {
   // Check dimensions
-  const int numRows = first.rows();
+  const auto numRows = first.rows();
   auto checkDimensions = [numRows](const DiagonalMatrix &mat) {
     assert(mat.rows() == numRows);
   };
@@ -213,9 +237,8 @@ void Problem::printProblem() const {
   // print out all of the pose variables
   if (numPoses()) {
     std::cout << "Pose variables:" << std::endl;
-    for (auto pose_symbol_idx_pair : pose_symbol_idxs_) {
-      std::cout << pose_symbol_idx_pair.first.string() << " -> "
-                << pose_symbol_idx_pair.second << std::endl;
+    for (const auto &[pose_sym, pose_idx] : pose_symbol_idxs_) {
+      std::cout << pose_sym.string() << " -> " << pose_idx << std::endl;
     }
     std::cout << std::endl;
   } else {
@@ -225,9 +248,8 @@ void Problem::printProblem() const {
   // print out all of the landmark variables
   if (numLandmarks()) {
     std::cout << "\nLandmark variables:" << std::endl;
-    for (auto landmark_symbol_idx_pair : landmark_symbol_idxs_) {
-      std::cout << landmark_symbol_idx_pair.first.string() << " -> "
-                << landmark_symbol_idx_pair.second << std::endl;
+    for (const auto &[landmark_sym, landmark_idx] : landmark_symbol_idxs_) {
+      std::cout << landmark_sym.string() << " -> " << landmark_idx << std::endl;
     }
     std::cout << std::endl;
   } else {
@@ -237,7 +259,7 @@ void Problem::printProblem() const {
   // print out all of the range measurements
   if (numRangeMeasurements()) {
     std::cout << "\nRange measurements:" << std::endl;
-    for (auto range_measurement : range_measurements_) {
+    for (const auto &range_measurement : range_measurements_) {
       std::cout << range_measurement.first_id.string() << " -> "
                 << range_measurement.second_id.string() << " "
                 << range_measurement.r << " " << range_measurement.cov
@@ -249,7 +271,7 @@ void Problem::printProblem() const {
   }
 
   // print out all of the relative pose measurements
-  if (rel_pose_measurements_.size()) {
+  if (!rel_pose_measurements_.empty()) {
     std::cout << "\nRelative pose measurements:" << std::endl;
     for (auto rel_pose_measurement : rel_pose_measurements_) {
       std::cout << rel_pose_measurement.first_id.string() << " -> "
@@ -264,9 +286,9 @@ void Problem::printProblem() const {
   }
 
   // print out all of the pose priors
-  if (pose_priors_.size()) {
+  if (!pose_priors_.empty()) {
     std::cout << "\nPose priors:" << std::endl;
-    for (auto pose_prior : pose_priors_) {
+    for (const auto &pose_prior : pose_priors_) {
       std::cout << pose_prior.id.string() << std::endl;
       std::cout << pose_prior.R << std::endl;
       std::cout << pose_prior.t << std::endl;
@@ -278,9 +300,9 @@ void Problem::printProblem() const {
   }
 
   // print out all of the landmark priors
-  if (landmark_priors_.size()) {
+  if (!landmark_priors_.empty()) {
     std::cout << "\nLandmark priors:" << std::endl;
-    for (auto landmark_prior : landmark_priors_) {
+    for (const auto &landmark_prior : landmark_priors_) {
       std::cout << landmark_prior.id.string() << std::endl;
       std::cout << landmark_prior.p << std::endl;
       std::cout << landmark_prior.cov << std::endl;
@@ -307,7 +329,7 @@ void Problem::constructDataMatrix() {
     fillRelPoseSubmatrices();
   }
 
-  size_t data_matrix_size = getDataMatrixSize();
+  auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
 
   size_t n = numPoses();
@@ -316,7 +338,7 @@ void Problem::constructDataMatrix() {
   size_t l = numLandmarks();
 
   /**
-   * @brief From here we form the subblocks of the data matrix Q
+   * @brief From here we form the sub blocks of the data matrix Q
    * and then assemble them into the full data matrix by adding the
    * triplets together.
    */
@@ -407,7 +429,7 @@ size_t Problem::getDataMatrixSize() const {
   }
 }
 
-size_t Problem::getRotationIdx(Symbol pose_symbol) const {
+Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
   auto rotation_search_it = pose_symbol_idxs_.find(pose_symbol);
   if (rotation_search_it != pose_symbol_idxs_.end()) {
     return rotation_search_it->second;
@@ -417,24 +439,31 @@ size_t Problem::getRotationIdx(Symbol pose_symbol) const {
   throw std::invalid_argument("Unknown pose symbol");
 }
 
-size_t
-Problem::getRangeIdxInExplicitDataMatrix(SymbolPair range_symbol_pair) const {
+Index Problem::getRangeIdxInExplicitDataMatrix(
+    const SymbolPair &range_symbol_pair) const {
   // all range measurements come after the rotations
-  size_t rot_offset = numPoses() * dim_;
+  auto rot_offset = static_cast<Index>(numPoses() * dim_);
 
   // search for the range symbol
-  auto range_search_it = range_measurement_symbol_idxs_.find(range_symbol_pair);
+  auto range_search_it = std::find_if(
+      range_measurements_.begin(), range_measurements_.end(),
+      [&range_symbol_pair](const RangeMeasurement &rangeMeasurement) {
+        return rangeMeasurement.hasSymbolPair(range_symbol_pair);
+      });
 
-  if (range_search_it != range_measurement_symbol_idxs_.end()) {
-    return range_search_it->second + rot_offset;
+  // if we found the range symbol, return the index of the symbol in
+  // range_measurements_ plus the offset
+  if (range_search_it != range_measurements_.end()) {
+    return std::distance(range_measurements_.begin(), range_search_it) +
+           rot_offset;
   }
 
   // if we get here, we didn't find the range symbol
   throw std::invalid_argument("Unknown range symbol");
 }
 
-size_t
-Problem::getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const {
+Index Problem::getTranslationIdxInExplicitDataMatrix(
+    const Symbol &trans_symbol) const {
   // all translations come after the rotations and range measurement variables
   // (unit spheres) so we need to offset by the dimension of the rotations and
   // the number of range measurements
@@ -443,7 +472,7 @@ Problem::getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const {
   // is a pose translation
   auto pose_search_it = pose_symbol_idxs_.find(trans_symbol);
   if (pose_search_it != pose_symbol_idxs_.end()) {
-    return pose_search_it->second + idx_offset;
+    return static_cast<Index>(pose_search_it->second + idx_offset);
   }
 
   // is a landmark translation
@@ -451,10 +480,11 @@ Problem::getTranslationIdxInExplicitDataMatrix(Symbol trans_symbol) const {
   if (landmark_search_it != landmark_symbol_idxs_.end()) {
     // need to offset by the number of poses because the landmark variables
     // come after the pose translations
-    return landmark_search_it->second + idx_offset + numPoses();
+    return static_cast<Index>(landmark_search_it->second + idx_offset +
+                              numPoses());
   }
 
   // if we get here, we didn't find the translation symbol
   throw std::invalid_argument("Unknown translation symbol");
 }
-}; // namespace CORA
+} // namespace CORA

@@ -20,6 +20,8 @@ namespace CORA {
 
 typedef double Scalar;
 
+typedef Eigen::VectorXi VectorXi;
+typedef Eigen::Index Index;
 typedef Eigen::VectorXd Vector;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::DiagonalMatrix<Scalar, Eigen::Dynamic> DiagonalMatrix;
