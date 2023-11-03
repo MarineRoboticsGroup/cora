@@ -123,17 +123,24 @@ set(CORA_INCLUDES ${CORA_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIR} ${SPQR_INCLUDES} CAC
 set(CORA_HDRS
 ${CORA_HDR_DIR}/CORA.h
 ${CORA_HDR_DIR}/CORA_types.h
+${CORA_HDR_DIR}/CORA_utils.h
 ${CORA_HDR_DIR}/CORA_problem.h
 ${CORA_HDR_DIR}/CORA_preconditioners.h
 ${CORA_HDR_DIR}/Symbol.h
 ${CORA_HDR_DIR}/Measurements.h
 ${CORA_HDR_DIR}/pyfg_text_parser.h
+${CORA_HDR_DIR}/StiefelProduct.h
+${CORA_HDR_DIR}/ObliqueManifold.h
 )
 
 set(CORA_SRCS
 ${CORA_SOURCE_DIR}/CORA.cpp
 ${CORA_SOURCE_DIR}/CORA_problem.cpp
+${CORA_SOURCE_DIR}/CORA_utils.cpp
 ${CORA_SOURCE_DIR}/Symbol.cpp
+${CORA_SOURCE_DIR}/pyfg_text_parser.cpp
+${CORA_SOURCE_DIR}/StiefelProduct.cpp
+${CORA_SOURCE_DIR}/ObliqueManifold.cpp
 )
 
 # The CORA library

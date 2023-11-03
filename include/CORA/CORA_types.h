@@ -20,9 +20,18 @@ namespace CORA {
 
 typedef double Scalar;
 
+typedef Eigen::VectorXi VectorXi;
+typedef Eigen::Index Index;
 typedef Eigen::VectorXd Vector;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::DiagonalMatrix<Scalar, Eigen::Dynamic> DiagonalMatrix;
+
+enum class Formulation {
+  // The CORA problem in which translations are explicitly represented
+  Explicit,
+  // The SE-Sync problem in which translations are marginalized out
+  Implicit
+};
 
 /** Per SE-Sync:
  * We use row-major storage order to take advantage of fast (sparse-matrix) *

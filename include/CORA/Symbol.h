@@ -12,6 +12,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 namespace CORA {
 
@@ -32,7 +33,9 @@ public:
   /// Conversion operators
   operator Key() const { return key(); }
   Key key() const;
-  operator std::string() const;
+  operator std::string() const {
+    return std::string(1, c_) + std::to_string(j_);
+  }
   std::string string() const { return std::string(*this); }
 
   ///  Comparison operators
@@ -48,6 +51,7 @@ public:
   bool operator<(const Key &other) const { return key() < other; }
 };
 
+using SymbolPair = std::pair<Symbol, Symbol>;
 inline uint64_t symIndex(Key key) { return Symbol(key).index(); }
 inline unsigned char symChar(Key key) { return Symbol(key).chr(); }
 inline Key symbol(unsigned char c, uint64_t j) { return Symbol(c, j).key(); }

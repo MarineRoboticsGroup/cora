@@ -1,6 +1,9 @@
 # VS Code
 .vscode
 
+# Intellij
+.idea
+
 # build directory
 build
 
