@@ -1,5 +1,5 @@
 # Build and run:
-#   docker build -t clion/ubuntu/cpp-env:1.0 -f Dockerfile.cpp-env-ubuntu .
+#   docker build --build-arg UID=$(id -u) -t clion/ubuntu/cpp-env:1.0 -f Dockerfile.cpp-env-ubuntu .
 
 FROM ubuntu:22.04
 
@@ -30,3 +30,10 @@ RUN apt-get update \
       libblas-dev \
       libsuitesparse-dev \
   && apt-get clean
+
+# Workaround for permission issue
+# https://www.jetbrains.com/help/clion/clion-toolchains-in-docker.html#sample-dockerfile
+
+ARG UID=1000
+RUN useradd -m -u ${UID} -s /bin/bash builder
+USER builder
