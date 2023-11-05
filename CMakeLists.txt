@@ -137,6 +137,7 @@ set(CORA_SRCS
 ${CORA_SOURCE_DIR}/CORA.cpp
 ${CORA_SOURCE_DIR}/CORA_problem.cpp
 ${CORA_SOURCE_DIR}/CORA_utils.cpp
+${CORA_SOURCE_DIR}/CORA_preconditioners.cpp
 ${CORA_SOURCE_DIR}/Symbol.cpp
 ${CORA_SOURCE_DIR}/pyfg_text_parser.cpp
 ${CORA_SOURCE_DIR}/StiefelProduct.cpp
