@@ -19,4 +19,5 @@ Matrix solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
   return solveCORA(problem);
 }
+
 } // namespace CORA
