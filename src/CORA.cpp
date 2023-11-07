@@ -45,7 +45,10 @@ Matrix solveCORA(const Problem &problem, const Matrix &x0) {
   // get preconditioner from problem
   std::optional<
       Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>>
-      precon;
+      precon = [&problem](const Matrix &Y, const Matrix &Ydot,
+                          const Matrix &NablaF_Y) {
+        return problem.tangent_space_projection(Y, problem.precondition(Ydot));
+      };
 
   // default TNT parameters
   Optimization::Riemannian::TNTParams<Scalar> params;

@@ -138,10 +138,6 @@ private:
   getRangeIdxInExplicitDataMatrix(const SymbolPair &range_symbol_pair) const;
   Index getTranslationIdxInExplicitDataMatrix(const Symbol &trans_symbol) const;
 
-  Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
-
-  Matrix precondition(const Matrix &V) const;
-
 public:
   Problem(int64_t dim, int64_t relaxation_rank,
           Formulation formulation = Formulation::Explicit)
@@ -234,6 +230,8 @@ public:
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
   Matrix Riemannian_gradient(const Matrix &Y) const;
+  Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
+  Matrix precondition(const Matrix &V) const;
 }; // class Problem
 
 } // namespace CORA

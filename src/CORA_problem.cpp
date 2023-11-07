@@ -445,7 +445,6 @@ Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
 
 Matrix Problem::tangent_space_projection(const Matrix &Y,
                                          const Matrix &Ydot) const {
-  throw NotImplementedException();
   return Ydot - Y * Y.transpose() * Ydot;
 }
 
