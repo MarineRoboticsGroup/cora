@@ -78,17 +78,6 @@ private:
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
 
-  // a flag to check if range data has been modified since last call to
-  // fillRangeSubmatrices()
-  bool range_submatrices_up_to_date_ = false;
-
-  void set_range_submatrices_up_to_date(bool up_to_date) {
-    range_submatrices_up_to_date_ = up_to_date;
-    if (!up_to_date) {
-      data_matrix_up_to_date_ = false;
-    }
-  }
-
   // a flag to check if any data has been modified since last call to
   // constructDataMatrix()
   bool data_matrix_up_to_date_ = false;
