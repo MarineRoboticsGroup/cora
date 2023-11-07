@@ -105,10 +105,6 @@ private:
   // called from fillRelPoseSubmatrices()
   void fillRotConnLaplacian();
 
-  template <typename... Matrices>
-  DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
-                                const Matrices &...matrices);
-
   Matrix dataMatrixProduct(const Matrix &Y) const;
 
   Index getRotationIdx(const Symbol &pose_symbol) const;
