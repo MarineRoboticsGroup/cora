@@ -89,17 +89,6 @@ private:
     }
   }
 
-  // a flag to check if relative pose data has been modified since last call to
-  // fillRelPoseSubmatrices()
-  bool rel_pose_submatrices_up_to_date_ = false;
-
-  void set_rel_pose_submatrices_up_to_date(bool up_to_date) {
-    rel_pose_submatrices_up_to_date_ = up_to_date;
-    if (!up_to_date) {
-      data_matrix_up_to_date_ = false;
-    }
-  }
-
   // a flag to check if any data has been modified since last call to
   // constructDataMatrix()
   bool data_matrix_up_to_date_ = false;

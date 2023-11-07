@@ -33,9 +33,7 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
     throw std::invalid_argument("Range measurement already exists");
   }
   range_measurements_.push_back(range_measurement);
-
-  // mark range measurements as not up to date
-  set_range_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addRelativePoseMeasurement(
@@ -45,9 +43,7 @@ void Problem::addRelativePoseMeasurement(
     throw std::invalid_argument("Relative pose measurement already exists");
   }
   rel_pose_measurements_.push_back(rel_pose_measure);
-
-  // mark relative pose measurements as not up to date
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addPosePrior(const PosePrior &pose_prior) {
@@ -56,7 +52,7 @@ void Problem::addPosePrior(const PosePrior &pose_prior) {
     throw std::invalid_argument("Pose prior already exists");
   }
   pose_priors_.push_back(pose_prior);
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
@@ -65,7 +61,7 @@ void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
     throw std::invalid_argument("Landmark prior already exists");
   }
   landmark_priors_.push_back(landmark_prior);
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::fillRangeSubmatrices() {
@@ -106,9 +102,6 @@ void Problem::fillRangeSubmatrices() {
     data_submatrices_.range_incidence_matrix.insert(
         measure_idx, static_cast<Index>(id2)) = 1.0;
   }
-
-  // mark range measurements as updated
-  set_range_submatrices_up_to_date(true);
 }
 
 void Problem::fillRelPoseSubmatrices() {
@@ -158,9 +151,6 @@ void Problem::fillRelPoseSubmatrices() {
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
     }
   }
-
-  // mark relative pose measurements as updated
-  set_rel_pose_submatrices_up_to_date(true);
 }
 
 void Problem::fillRotConnLaplacian() {
@@ -323,13 +313,9 @@ SparseMatrix Problem::getDataMatrix() {
 }
 
 void Problem::constructDataMatrix() {
-  // fill the submatrices
-  if (!range_submatrices_up_to_date_) {
-    fillRangeSubmatrices();
-  }
-  if (!rel_pose_submatrices_up_to_date_) {
-    fillRelPoseSubmatrices();
-  }
+  // update the relevant submatrices
+  fillRangeSubmatrices();
+  fillRelPoseSubmatrices();
 
   auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
