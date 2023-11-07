@@ -43,8 +43,6 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
 Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
                           const Matrix &rhs);
 
-Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot);
-
 class CoraPreconditioner {
 public:
   CholFactorPtrVector block_chol_factor_ptrs_;
@@ -57,14 +55,6 @@ public:
       throw std::invalid_argument("The implicit formulation is not currently "
                                   "supported by the CORA preconditioner");
     }
-  }
-
-  Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>
-  getPreconditioner() {
-    return [this](const Matrix &Y, const Matrix &Ydot, const Matrix &NablaF_Y) {
-      return tangent_space_projection(
-          Y, blockCholeskySolve(this->block_chol_factor_ptrs_, Ydot));
-    };
   }
 };
 

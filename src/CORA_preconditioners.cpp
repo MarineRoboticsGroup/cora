@@ -71,9 +71,4 @@ Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
   return result;
 }
 
-Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) {
-  throw NotImplementedException();
-  return Ydot - Y * Y.transpose() * Ydot;
-}
-
 } // namespace CORA

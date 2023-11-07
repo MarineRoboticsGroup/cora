@@ -439,6 +439,25 @@ Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
   return 2 * dataMatrixProduct(Y);
 }
 
+Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
+  return tangent_space_projection(Y, Euclidean_gradient(Y));
+}
+
+Matrix Problem::tangent_space_projection(const Matrix &Y,
+                                         const Matrix &Ydot) const {
+  throw NotImplementedException();
+  return Ydot - Y * Y.transpose() * Ydot;
+}
+
+Matrix Problem::precondition(const Matrix &V) const {
+  if (preconditioner_ == Preconditioner::BlockCholesky) {
+    return blockCholeskySolve(block_chol_factor_ptrs_, V);
+  } else {
+    throw std::invalid_argument("The desired preconditioner is not "
+                                "implemented");
+  }
+}
+
 size_t Problem::getDataMatrixSize() const {
   if (formulation_ == Formulation::Explicit) {
     return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();

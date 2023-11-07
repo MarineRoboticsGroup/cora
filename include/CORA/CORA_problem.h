@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <CORA/CORA_preconditioners.h>
 #include <CORA/CORA_types.h>
 #include <CORA/Measurements.h>
 #include <CORA/Symbol.h>
@@ -70,6 +71,9 @@ private:
 
   // the formulation of the problem (e.g., translation-explicit vs -implicit)
   Formulation formulation_;
+
+  // the preconditioner to use for solving the problem
+  Preconditioner preconditioner_;
 
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
@@ -133,6 +137,10 @@ private:
   Index
   getRangeIdxInExplicitDataMatrix(const SymbolPair &range_symbol_pair) const;
   Index getTranslationIdxInExplicitDataMatrix(const Symbol &trans_symbol) const;
+
+  Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
+
+  Matrix precondition(const Matrix &V) const;
 
 public:
   Problem(int64_t dim, int64_t relaxation_rank,
@@ -225,6 +233,7 @@ public:
 
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
+  Matrix Riemannian_gradient(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA
