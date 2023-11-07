@@ -43,10 +43,7 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
 Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
                           const Matrix &rhs);
 
-Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) {
-  throw NotImplementedException();
-  return Ydot - Y * Y.transpose() * Ydot;
-}
+Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot);
 
 class CoraPreconditioner {
 public:
