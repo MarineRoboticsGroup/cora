@@ -7,6 +7,16 @@
 
 #pragma once
 
+#include <CORA/CORA_problem.h>
 #include <CORA/CORA_types.h>
+#include <CORA/pyfg_text_parser.h>
+#include <string>
 
-namespace CORA {}
+namespace CORA {
+
+Matrix solveCORA(const Problem &problem);
+Matrix solveCORA(std::string filepath) {
+  Problem problem = parsePyfgTextToProblem(filepath);
+  return solveCORA(problem);
+}
+} // namespace CORA
