@@ -33,9 +33,7 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
     throw std::invalid_argument("Range measurement already exists");
   }
   range_measurements_.push_back(range_measurement);
-
-  // mark range measurements as not up to date
-  set_range_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addRelativePoseMeasurement(
@@ -45,9 +43,7 @@ void Problem::addRelativePoseMeasurement(
     throw std::invalid_argument("Relative pose measurement already exists");
   }
   rel_pose_measurements_.push_back(rel_pose_measure);
-
-  // mark relative pose measurements as not up to date
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addPosePrior(const PosePrior &pose_prior) {
@@ -56,7 +52,7 @@ void Problem::addPosePrior(const PosePrior &pose_prior) {
     throw std::invalid_argument("Pose prior already exists");
   }
   pose_priors_.push_back(pose_prior);
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
@@ -65,7 +61,7 @@ void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
     throw std::invalid_argument("Landmark prior already exists");
   }
   landmark_priors_.push_back(landmark_prior);
-  set_rel_pose_submatrices_up_to_date(false);
+  data_matrix_up_to_date_ = false;
 }
 
 void Problem::fillRangeSubmatrices() {
@@ -106,9 +102,6 @@ void Problem::fillRangeSubmatrices() {
     data_submatrices_.range_incidence_matrix.insert(
         measure_idx, static_cast<Index>(id2)) = 1.0;
   }
-
-  // mark range measurements as updated
-  set_range_submatrices_up_to_date(true);
 }
 
 void Problem::fillRelPoseSubmatrices() {
@@ -158,9 +151,6 @@ void Problem::fillRelPoseSubmatrices() {
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
     }
   }
-
-  // mark relative pose measurements as updated
-  set_rel_pose_submatrices_up_to_date(true);
 }
 
 void Problem::fillRotConnLaplacian() {
@@ -323,13 +313,9 @@ SparseMatrix Problem::getDataMatrix() {
 }
 
 void Problem::constructDataMatrix() {
-  // fill the submatrices
-  if (!range_submatrices_up_to_date_) {
-    fillRangeSubmatrices();
-  }
-  if (!rel_pose_submatrices_up_to_date_) {
-    fillRelPoseSubmatrices();
-  }
+  // update the relevant submatrices
+  fillRangeSubmatrices();
+  fillRelPoseSubmatrices();
 
   auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
@@ -419,6 +405,83 @@ void Problem::constructDataMatrix() {
 
   // mark the data matrix as up to date
   data_matrix_up_to_date_ = true;
+}
+
+Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
+  if (formulation_ == Formulation::Explicit) {
+    return data_matrix_ * Y;
+  } else {
+    throw std::invalid_argument("Implicit formulation not implemented");
+  }
+}
+
+Scalar Problem::evaluateObjective(const Matrix &Y) const {
+  checkUpToDate();
+  return (Y * dataMatrixProduct(Y)).trace();
+}
+
+Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
+  checkUpToDate();
+  return 2 * dataMatrixProduct(Y);
+}
+
+Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
+  return Riemannian_gradient(Y, Euclidean_gradient(Y));
+}
+
+Matrix Problem::Riemannian_gradient(const Matrix &Y,
+                                    const Matrix &NablaF_Y) const {
+  return tangent_space_projection(Y, NablaF_Y);
+}
+
+Matrix Problem::tangent_space_projection(const Matrix &Y,
+                                         const Matrix &Ydot) const {
+  return Ydot - Y * Y.transpose() * Ydot;
+}
+
+Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
+                                                  const Matrix &nablaF_Y,
+                                                  const Matrix &dotY) const {
+  if (formulation_ == Formulation::Implicit) {
+    // return SP_.Proj(Y, 2 * data_matrix_product(dotY.transpose()).transpose()
+    // -
+    //                        SP_.SymBlockDiagProduct(dotY, Y, nablaF_Y));
+    throw std::invalid_argument("Implicit formulation not implemented");
+  } else if (formulation_ == Formulation::Explicit) {
+    // Euclidean Hessian-vector product
+    // Matrix H_dotY = 2 * dotY * M_;
+
+    // from SE-Sync ... will need to figure out wtf is going on here
+    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.Proj(
+    //     Y.block(0, n_, r_, d_ * n_),
+    //     H_dotY.block(0, n_, r_, d_ * n_) -
+    //         SP_.SymBlockDiagProduct(dotY.block(0, n_, r_, d_ * n_),
+    //                                 Y.block(0, n_, r_, d_ * n_),
+    //                                 nablaF_Y.block(0, n_, r_, d_ * n_)));
+    // return H_dotY;
+    throw std::invalid_argument("Explicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Unknown formulation");
+  }
+}
+
+Matrix Problem::precondition(const Matrix &V) const {
+  if (preconditioner_ == Preconditioner::BlockCholesky) {
+    // return blockCholeskySolve(block_chol_factor_ptrs_, V);
+    throw std::invalid_argument("Block Cholesky preconditioner not "
+                                "implemented");
+  } else {
+    throw std::invalid_argument("The desired preconditioner is not "
+                                "implemented");
+  }
+}
+
+Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
+  if (formulation_ == Formulation::Explicit) {
+    throw std::invalid_argument("Explicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Implicit formulation not implemented");
+  }
 }
 
 size_t Problem::getDataMatrixSize() const {

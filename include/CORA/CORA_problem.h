@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <CORA/CORA_preconditioners.h>
 #include <CORA/CORA_types.h>
 #include <CORA/Measurements.h>
 #include <CORA/Symbol.h>
@@ -71,34 +72,23 @@ private:
   // the formulation of the problem (e.g., translation-explicit vs -implicit)
   Formulation formulation_;
 
+  // the preconditioner to use for solving the problem
+  Preconditioner preconditioner_;
+
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
-
-  // a flag to check if range data has been modified since last call to
-  // fillRangeSubmatrices()
-  bool range_submatrices_up_to_date_ = false;
-
-  void set_range_submatrices_up_to_date(bool up_to_date) {
-    range_submatrices_up_to_date_ = up_to_date;
-    if (!up_to_date) {
-      data_matrix_up_to_date_ = false;
-    }
-  }
-
-  // a flag to check if relative pose data has been modified since last call to
-  // fillRelPoseSubmatrices()
-  bool rel_pose_submatrices_up_to_date_ = false;
-
-  void set_rel_pose_submatrices_up_to_date(bool up_to_date) {
-    rel_pose_submatrices_up_to_date_ = up_to_date;
-    if (!up_to_date) {
-      data_matrix_up_to_date_ = false;
-    }
-  }
 
   // a flag to check if any data has been modified since last call to
   // constructDataMatrix()
   bool data_matrix_up_to_date_ = false;
+  void checkUpToDate() const {
+    if (!data_matrix_up_to_date_) {
+      throw std::runtime_error(
+          "The data matrix must be constructed before the objective function "
+          "can be evaluated. This error may be due to the fact that data has "
+          "been modified since the last call to constructDataMatrix()");
+    }
+  }
 
   // the full size of the data matrix
   size_t getDataMatrixSize() const;
@@ -118,6 +108,8 @@ private:
   template <typename... Matrices>
   DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
                                 const Matrices &...matrices);
+
+  Matrix dataMatrixProduct(const Matrix &Y) const;
 
   Index getRotationIdx(const Symbol &pose_symbol) const;
   Index
@@ -210,6 +202,19 @@ public:
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
   size_t numRangeMeasurements() const { return range_measurements_.size(); }
   size_t numTranslationalStates() const { return numPoses() + numLandmarks(); }
+
+  /*****  Riemannian optimization functions  *******/
+
+  Scalar evaluateObjective(const Matrix &Y) const;
+  Matrix Euclidean_gradient(const Matrix &Y) const;
+  Matrix Riemannian_gradient(const Matrix &Y) const;
+  Matrix Riemannian_gradient(const Matrix &Y, const Matrix &NablaF_Y) const;
+  Matrix Riemannian_Hessian_vector_product(const Matrix &Y,
+                                           const Matrix &NablaF_Y,
+                                           const Matrix &Ydot) const;
+  Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
+  Matrix precondition(const Matrix &V) const;
+  Matrix retract(const Matrix &Y, const Matrix &V) const;
 }; // class Problem
 
 } // namespace CORA
