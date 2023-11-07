@@ -26,7 +26,8 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
   // the Cholesky decomposition.
   int block_start = 0;
   CholFactorPtrVector block_cholesky_factors;
-  for (int blockSize : block_sizes) {
+  for (int block_idx = 0; block_idx < block_sizes.size(); block_idx++) {
+    int blockSize = block_sizes(block_idx);
     // extract the block from A
     SparseMatrix block =
         A.block(block_start, block_start, blockSize, blockSize);
