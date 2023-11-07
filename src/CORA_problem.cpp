@@ -421,6 +421,24 @@ void Problem::constructDataMatrix() {
   data_matrix_up_to_date_ = true;
 }
 
+Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
+  if (formulation_ == Formulation::Explicit) {
+    return data_matrix_ * Y;
+  } else {
+    throw std::invalid_argument("Implicit formulation not implemented");
+  }
+}
+
+Scalar Problem::evaluateObjective(const Matrix &Y) const {
+  if (!data_matrix_up_to_date_) {
+    throw std::runtime_error(
+        "The data matrix must be constructed before the objective function "
+        "can be evaluated. This error may be due to the fact that data has "
+        "been modified since the last call to constructDataMatrix()");
+  }
+  return (Y * dataMatrixProduct(Y)).trace();
+}
+
 size_t Problem::getDataMatrixSize() const {
   if (formulation_ == Formulation::Explicit) {
     return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();

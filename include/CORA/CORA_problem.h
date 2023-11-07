@@ -119,6 +119,8 @@ private:
   DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
                                 const Matrices &...matrices);
 
+  Matrix dataMatrixProduct(const Matrix &Y) const;
+
   Index getRotationIdx(const Symbol &pose_symbol) const;
   Index
   getRangeIdxInExplicitDataMatrix(const SymbolPair &range_symbol_pair) const;
@@ -210,6 +212,10 @@ public:
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
   size_t numRangeMeasurements() const { return range_measurements_.size(); }
   size_t numTranslationalStates() const { return numPoses() + numLandmarks(); }
+
+  /*****  Riemannian optimization functions  *******/
+
+  Scalar evaluateObjective(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

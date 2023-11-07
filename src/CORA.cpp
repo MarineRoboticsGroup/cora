@@ -10,7 +10,7 @@ Matrix solveCORA(const Problem &problem, const Matrix &x0) {
   // objective function
   Optimization::Objective<Matrix, Scalar, Matrix> f =
       [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
-        return problem.evaluate_objective(Y);
+        return problem.evaluateObjective(Y);
       };
 
   // quadratic model
