@@ -99,6 +99,14 @@ private:
   // a flag to check if any data has been modified since last call to
   // constructDataMatrix()
   bool data_matrix_up_to_date_ = false;
+  void checkUpToDate() const {
+    if (!data_matrix_up_to_date_) {
+      throw std::runtime_error(
+          "The data matrix must be constructed before the objective function "
+          "can be evaluated. This error may be due to the fact that data has "
+          "been modified since the last call to constructDataMatrix()");
+    }
+  }
 
   // the full size of the data matrix
   size_t getDataMatrixSize() const;
@@ -216,6 +224,7 @@ public:
   /*****  Riemannian optimization functions  *******/
 
   Scalar evaluateObjective(const Matrix &Y) const;
+  Matrix Euclidean_gradient(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

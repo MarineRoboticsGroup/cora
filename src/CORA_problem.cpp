@@ -430,13 +430,13 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
 }
 
 Scalar Problem::evaluateObjective(const Matrix &Y) const {
-  if (!data_matrix_up_to_date_) {
-    throw std::runtime_error(
-        "The data matrix must be constructed before the objective function "
-        "can be evaluated. This error may be due to the fact that data has "
-        "been modified since the last call to constructDataMatrix()");
-  }
+  checkUpToDate();
   return (Y * dataMatrixProduct(Y)).trace();
+}
+
+Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
+  checkUpToDate();
+  return 2 * dataMatrixProduct(Y);
 }
 
 size_t Problem::getDataMatrixSize() const {
