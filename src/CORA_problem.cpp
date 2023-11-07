@@ -448,6 +448,30 @@ Matrix Problem::tangent_space_projection(const Matrix &Y,
   return Ydot - Y * Y.transpose() * Ydot;
 }
 
+Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
+                                                  const Matrix &nablaF_Y,
+                                                  const Matrix &dotY) const {
+  if (formulation_ == Formulation::Implicit) {
+    // return SP_.Proj(Y, 2 * data_matrix_product(dotY.transpose()).transpose()
+    // -
+    //                        SP_.SymBlockDiagProduct(dotY, Y, nablaF_Y));
+    throw std::invalid_argument("Implicit formulation not implemented");
+  } else if (formulation_ == Formulation::Explicit) {
+    // Euclidean Hessian-vector product
+
+    // from SE-Sync ... will need to figure out wtf is going on here
+    // Matrix H_dotY = 2 * dotY * M_;
+    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.Proj(
+    //     Y.block(0, n_, r_, d_ * n_),
+    //     H_dotY.block(0, n_, r_, d_ * n_) -
+    //         SP_.SymBlockDiagProduct(dotY.block(0, n_, r_, d_ * n_),
+    //                                 Y.block(0, n_, r_, d_ * n_),
+    //                                 nablaF_Y.block(0, n_, r_, d_ * n_)));
+    // return H_dotY;
+    throw std::invalid_argument("Explicit formulation not implemented");
+  }
+}
+
 Matrix Problem::precondition(const Matrix &V) const {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
     return blockCholeskySolve(block_chol_factor_ptrs_, V);

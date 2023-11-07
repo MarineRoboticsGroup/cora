@@ -230,6 +230,9 @@ public:
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
   Matrix Riemannian_gradient(const Matrix &Y) const;
+  Matrix Riemannian_Hessian_vector_product(const Matrix &Y,
+                                           const Matrix &NablaF_Y,
+                                           const Matrix &Ydot) const;
   Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
   Matrix precondition(const Matrix &V) const;
 }; // class Problem
