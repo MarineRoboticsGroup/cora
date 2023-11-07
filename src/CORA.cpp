@@ -36,7 +36,7 @@ Matrix solveCORA(const Problem &problem, const Matrix &x0) {
   // get retraction from problem
   Optimization::Riemannian::Retraction<Matrix, Matrix, Matrix> retract =
       [&problem](const Matrix &Y, const Matrix &V, const Matrix &NablaF_Y) {
-        return problem.Riemannian_retraction(Y, V);
+        return problem.retract(Y, V);
       };
 
   // Euclidean gradient (not used)

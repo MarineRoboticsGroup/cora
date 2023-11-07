@@ -440,7 +440,12 @@ Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
 }
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
-  return tangent_space_projection(Y, Euclidean_gradient(Y));
+  return Riemannian_gradient(Y, Euclidean_gradient(Y));
+}
+
+Matrix Problem::Riemannian_gradient(const Matrix &Y,
+                                    const Matrix &NablaF_Y) const {
+  return tangent_space_projection(Y, NablaF_Y);
 }
 
 Matrix Problem::tangent_space_projection(const Matrix &Y,
@@ -458,9 +463,9 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
     throw std::invalid_argument("Implicit formulation not implemented");
   } else if (formulation_ == Formulation::Explicit) {
     // Euclidean Hessian-vector product
+    // Matrix H_dotY = 2 * dotY * M_;
 
     // from SE-Sync ... will need to figure out wtf is going on here
-    // Matrix H_dotY = 2 * dotY * M_;
     // H_dotY.block(0, n_, r_, d_ * n_) = SP_.Proj(
     //     Y.block(0, n_, r_, d_ * n_),
     //     H_dotY.block(0, n_, r_, d_ * n_) -
@@ -478,6 +483,14 @@ Matrix Problem::precondition(const Matrix &V) const {
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
+  }
+}
+
+Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
+  if (formulation_ == Formulation::Explicit) {
+    throw std::invalid_argument("Explicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Implicit formulation not implemented");
   }
 }
 
