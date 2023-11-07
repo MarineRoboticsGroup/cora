@@ -93,10 +93,8 @@ void Problem::fillRangeSubmatrices() {
         measure.getPrecision();
 
     // update the incidence matrix
-    auto id1 = getTranslationIdxInExplicitDataMatrix(measure.first_id) -
-               translation_offset;
-    auto id2 = getTranslationIdxInExplicitDataMatrix(measure.second_id) -
-               translation_offset;
+    auto id1 = getTranslationIdx(measure.first_id) - translation_offset;
+    auto id2 = getTranslationIdx(measure.second_id) - translation_offset;
     data_submatrices_.range_incidence_matrix.insert(
         measure_idx, static_cast<Index>(id1)) = -1.0;
     data_submatrices_.range_incidence_matrix.insert(
@@ -137,10 +135,8 @@ void Problem::fillRelPoseSubmatrices() {
         measure_idx, measure_idx) = rpm.getRotPrecision();
 
     // fill in incidence matrix
-    Index id1 = getTranslationIdxInExplicitDataMatrix(rpm.first_id) -
-                translation_offset;
-    Index id2 = getTranslationIdxInExplicitDataMatrix(rpm.second_id) -
-                translation_offset;
+    Index id1 = getTranslationIdx(rpm.first_id) - translation_offset;
+    Index id2 = getTranslationIdx(rpm.second_id) - translation_offset;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
@@ -504,8 +500,7 @@ Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
   throw std::invalid_argument("Unknown pose symbol");
 }
 
-Index Problem::getRangeIdxInExplicitDataMatrix(
-    const SymbolPair &range_symbol_pair) const {
+Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
   // all range measurements come after the rotations
   auto rot_offset = static_cast<Index>(numPoses() * dim_);
 
@@ -527,8 +522,7 @@ Index Problem::getRangeIdxInExplicitDataMatrix(
   throw std::invalid_argument("Unknown range symbol");
 }
 
-Index Problem::getTranslationIdxInExplicitDataMatrix(
-    const Symbol &trans_symbol) const {
+Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   // all translations come after the rotations and range measurement variables
   // (unit spheres) so we need to offset by the dimension of the rotations and
   // the number of range measurements

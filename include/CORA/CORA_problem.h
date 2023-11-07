@@ -108,9 +108,8 @@ private:
   Matrix dataMatrixProduct(const Matrix &Y) const;
 
   Index getRotationIdx(const Symbol &pose_symbol) const;
-  Index
-  getRangeIdxInExplicitDataMatrix(const SymbolPair &range_symbol_pair) const;
-  Index getTranslationIdxInExplicitDataMatrix(const Symbol &trans_symbol) const;
+  Index getRangeIdx(const SymbolPair &range_symbol_pair) const;
+  Index getTranslationIdx(const Symbol &trans_symbol) const;
 
 public:
   Problem(int64_t dim, int64_t relaxation_rank,
