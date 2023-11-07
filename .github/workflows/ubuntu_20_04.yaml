@@ -1,4 +1,4 @@
-name: Release Build
+name: Release Build Ubuntu 20.04
 
 on: pull_request
 
@@ -15,10 +15,17 @@ jobs:
       - name: Pull submodules
         run: git submodule update --init --recursive
 
-      - name: Install dependencies
+      - name: Install Python 3.10
         run: |
           sudo apt update -qq
-          sudo apt install -qq -y --no-install-recommends cmake clang build-essential cppcheck libsuitesparse-dev libeigen3-dev libomp-dev python3.10
+          sudo apt install -qq -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt update -qq
+          sudo apt install -qq -y --no-install-recommends python3.10 python3.10-dev python3.10-distutils
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -qq -y --no-install-recommends cmake clang build-essential cppcheck libsuitesparse-dev libeigen3-dev libomp-dev
 
       - name: Install pre-commit
         run: |

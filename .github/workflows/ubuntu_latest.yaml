@@ -1,4 +1,4 @@
-name: Release Build
+name: Release Build Ubuntu Latest
 
 on: pull_request
 
