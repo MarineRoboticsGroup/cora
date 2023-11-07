@@ -465,7 +465,9 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
 
 Matrix Problem::precondition(const Matrix &V) const {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
-    return blockCholeskySolve(block_chol_factor_ptrs_, V);
+    // return blockCholeskySolve(block_chol_factor_ptrs_, V);
+    throw std::invalid_argument("Block Cholesky preconditioner not "
+                                "implemented");
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
