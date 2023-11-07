@@ -14,10 +14,13 @@
 
 namespace CORA {
 
-Matrix solveCORA(const Problem &problem);
+Matrix solveCORA(const Problem &problem, const Matrix &x0);
 Matrix solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
-  return solveCORA(problem);
+  Matrix x0 = Matrix();
+  throw std::runtime_error(
+      "Not implemented -- need to decide how to get initialization");
+  return solveCORA(problem, x0);
 }
 
 } // namespace CORA

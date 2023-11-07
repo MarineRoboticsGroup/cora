@@ -460,6 +460,8 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
     //                                 nablaF_Y.block(0, n_, r_, d_ * n_)));
     // return H_dotY;
     throw std::invalid_argument("Explicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Unknown formulation");
   }
 }
 
