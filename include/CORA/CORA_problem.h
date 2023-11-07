@@ -42,6 +42,12 @@ struct CoraDataSubmatrices {
   CoraDataSubmatrices() = default;
 };
 
+struct PreconditionerMatrices {
+  CholFactorPtrVector block_chol_factor_ptrs_;
+  DiagonalMatrix jacobi_preconditioner_;
+  SparseMatrix block_jacobi_preconditioner_;
+};
+
 class Problem {
 private:
   /** dimension of the pose and landmark variables e.g., SO(dim_) */
@@ -75,18 +81,21 @@ private:
   // the preconditioner to use for solving the problem
   Preconditioner preconditioner_;
 
+  // the preconditioner matrices
+  PreconditionerMatrices preconditioner_matrices_;
+
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
 
   // a flag to check if any data has been modified since last call to
-  // constructDataMatrix()
-  bool data_matrix_up_to_date_ = false;
+  // updateProblemData()
+  bool problem_data_up_to_date_ = false;
   void checkUpToDate() const {
-    if (!data_matrix_up_to_date_) {
+    if (!problem_data_up_to_date_) {
       throw std::runtime_error(
           "The data matrix must be constructed before the objective function "
           "can be evaluated. This error may be due to the fact that data has "
-          "been modified since the last call to constructDataMatrix()");
+          "been modified since the last call to updateProblemData()");
     }
   }
 
@@ -94,16 +103,57 @@ private:
   size_t getDataMatrixSize() const;
 
   // function to fill all of the submatrices built from range measurements.
-  // Should only be called from constructDataMatrix()
+  // Should only be called from updateProblemData()
   void fillRangeSubmatrices();
 
   // function to fill all of the submatrices built from relative pose
-  // measurements. Should only be called from constructDataMatrix()
+  // measurements. Should only be called from updateProblemData()
   void fillRelPoseSubmatrices();
 
   // function to construct the rotation connection Laplacian. Should only be
   // called from fillRelPoseSubmatrices()
   void fillRotConnLaplacian();
+
+  /**
+   * @brief function to fill in the full data matrix from the *already computed*
+   * submatrices. Should only be called from updateProblemData()
+   *
+   * The data matrix Q is a symmetric block matrix of the form:
+   *            dn                r                 n + l
+   * __________________________________________________________________
+   * |     Lrho + Sigma   |       0         |   T^T * Omega_t * A_t   |  dn
+   * |        ****        | Omega_r * D * D |     D * Omega_r * A_r   |  r
+   * |        ****        |     ****        |       L_r + L_t         |  n + l
+   * _________________________________________________________________
+   *
+   * We will alternatively write this as:
+   *
+   * __________________________________________________________________
+   * |         Q11        |        0         |         Q13             |  dn
+   * |        ****        |       Q22        |         Q23             |  r
+   * |        ****        |       ****       |         Q33             |  n + l
+   * _________________________________________________________________
+   *
+   *
+   *  where we ignore the lower-triangular section due to symmetry
+   *
+   *  where we define the matrices as follows:
+   *
+   *  Lrho = rotation connection Laplacian
+   *  Sigma = T^T Omega_t T
+   *  T = rel_pose_translation_data_matrix
+   *  Omega_t = rel_pose_translation_precision_matrix
+   *  Omega_r = range_precision_matrix
+   *  D = range_dist_matrix
+   *  L_r = A_r^T * Omega_r * A_r
+   *  L_t = A_t^T * Omega_t * A_t
+   *  A_r = range_incidence_matrix
+   *  A_t = rel_pose_incidence_matrix
+   *
+   */
+  void fillDataMatrix();
+
+  void updatePreconditioner();
 
   Matrix dataMatrixProduct(const Matrix &Y) const;
 
@@ -147,8 +197,8 @@ public:
 
   // function to get read-only references to the data submatrices
   const CoraDataSubmatrices &getDataSubmatrices() {
-    if (!data_matrix_up_to_date_) {
-      constructDataMatrix();
+    if (!problem_data_up_to_date_) {
+      updateProblemData();
     }
     return data_submatrices_;
   }
@@ -156,41 +206,7 @@ public:
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
-  /**
-   * @brief The data matrix Q is a symmetric block matrix of the form:
-   *            dn                r                 n + l
-   * __________________________________________________________________
-   * |     Lrho + Sigma   |       0         |   T^T * Omega_t * A_t   |  dn
-   * |        ****        | Omega_r * D * D |     D * Omega_r * A_r   |  r
-   * |        ****        |     ****        |       L_r + L_t         |  n + l
-   * _________________________________________________________________
-   *
-   * We will alternatively write this as:
-   *
-   * __________________________________________________________________
-   * |         Q11        |        0         |         Q13             |  dn
-   * |        ****        |       Q22        |         Q23             |  r
-   * |        ****        |       ****       |         Q33             |  n + l
-   * _________________________________________________________________
-   *
-   *
-   *  where we ignore the lower-triangular section due to symmetry
-   *
-   *  where we define the matrices as follows:
-   *
-   *  Lrho = rotation connection Laplacian
-   *  Sigma = T^T Omega_t T
-   *  T = rel_pose_translation_data_matrix
-   *  Omega_t = rel_pose_translation_precision_matrix
-   *  Omega_r = range_precision_matrix
-   *  D = range_dist_matrix
-   *  L_r = A_r^T * Omega_r * A_r
-   *  L_t = A_t^T * Omega_t * A_t
-   *  A_r = range_incidence_matrix
-   *  A_t = rel_pose_incidence_matrix
-   *
-   */
-  void constructDataMatrix();
+  void updateProblemData();
   SparseMatrix getDataMatrix();
 
   size_t numPoses() const { return pose_symbol_idxs_.size(); }

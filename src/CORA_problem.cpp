@@ -33,7 +33,7 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
     throw std::invalid_argument("Range measurement already exists");
   }
   range_measurements_.push_back(range_measurement);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::addRelativePoseMeasurement(
@@ -43,7 +43,7 @@ void Problem::addRelativePoseMeasurement(
     throw std::invalid_argument("Relative pose measurement already exists");
   }
   rel_pose_measurements_.push_back(rel_pose_measure);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::addPosePrior(const PosePrior &pose_prior) {
@@ -52,7 +52,7 @@ void Problem::addPosePrior(const PosePrior &pose_prior) {
     throw std::invalid_argument("Pose prior already exists");
   }
   pose_priors_.push_back(pose_prior);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
@@ -61,7 +61,7 @@ void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
     throw std::invalid_argument("Landmark prior already exists");
   }
   landmark_priors_.push_back(landmark_prior);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::fillRangeSubmatrices() {
@@ -302,17 +302,36 @@ void Problem::printProblem() const {
 }
 
 SparseMatrix Problem::getDataMatrix() {
-  if (data_matrix_.nonZeros() == 0 || !data_matrix_up_to_date_) {
-    constructDataMatrix();
+  if (data_matrix_.nonZeros() == 0 || !problem_data_up_to_date_) {
+    updateProblemData();
   }
   return data_matrix_;
 }
 
-void Problem::constructDataMatrix() {
+void Problem::updateProblemData() {
   // update the relevant submatrices
   fillRangeSubmatrices();
   fillRelPoseSubmatrices();
+  fillDataMatrix();
+  updatePreconditioner();
+  problem_data_up_to_date_ = true;
+}
 
+void Problem::updatePreconditioner() {
+  if (preconditioner_ == Preconditioner::BlockCholesky) {
+    // blocks are rots: n*d, ranges: r, and translations: n + l
+    VectorXi block_sizes(3);
+    block_sizes << numPoses() * dim_, numRangeMeasurements(),
+        numPoses() + numLandmarks();
+    preconditioner_matrices_.block_chol_factor_ptrs_ =
+        getBlockCholeskyFactorization(data_matrix_, block_sizes);
+  } else {
+    throw std::invalid_argument("The desired preconditioner is not "
+                                "implemented");
+  }
+}
+
+void Problem::fillDataMatrix() {
   auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
 
@@ -398,9 +417,6 @@ void Problem::constructDataMatrix() {
   // construct the data matrix
   data_matrix_.setFromTriplets(combined_triplets.begin(),
                                combined_triplets.end());
-
-  // mark the data matrix as up to date
-  data_matrix_up_to_date_ = true;
 }
 
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
@@ -463,9 +479,8 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
 
 Matrix Problem::precondition(const Matrix &V) const {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
-    // return blockCholeskySolve(block_chol_factor_ptrs_, V);
-    throw std::invalid_argument("Block Cholesky preconditioner not "
-                                "implemented");
+    return blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_,
+                              V);
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
