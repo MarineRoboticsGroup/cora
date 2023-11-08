@@ -8,6 +8,7 @@ add_executable(tests
     test_parse_pyfg.cpp
     test_construct_problem.cpp
     test_geometry.cpp
+    test_cora.cpp
 )
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
