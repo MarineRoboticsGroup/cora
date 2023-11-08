@@ -320,9 +320,19 @@ void Problem::updateProblemData() {
 void Problem::updatePreconditioner() {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
     // blocks are rots: n*d, ranges: r, and translations: n + l
-    VectorXi block_sizes(3);
-    block_sizes << numPoses() * dim_, numRangeMeasurements(),
-        numPoses() + numLandmarks();
+    std::vector<size_t> block_size_vec = {
+        numPoses() * dim_, numRangeMeasurements(), numPoses() + numLandmarks()};
+    // drop any values that are 0
+    block_size_vec.erase(
+        std::remove(block_size_vec.begin(), block_size_vec.end(), 0),
+        block_size_vec.end());
+
+    // convert to VectorXi
+    VectorXi block_sizes(block_size_vec.size());
+    for (int i = 0; i < block_size_vec.size(); i++) {
+      block_sizes(i) = block_size_vec[i];
+    }
+
     preconditioner_matrices_.block_chol_factor_ptrs_ =
         getBlockCholeskyFactorization(data_matrix_, block_sizes);
   } else {
