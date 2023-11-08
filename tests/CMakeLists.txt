@@ -3,7 +3,12 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Debug' as none was specified.")
 endif()
 
-add_executable(tests test.cpp test_parse_pyfg.cpp test_construct_problem.cpp)
+add_executable(tests
+    test.cpp
+    test_parse_pyfg.cpp
+    test_construct_problem.cpp
+    test_geometry.cpp
+)
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
 target_link_libraries(tests PUBLIC CORA)
