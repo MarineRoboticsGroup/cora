@@ -14,6 +14,8 @@
 #include <CORA/CORA_preconditioners.h>
 #include <CORA/CORA_types.h>
 #include <CORA/Measurements.h>
+#include <CORA/ObliqueManifold.h>
+#include <CORA/StiefelProduct.h>
 #include <CORA/Symbol.h>
 #include <map>
 #include <string>
@@ -48,6 +50,11 @@ struct PreconditionerMatrices {
   SparseMatrix block_jacobi_preconditioner_;
 };
 
+struct Manifolds {
+  StiefelProduct stiefel_prod_manifold_;
+  ObliqueManifold oblique_manifold_;
+};
+
 class Problem {
 private:
   /** dimension of the pose and landmark variables e.g., SO(dim_) */
@@ -74,6 +81,9 @@ private:
 
   // the landmark priors that are used to construct the problem
   std::vector<LandmarkPrior> landmark_priors_;
+
+  // the non-Euclidean manifolds that make up the problem
+  Manifolds manifolds_;
 
   // the formulation of the problem (e.g., translation-explicit vs -implicit)
   Formulation formulation_;

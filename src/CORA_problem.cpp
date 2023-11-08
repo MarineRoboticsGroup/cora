@@ -443,17 +443,27 @@ Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y,
                                     const Matrix &NablaF_Y) const {
+  checkUpToDate();
   return tangent_space_projection(Y, NablaF_Y);
 }
 
 Matrix Problem::tangent_space_projection(const Matrix &Y,
                                          const Matrix &Ydot) const {
-  return Ydot - Y * Y.transpose() * Ydot;
+  // TODO(alan): implement for explicit form
+  throw NotImplementedException();
+  if (formulation_ == Formulation::Implicit) {
+    throw std::invalid_argument("Implicit formulation not implemented");
+  } else if (formulation_ == Formulation::Explicit) {
+    throw std::invalid_argument("Explicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Unknown formulation");
+  }
 }
 
 Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                                                   const Matrix &nablaF_Y,
                                                   const Matrix &dotY) const {
+  // TODO(alan): implement for explicit form
   if (formulation_ == Formulation::Implicit) {
     // return SP_.Proj(Y, 2 * data_matrix_product(dotY.transpose()).transpose()
     // -
@@ -488,11 +498,28 @@ Matrix Problem::precondition(const Matrix &V) const {
 }
 
 Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
-  if (formulation_ == Formulation::Explicit) {
-    throw std::invalid_argument("Explicit formulation not implemented");
-  } else {
-    throw std::invalid_argument("Implicit formulation not implemented");
-  }
+  Matrix result = Y + V;
+  int num_cols = relaxation_rank_;
+  assert(result.cols() == num_cols);
+
+  // the first n*d rows are obtained from
+  // manifolds_.stiefel_prod.project(result(1:n*d, :))
+  int n = numPoses();
+  int d = dim_;
+  result.block(0, 0, n * d, num_cols) =
+      manifolds_.stiefel_prod_manifold_.project(result.block(0, 0, n * d, d));
+
+  // the next r rows are obtained from
+  // manifolds_.oblique_manifold.retract(Y(n*d+1:n*d+r, :), V(n*d+1:n*d+r, :))
+  int r = numRangeMeasurements();
+  result.block(n * d, 0, r, num_cols) =
+      manifolds_.oblique_manifold_.projectToManifold(
+          result.block(n * d, 0, r, num_cols));
+
+  // if there are remaining rows, they should be translational variables and
+  // thus belong to the Euclidean manifold and do not need rounding.
+
+  return result;
 }
 
 size_t Problem::getDataMatrixSize() const {
