@@ -24,10 +24,6 @@ Matrix ObliqueManifold::projectToTangentSpace(const Matrix &A,
   return A - scaled_cols;
 }
 
-Matrix ObliqueManifold::retract(const Matrix &Y, const Matrix &V) const {
-  return projectToManifold(Y + V);
-}
-
 Matrix ObliqueManifold::random_sample(
     const std::default_random_engine::result_type &seed) const {
   // initialize the random number generator
@@ -42,12 +38,6 @@ Matrix ObliqueManifold::random_sample(
     }
   }
   return projectToManifold(A);
-}
-
-Scalar ObliqueManifold::innerProduct(const Matrix &A, const Matrix &B) const {
-  // get the inner product by taking the row-wise summation of the Hadamard
-  // product of A and B
-  return (A.array() * B.array()).sum();
 }
 
 } // namespace CORA

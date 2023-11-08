@@ -14,10 +14,11 @@
 #include <random> // For sampling random points on the manifold
 
 #include "CORA/CORA_types.h"
+#include "CORA/MatrixManifold.h"
 
 namespace CORA {
 
-class ObliqueManifold {
+class ObliqueManifold : public MatrixManifold {
 private:
   // Dimension of ambient Euclidean space containing the unit vectors
   size_t r_;
@@ -46,15 +47,6 @@ public:
   Matrix projectToManifold(const Matrix &A) const;
 
   /**
-   * @brief Compute the Frobenius inner product of A and B in R^{r x n}.
-   *
-   * @param A the first matrix
-   * @param B the second matrix
-   * @return Scalar the inner product of A and B
-   */
-  Scalar innerProduct(const Matrix &A, const Matrix &B) const;
-
-  /**
    * @brief Projects a matrix A in R^{r x n} onto the tangent space T_Y(M) of
    * the oblique manifold at Y in R^{r x n}.
    *
@@ -63,12 +55,6 @@ public:
    * @return Matrix
    */
   Matrix projectToTangentSpace(const Matrix &A, const Matrix &Y) const;
-
-  /** Given an element Y in M and a tangent vector V in T_Y(M), this function
-   * computes the retraction along V at Y using the projectToManifold method
-   *
-   */
-  Matrix retract(const Matrix &Y, const Matrix &V) const;
 
   /** Sample a random point on M, using the (optional) passed seed to initialize
    * the random number generator.  */

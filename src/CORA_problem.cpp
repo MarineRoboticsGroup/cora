@@ -475,7 +475,8 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                                                   const Matrix &dotY) const {
   // TODO(alan): implement for explicit form
   if (formulation_ == Formulation::Implicit) {
-    // return SP_.Proj(Y, 2 * data_matrix_product(dotY.transpose()).transpose()
+    // return SP_.projectToTangentSpace(Y, 2 *
+    // data_matrix_product(dotY.transpose()).transpose()
     // -
     //                        SP_.SymBlockDiagProduct(dotY, Y, nablaF_Y));
     throw std::invalid_argument("Implicit formulation not implemented");
@@ -484,7 +485,7 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
     // Matrix H_dotY = 2 * dotY * M_;
 
     // from SE-Sync ... will need to figure out wtf is going on here
-    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.Proj(
+    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.projectToTangentSpace(
     //     Y.block(0, n_, r_, d_ * n_),
     //     H_dotY.block(0, n_, r_, d_ * n_) -
     //         SP_.SymBlockDiagProduct(dotY.block(0, n_, r_, d_ * n_),
@@ -513,11 +514,12 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
   assert(result.cols() == num_cols);
 
   // the first n*d rows are obtained from
-  // manifolds_.stiefel_prod.project(result(1:n*d, :))
+  // manifolds_.stiefel_prod.projectToManifoldresult(1:n*d, :))
   int n = numPoses();
   int d = dim_;
   result.block(0, 0, n * d, num_cols) =
-      manifolds_.stiefel_prod_manifold_.project(result.block(0, 0, n * d, d));
+      manifolds_.stiefel_prod_manifold_.projectToManifold(
+          result.block(0, 0, n * d, d));
 
   // the next r rows are obtained from
   // manifolds_.oblique_manifold.retract(Y(n*d+1:n*d+r, :), V(n*d+1:n*d+r, :))
