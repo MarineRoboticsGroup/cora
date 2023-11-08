@@ -228,6 +228,8 @@ public:
 
   /*****  Riemannian optimization functions  *******/
 
+  Matrix getRandomInitialGuess() const;
+
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
   Matrix Riemannian_gradient(const Matrix &Y) const;
@@ -237,6 +239,7 @@ public:
                                            const Matrix &Ydot) const;
   Matrix tangent_space_projection(const Matrix &Y, const Matrix &Ydot) const;
   Matrix precondition(const Matrix &V) const;
+  Matrix projectToManifold(const Matrix &A) const;
   Matrix retract(const Matrix &Y, const Matrix &V) const;
 }; // class Problem
 

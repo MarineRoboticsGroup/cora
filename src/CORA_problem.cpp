@@ -508,10 +508,11 @@ Matrix Problem::precondition(const Matrix &V) const {
   }
 }
 
-Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
-  Matrix result = Y + V;
+Matrix Problem::projectToManifold(const Matrix &A) const {
   int num_cols = relaxation_rank_;
-  assert(result.cols() == num_cols);
+  assert(A.cols() == num_cols);
+
+  Matrix result = A;
 
   // the first n*d rows are obtained from
   // manifolds_.stiefel_prod.projectToManifoldresult(1:n*d, :))
@@ -532,6 +533,10 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
   // thus belong to the Euclidean manifold and do not need rounding.
 
   return result;
+}
+
+Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
+  return projectToManifold(Y + V);
 }
 
 size_t Problem::getDataMatrixSize() const {
@@ -600,4 +605,10 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   // if we get here, we didn't find the translation symbol
   throw std::invalid_argument("Unknown translation symbol");
 }
+
+Matrix Problem::getRandomInitialGuess() const {
+  Matrix x0 = Matrix::Random(getDataMatrixSize(), relaxation_rank_);
+  return projectToManifold(x0);
+}
+
 } // namespace CORA
