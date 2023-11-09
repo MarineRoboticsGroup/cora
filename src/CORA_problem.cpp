@@ -533,14 +533,20 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
           .transpose();
 
   // Oblique component
-  throw NotImplementedException("Problem::Riemannian_Hessian_vector_product");
   int r = numRangeMeasurements();
-  Matrix tangent_component_of_oblique_hessian;
+  Vector diagQXXT = (nablaF_Y.array() * Y.array()).rowwise().sum();
+  // weight the rows of dotY by the diagonal of QXXT (which is a vector)
+  Matrix weightedDotY = dotY.array().colwise() * diagQXXT.array();
+  Matrix QYdot = dataMatrixProduct(dotY);
+  Matrix euclidean_hessian = QYdot.block(nd, 0, r, relaxation_rank_) -
+                             weightedDotY.block(nd, 0, r, relaxation_rank_);
+
   H_dotY.block(nd, 0, r, relaxation_rank_) =
-      manifolds_.oblique_manifold_.projectToTangentSpace(
-          Y.block(nd, 0, r, relaxation_rank_).transpose(),
-          H_dotY.block(nd, 0, r, relaxation_rank_).transpose()) -
-      tangent_component_of_oblique_hessian;
+      manifolds_.oblique_manifold_
+          .projectToTangentSpace(
+              euclidean_hessian.transpose(),
+              Y.block(nd, 0, r, relaxation_rank_).transpose())
+          .transpose();
 
   return H_dotY;
 }

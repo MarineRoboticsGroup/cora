@@ -66,6 +66,13 @@ Matrix solveCORA(const Problem &problem, const Matrix &x0) {
       Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
           f, QM, metric, retract, x0, NablaF_Y, precon, params, user_function);
 
+  // print the solution, cost, elapsed time, etc.
+  std::cout << "Solution: " << std::endl << result.x << std::endl;
+  std::cout << "Cost: " << result.f << std::endl;
+  std::cout << "Elapsed time: " << result.elapsed_time << std::endl;
+  std::cout << "Number of iterations: " << result.objective_values.size()
+            << std::endl;
+
   return result.x;
 }
 
