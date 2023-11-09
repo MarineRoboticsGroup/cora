@@ -34,11 +34,20 @@ public:
   // Default constructor -- sets all dimensions to 0
   StiefelProduct() = default;
 
+  /**
+   * @brief Construct a new Stiefel Product object
+   *
+   * @param k the number of vectors in each orthonormal k-frame
+   * @param p the dimension of ambient Euclidean space containing the frames
+   * @param n the number of copies of St(k,p) in the product
+   */
   StiefelProduct(size_t k, size_t p, size_t n) : k_(k), p_(p), n_(n) {}
 
   void set_k(size_t k) { k_ = k; }
   void set_p(size_t p) { p_ = p; }
   void set_n(size_t n) { n_ = n; }
+  void addNewFrame() { n_++; }
+  void incrementRank() { p_++; }
 
   /// ACCESSORS
   size_t get_k() const { return k_; }

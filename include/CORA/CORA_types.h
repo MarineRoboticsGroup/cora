@@ -8,13 +8,33 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+#include <string>
+
 #include "Optimization/Riemannian/TNT.h"
 
 class NotImplementedException : public std::logic_error {
 public:
-  NotImplementedException()
-      : std::logic_error("Function or feature not implemented") {}
+  explicit NotImplementedException(std::string const &str)
+      : std::logic_error(str + " not implemented") {}
 };
+
+class MatrixShapeException : public std::logic_error {
+public:
+  MatrixShapeException(std::string func_name, int exp_rows, int exp_cols,
+                       int act_rows, int act_cols)
+      : std::logic_error(func_name + ": " + "expected matrix of shape (" +
+                         std::to_string(exp_rows) + ", " +
+                         std::to_string(exp_cols) + ") but got (" +
+                         std::to_string(act_rows) + ", " +
+                         std::to_string(act_cols) + ")") {}
+};
+inline void checkMatrixShape(std::string func_name, int exp_rows, int exp_cols,
+                             int act_rows, int act_cols) {
+  if (exp_rows != act_rows || exp_cols != act_cols) {
+    throw MatrixShapeException(func_name, exp_rows, exp_cols, act_rows,
+                               act_cols);
+  }
+}
 
 namespace CORA {
 

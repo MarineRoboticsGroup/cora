@@ -13,6 +13,16 @@ Matrix StiefelProduct::projectToManifold(const Matrix &A) const {
 
   Matrix P(p_, k_ * n_);
 
+  // check that A is the correct size
+  if (A.rows() != p_ || A.cols() != k_ * n_) {
+    throw std::runtime_error("Error in StiefelProduct::projectToManifold: "
+                             "Shape of A is: " +
+                             std::to_string(A.rows()) + " x " +
+                             std::to_string(A.cols()) +
+                             " but should be: " + std::to_string(p_) + " x " +
+                             std::to_string(k_ * n_));
+  }
+
 #pragma omp parallel for default(none) shared(A, P, Eigen::Dynamic)
   for (auto i = 0; i < n_; ++i) {
     auto start_col = static_cast<Index>(i * k_);

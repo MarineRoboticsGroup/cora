@@ -17,6 +17,8 @@ void Problem::addPoseVariable(const Symbol &pose_id) {
     throw std::invalid_argument("Pose variable already exists");
   }
   pose_symbol_idxs_.insert(std::make_pair(pose_id, pose_symbol_idxs_.size()));
+  problem_data_up_to_date_ = false;
+  manifolds_.stiefel_prod_manifold_.addNewFrame();
 }
 
 void Problem::addLandmarkVariable(const Symbol &landmark_id) {
@@ -34,6 +36,7 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
   }
   range_measurements_.push_back(range_measurement);
   problem_data_up_to_date_ = false;
+  manifolds_.oblique_manifold_.addNewSphere();
 }
 
 void Problem::addRelativePoseMeasurement(
@@ -431,6 +434,8 @@ void Problem::fillDataMatrix() {
 
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
   if (formulation_ == Formulation::Explicit) {
+    checkMatrixShape("Problem::dataMatrixProduct::Y", getDataMatrixSize(),
+                     relaxation_rank_, Y.rows(), Y.cols());
     return data_matrix_ * Y;
   } else {
     throw std::invalid_argument("Implicit formulation not implemented");
@@ -439,12 +444,15 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
 
 Scalar Problem::evaluateObjective(const Matrix &Y) const {
   checkUpToDate();
-  return (Y * dataMatrixProduct(Y)).trace();
+  return (Y.transpose() * dataMatrixProduct(Y)).trace();
 }
 
 Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
   checkUpToDate();
-  return 2 * dataMatrixProduct(Y);
+  Matrix egrad = 2 * dataMatrixProduct(Y);
+  checkMatrixShape("Problem::Euclidean_gradient", Y.rows(), Y.cols(),
+                   egrad.rows(), egrad.cols());
+  return egrad;
 }
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
@@ -459,58 +467,103 @@ Matrix Problem::Riemannian_gradient(const Matrix &Y,
 
 Matrix Problem::tangent_space_projection(const Matrix &Y,
                                          const Matrix &Ydot) const {
-  // TODO(alan): implement for explicit form
-  throw NotImplementedException();
-  if (formulation_ == Formulation::Implicit) {
-    throw std::invalid_argument("Implicit formulation not implemented");
-  } else if (formulation_ == Formulation::Explicit) {
-    throw std::invalid_argument("Explicit formulation not implemented");
-  } else {
-    throw std::invalid_argument("Unknown formulation");
-  }
+  // similar to projectToManifold, we treat this projection block-wise. The
+  // first n*d columns are Stiefel elements, and thus use the Stiefel
+  // projection. The next r columns are range measurements, and thus use the
+  // oblique projection. The remaining columns are translational variables, and
+  // thus belong to the Euclidean manifold and do not need projection.
+
+  // check that Y and Ydot have the correct dimensions
+  checkMatrixShape("Problem::tangent_space_projection::Y", getDataMatrixSize(),
+                   relaxation_rank_, Y.rows(), Y.cols());
+  checkMatrixShape("Problem::tangent_space_projection::Ydot",
+                   getDataMatrixSize(), relaxation_rank_, Ydot.rows(),
+                   Ydot.cols());
+
+  Matrix result = Ydot;
+
+  // Stiefel component
+  int n = numPoses();
+  int d = dim_;
+  result.block(0, 0, n * d, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToTangentSpace(
+              Y.block(0, 0, n * d, relaxation_rank_).transpose(),
+              result.block(0, 0, n * d, relaxation_rank_).transpose())
+          .transpose();
+
+  // Oblique component
+  int r = numRangeMeasurements();
+  result.block(n * d, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_
+          .projectToTangentSpace(
+              Y.block(n * d, 0, r, relaxation_rank_).transpose(),
+              result.block(n * d, 0, r, relaxation_rank_).transpose())
+          .transpose();
+
+  // remaining component is untouched
+  return result;
 }
 
 Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                                                   const Matrix &nablaF_Y,
                                                   const Matrix &dotY) const {
-  // TODO(alan): implement for explicit form
-  if (formulation_ == Formulation::Implicit) {
-    // return SP_.projectToTangentSpace(Y, 2 *
-    // data_matrix_product(dotY.transpose()).transpose()
-    // -
-    //                        SP_.SymBlockDiagProduct(dotY, Y, nablaF_Y));
-    throw std::invalid_argument("Implicit formulation not implemented");
-  } else if (formulation_ == Formulation::Explicit) {
-    // Euclidean Hessian-vector product
-    // Matrix H_dotY = 2 * dotY * M_;
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::Y",
+                   getDataMatrixSize(), relaxation_rank_, Y.rows(), Y.cols());
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::nablaF_Y",
+                   getDataMatrixSize(), relaxation_rank_, nablaF_Y.rows(),
+                   nablaF_Y.cols());
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::dotY",
+                   getDataMatrixSize(), relaxation_rank_, dotY.rows(),
+                   dotY.cols());
 
-    // from SE-Sync ... will need to figure out wtf is going on here
-    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.projectToTangentSpace(
-    //     Y.block(0, n_, r_, d_ * n_),
-    //     H_dotY.block(0, n_, r_, d_ * n_) -
-    //         SP_.SymBlockDiagProduct(dotY.block(0, n_, r_, d_ * n_),
-    //                                 Y.block(0, n_, r_, d_ * n_),
-    //                                 nablaF_Y.block(0, n_, r_, d_ * n_)));
-    // return H_dotY;
-    throw std::invalid_argument("Explicit formulation not implemented");
-  } else {
-    throw std::invalid_argument("Unknown formulation");
-  }
+  Matrix H_dotY = 2 * dataMatrixProduct(dotY);
+
+  int nd = dim_ * numPoses();
+  // Stiefel component
+  H_dotY.block(0, 0, nd, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToTangentSpace(
+              Y.block(0, 0, nd, relaxation_rank_).transpose(),
+              H_dotY.block(0, 0, nd, relaxation_rank_).transpose() -
+                  manifolds_.stiefel_prod_manifold_.SymBlockDiagProduct(
+                      dotY.block(0, 0, nd, relaxation_rank_).transpose(),
+                      Y.block(0, 0, nd, relaxation_rank_).transpose(),
+                      nablaF_Y.block(0, 0, nd, relaxation_rank_).transpose()))
+          .transpose();
+
+  // Oblique component
+  throw NotImplementedException("Problem::Riemannian_Hessian_vector_product");
+  int r = numRangeMeasurements();
+  Matrix tangent_component_of_oblique_hessian;
+  H_dotY.block(nd, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_.projectToTangentSpace(
+          Y.block(nd, 0, r, relaxation_rank_).transpose(),
+          H_dotY.block(nd, 0, r, relaxation_rank_).transpose()) -
+      tangent_component_of_oblique_hessian;
+
+  return H_dotY;
 }
 
 Matrix Problem::precondition(const Matrix &V) const {
+  checkMatrixShape("Problem::precondition::input", getDataMatrixSize(),
+                   relaxation_rank_, V.rows(), V.cols());
+  Matrix res;
   if (preconditioner_ == Preconditioner::BlockCholesky) {
-    return blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_,
-                              V);
+    res =
+        blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
   }
+  checkMatrixShape("Problem::precondition::result", getDataMatrixSize(),
+                   relaxation_rank_, res.rows(), res.cols());
+  return res;
 }
 
 Matrix Problem::projectToManifold(const Matrix &A) const {
-  int num_cols = relaxation_rank_;
-  assert(A.cols() == num_cols);
+  checkMatrixShape("Problem::projectToManifold", getDataMatrixSize(),
+                   relaxation_rank_, A.rows(), A.cols());
 
   Matrix result = A;
 
@@ -518,16 +571,20 @@ Matrix Problem::projectToManifold(const Matrix &A) const {
   // manifolds_.stiefel_prod.projectToManifoldresult(1:n*d, :))
   int n = numPoses();
   int d = dim_;
-  result.block(0, 0, n * d, num_cols) =
-      manifolds_.stiefel_prod_manifold_.projectToManifold(
-          result.block(0, 0, n * d, d));
+  result.block(0, 0, n * d, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToManifold(
+              result.block(0, 0, n * d, relaxation_rank_).transpose())
+          .transpose();
 
   // the next r rows are obtained from
   // manifolds_.oblique_manifold.retract(Y(n*d+1:n*d+r, :), V(n*d+1:n*d+r, :))
   int r = numRangeMeasurements();
-  result.block(n * d, 0, r, num_cols) =
-      manifolds_.oblique_manifold_.projectToManifold(
-          result.block(n * d, 0, r, num_cols));
+  result.block(n * d, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_
+          .projectToManifold(
+              result.block(n * d, 0, r, relaxation_rank_).transpose())
+          .transpose();
 
   // if there are remaining rows, they should be translational variables and
   // thus belong to the Euclidean manifold and do not need rounding.
@@ -607,6 +664,8 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
 }
 
 Matrix Problem::getRandomInitialGuess() const {
+  // assert that the problem data must be up to date
+  assert(problem_data_up_to_date_);
   Matrix x0 = Matrix::Random(getDataMatrixSize(), relaxation_rank_);
   return projectToManifold(x0);
 }

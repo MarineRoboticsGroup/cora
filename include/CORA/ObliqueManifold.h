@@ -32,10 +32,19 @@ public:
   // Default constructor -- sets all dimensions to 0
   ObliqueManifold() = default;
 
+  /**
+   * @brief Construct a new Oblique Manifold object
+   *
+   * @param r the dimension of the ambient Euclidean space containing the unit
+   * vectors
+   * @param n the number of unit vectors in the product
+   */
   ObliqueManifold(size_t r, size_t n) : r_(r), n_(n) {}
 
   void set_r(size_t r) { r_ = r; }
   void set_n(size_t n) { n_ = n; }
+  void addNewSphere() { n_++; }
+  void incrementRank() { r_++; }
 
   /// GEOMETRY
 

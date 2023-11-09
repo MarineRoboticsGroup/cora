@@ -12,6 +12,8 @@ TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
   std::string data_subdir = "small_ra_slam_problem";
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
+  problem.updateProblemData();
+
   Matrix x0 = problem.getRandomInitialGuess();
 
   // just check if it runs

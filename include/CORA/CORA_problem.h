@@ -53,6 +53,11 @@ struct PreconditionerMatrices {
 struct Manifolds {
   StiefelProduct stiefel_prod_manifold_;
   ObliqueManifold oblique_manifold_;
+
+  void incrementRank() {
+    stiefel_prod_manifold_.incrementRank();
+    oblique_manifold_.incrementRank();
+  }
 };
 
 class Problem {
@@ -62,7 +67,7 @@ private:
 
   /** rank of the relaxation e.g., the latent embedding space of Stiefel
    * manifold */
-  const int64_t relaxation_rank_;
+  int64_t relaxation_rank_;
 
   // maps from pose symbol to pose index (e.g., x1 -> 0, x2 -> 1, etc.)
   std::map<Symbol, int> pose_symbol_idxs_;
@@ -178,9 +183,12 @@ public:
       : dim_(dim),
         relaxation_rank_(relaxation_rank),
         formulation_(formulation),
-        preconditioner_(preconditioner) {
+        preconditioner_(preconditioner),
+        manifolds_(Manifolds()) {
     // relaxation rank must be >= dim
     assert(relaxation_rank >= dim);
+    manifolds_.oblique_manifold_ = ObliqueManifold(relaxation_rank, 0);
+    manifolds_.stiefel_prod_manifold_ = StiefelProduct(dim, relaxation_rank, 0);
   }
 
   ~Problem() = default;
@@ -229,6 +237,10 @@ public:
   /*****  Riemannian optimization functions  *******/
 
   Matrix getRandomInitialGuess() const;
+  void incrementRank() {
+    relaxation_rank_++;
+    manifolds_.incrementRank();
+  }
 
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;

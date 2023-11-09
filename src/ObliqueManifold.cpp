@@ -4,6 +4,10 @@
 namespace CORA {
 
 Matrix ObliqueManifold::projectToManifold(const Matrix &A) const {
+  // check that the dimensions of A are as expected
+  checkMatrixShape("ObliqueManifold::projectToManifold", r_, n_, A.rows(),
+                   A.cols());
+
   // in parallel, normalize each column of A to have unit norm
   Matrix A_normalized = A;
   for (int64_t j = 0; j < A_normalized.cols(); j++) {
