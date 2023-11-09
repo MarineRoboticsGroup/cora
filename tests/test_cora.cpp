@@ -16,7 +16,13 @@ TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
 
   Matrix x0 = problem.getRandomInitialGuess();
 
+  std::string X_gt_fpath = getTestDataFpath(data_subdir, "X_gt.mm");
+  Matrix X_gt = readMatrixMarketFile(X_gt_fpath).toDense();
+
+  checkMatrixShape("CORA-solve::small-ra-slam-problem::X_gt",
+                   problem.getDataMatrixSize(), 2, X_gt.rows(), X_gt.cols());
+
   // just check if it runs
-  Matrix x = solveCORA(problem, x0);
+  Matrix x = solveCORA(problem, X_gt);
 }
 } // namespace CORA

@@ -114,9 +114,6 @@ private:
     }
   }
 
-  // the full size of the data matrix
-  size_t getDataMatrixSize() const;
-
   // function to fill all of the submatrices built from range measurements.
   // Should only be called from updateProblemData()
   void fillRangeSubmatrices();
@@ -228,6 +225,9 @@ public:
 
   void updateProblemData();
   SparseMatrix getDataMatrix();
+
+  // the full size of the full (explicit problem) data matrix
+  size_t getDataMatrixSize() const;
 
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
