@@ -29,6 +29,9 @@ set(EXPECTED_FILES
 "Arange.mm"
 "OmegaRange.mm"
 "RangeDistances.mm"
+# candidate initializations
+"X_gt.mm"
+"X_odom.mm"
 )
 
 ## For each problem type in our tests, we expect these directories
