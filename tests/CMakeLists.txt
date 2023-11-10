@@ -9,6 +9,7 @@ add_executable(tests
     test_construct_problem.cpp
     test_geometry.cpp
     test_cora.cpp
+    test_optimizer_helpers.cpp
 )
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
@@ -32,6 +33,12 @@ set(EXPECTED_FILES
 # candidate initializations
 "X_gt.mm"
 "X_odom.mm"
+"X_rand_dim2.mm"
+# info for testing the optimization helper functions
+"expected_egrad.mm"
+"expected_rgrad.mm"
+"hessProd.mm"
+"rand_dX.mm"
 )
 
 ## For each problem type in our tests, we expect these directories

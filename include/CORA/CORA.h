@@ -17,7 +17,7 @@ namespace CORA {
 using CoraTntResult = Optimization::Riemannian::TNTResult<Matrix, Scalar>;
 
 CoraTntResult solveCORA(const Problem &problem, const Matrix &x0);
-CoraTntResult solveCORA(std::string filepath) {
+inline CoraTntResult solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
   Matrix x0 = Matrix();
   throw std::runtime_error(

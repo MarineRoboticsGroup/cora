@@ -336,8 +336,13 @@ void Problem::updatePreconditioner() {
       block_sizes(i) = block_size_vec[i];
     }
 
+    SparseMatrix epsilonPosDefUpdate =
+        SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
+    epsilonPosDefUpdate.setIdentity();
+    epsilonPosDefUpdate *= 1e-3;
     preconditioner_matrices_.block_chol_factor_ptrs_ =
-        getBlockCholeskyFactorization(data_matrix_, block_sizes);
+        getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
+                                      block_sizes);
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -444,12 +449,12 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
 
 Scalar Problem::evaluateObjective(const Matrix &Y) const {
   checkUpToDate();
-  return (Y.transpose() * dataMatrixProduct(Y)).trace();
+  return 0.5 * (Y.transpose() * dataMatrixProduct(Y)).trace();
 }
 
 Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
   checkUpToDate();
-  Matrix egrad = 2 * dataMatrixProduct(Y);
+  Matrix egrad = dataMatrixProduct(Y);
   checkMatrixShape("Problem::Euclidean_gradient", Y.rows(), Y.cols(),
                    egrad.rows(), egrad.cols());
   return egrad;
@@ -517,7 +522,7 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                    getDataMatrixSize(), relaxation_rank_, dotY.rows(),
                    dotY.cols());
 
-  Matrix H_dotY = 2 * dataMatrixProduct(dotY);
+  Matrix H_dotY = dataMatrixProduct(dotY);
 
   int nd = dim_ * numPoses();
   // Stiefel component
@@ -564,6 +569,12 @@ Matrix Problem::precondition(const Matrix &V) const {
   }
   checkMatrixShape("Problem::precondition::result", getDataMatrixSize(),
                    relaxation_rank_, res.rows(), res.cols());
+
+  // check for NaNs in res
+  if (res.hasNaN()) {
+    std::cout << "NaNs in preconditioned vector:\n" << res << std::endl;
+    throw std::runtime_error("NaNs in preconditioned vector");
+  }
   return res;
 }
 
