@@ -8,6 +8,26 @@
 #include <catch2/catch_test_macros.hpp>
 
 namespace CORA {
+
+void printResults(CoraTntResult res, Problem problem, Matrix X_gt) {
+  std::cout << "Cost at GT: " << problem.evaluateObjective(X_gt) << std::endl;
+  std::cout << "Egrad norm at GT: " << problem.Euclidean_gradient(X_gt).norm()
+            << std::endl;
+  std::cout << "Rgrad norm at GT: " << problem.Riemannian_gradient(X_gt).norm()
+            << std::endl;
+
+  std::cout << "Estimated state: " << std::endl << res.x << std::endl;
+  std::cout << "Cost: " << res.f << std::endl;
+  std::cout << "Outer Iterations: " << res.iterates.size() << std::endl;
+  std::cout << "Inner Iterations: " << res.inner_iterations.size() << std::endl;
+
+  std::cout << "Preconditioned gradient norms:" << std::endl;
+  for (Scalar val : res.preconditioned_gradient_norms) {
+    std::cout << val << "; ";
+  }
+  std::cout << std::endl;
+}
+
 TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
   std::string data_subdir = "small_ra_slam_problem";
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
@@ -23,6 +43,7 @@ TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
                    problem.getDataMatrixSize(), 2, X_gt.rows(), X_gt.cols());
 
   // just check if it runs
-  Matrix x = solveCORA(problem, X_gt);
+  CoraTntResult res = solveCORA(problem, X_gt);
+  printResults(res, problem, X_gt);
 }
 } // namespace CORA
