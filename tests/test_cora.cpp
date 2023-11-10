@@ -13,9 +13,13 @@ void printResults(CoraTntResult res, Problem problem, Matrix X_gt) {
   std::cout << "Cost at GT: " << problem.evaluateObjective(X_gt) << std::endl;
   std::cout << "Egrad norm at GT: " << problem.Euclidean_gradient(X_gt).norm()
             << std::endl;
-  std::cout << "Rgrad norm at GT: " << problem.Riemannian_gradient(X_gt).norm()
-            << std::endl;
+  Matrix Rgrad = problem.Riemannian_gradient(X_gt);
+  std::cout << "Rgrad norm at GT: " << Rgrad.norm() << std::endl;
+  if (Rgrad.norm() > 1e-8) {
+    std::cout << "Rgrad at GT: " << std::endl << Rgrad << std::endl;
+  }
 
+  std::cout << "Run time: " << res.elapsed_time << std::endl;
   std::cout << "Estimated state: " << std::endl << res.x << std::endl;
   std::cout << "Cost: " << res.f << std::endl;
   std::cout << "Outer Iterations: " << res.iterates.size() << std::endl;
