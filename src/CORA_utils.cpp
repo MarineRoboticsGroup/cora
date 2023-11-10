@@ -11,13 +11,13 @@ namespace CORA {
 using SymmetricLinOp =
     Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>;
 
-bool fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
-                       Scalar &theta, Vector &x, size_t &num_iters,
-                       size_t max_iters, Scalar max_fill_factor,
-                       Scalar drop_tol) {
+CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
+                              size_t max_iters, Scalar max_fill_factor,
+                              Scalar drop_tol) {
   // Don't forget to set this on input!
-  num_iters = 0;
-  theta = 0;
+  size_t num_iters = 0;
+  Scalar theta = 0;
+  Vector x = Vector::Zero(S.rows());
 
   unsigned int n = S.rows();
 
@@ -156,7 +156,12 @@ bool fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
     } // if (!(theta < -eta / 2))
   }   // if(!PSD)
 
-  return PSD;
+  CertResults results;
+  results.is_certified = PSD;
+  results.theta = theta;
+  results.x = x;
+  results.num_iters = num_iters;
+  return results;
 }
 
 } // namespace CORA
