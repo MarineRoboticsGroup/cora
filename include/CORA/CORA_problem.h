@@ -253,6 +253,39 @@ public:
   Matrix precondition(const Matrix &V) const;
   Matrix projectToManifold(const Matrix &A) const;
   Matrix retract(const Matrix &Y, const Matrix &V) const;
+
+  /********** Certification **************/
+
+  /**
+   * @brief Check if a solution is certified. If not, compute a direction of
+   * negative curvature and its associated Rayleigh quotient.
+   *
+   * @param Y the rank-r solution to certify
+   * @param eta the regularization parameter (tolerance on PSDness of the
+   * certificate matrix)
+   * @param nx the block size to use in LOBPCG
+   * @param max_LOBPCG_iters the maximum number of LOBPCG iterations to use
+   * @param max_fill_factor the maximum fill factor to use in the incomplete
+   * factorization-based preconditioner
+   * @param drop_tol the drop tolerance to use in the incomplete
+   * factorization-based preconditioner
+   * @return CertResults
+   */
+  CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
+                               size_t max_LOBPCG_iters, Scalar max_fill_factor,
+                               Scalar drop_tol) const;
+
+  /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
+   * this function computes and returns the matrix Lambda itself */
+  SparseMatrix
+  compute_Lambda_from_Lambda_blocks(const Matrix &Lambda_blocks) const;
+
+  /** Given a critical point Y of the rank-r relaxation, this function computes
+   * and returns a d x dn matrix comprised of d x d block elements of the
+   * associated block-diagonal Lagrange multiplier matrix associated with the
+   * orthonormality constraints on the generalized orientations of the poses
+   * (cf. eq. (119) in the SE-Sync tech report) */
+  Matrix compute_Lambda_blocks(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

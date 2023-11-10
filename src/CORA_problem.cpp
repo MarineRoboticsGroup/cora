@@ -10,6 +10,7 @@
  */
 
 #include <CORA/CORA_problem.h>
+#include <CORA/CORA_utils.h>
 
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
@@ -685,6 +686,78 @@ Matrix Problem::getRandomInitialGuess() const {
   assert(problem_data_up_to_date_);
   Matrix x0 = Matrix::Random(getDataMatrixSize(), relaxation_rank_);
   return projectToManifold(x0);
+}
+
+CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
+                                      size_t max_LOBPCG_iters,
+                                      Scalar max_fill_factor,
+                                      Scalar drop_tol) const {
+  /// Construct certificate matrix S
+
+  Matrix Lambda_blocks;
+  SparseMatrix S;
+
+  // We compute the certificate matrix corresponding to the *full* (i.e.
+  // translation-explicit) form of the problem
+  Lambda_blocks = compute_Lambda_blocks(Y);
+  S = data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+
+  /// Test positive-semidefiniteness of certificate matrix S using fast
+  /// verification method
+  CertResults results = fast_verification(S, eta, nx, max_LOBPCG_iters,
+                                          max_fill_factor, drop_tol);
+
+  if (!results.is_certified && (formulation_ == Formulation::Implicit)) {
+    // Extract the (trailing) portion of the tangent vector corresponding to the
+    // rotational states
+    Vector v =
+        results.x.tail(numPoses() * dim_ + numRangeMeasurements()).normalized();
+    results.x = v;
+
+    // Compute x's Rayleight quotient with the simplified certificate matrix
+    SparseMatrix Lambda = compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+    Vector Sx = dataMatrixProduct(results.x) - Lambda * results.x;
+    results.theta = results.x.dot(Sx);
+  }
+
+  return results;
+}
+
+Matrix Problem::compute_Lambda_blocks(const Matrix &Y) const {
+  // Compute S * Y, where S is the data matrix defining the quadratic form
+  // for the specific version of the SE-Sync problem we're solving
+  Matrix QY = dataMatrixProduct(Y);
+
+  // Preallocate storage for diagonal blocks of Lambda
+  Matrix Lambda_blocks(dim_, numPoses() * dim_);
+
+  throw NotImplementedException("Computing lambda blocks");
+
+#pragma omp parallel for
+  for (size_t i = 0; i < numPoses(); ++i) {
+    Matrix P = QY.block(i * dim_, 0, dim_, Y.rows()) *
+               Y.block(0, i * dim_, Y.rows(), dim_);
+    Lambda_blocks.block(0, i * dim_, dim_, dim_) = .5 * (P + P.transpose());
+  }
+  return Lambda_blocks;
+}
+
+SparseMatrix
+Problem::compute_Lambda_from_Lambda_blocks(const Matrix &Lambda_blocks) const {
+  std::vector<Eigen::Triplet<Scalar>> elements;
+  elements.reserve(dim_ * dim_ * numPoses());
+
+  for (size_t i = 0; i < numPoses(); ++i) // block index
+    for (size_t r = 0; r < dim_; ++r)     // block row index
+      for (size_t c = 0; c < dim_; ++c)   // block column index
+        elements.emplace_back(i * dim_ + r, i * dim_ + c,
+                              Lambda_blocks(r, i * dim_ + c));
+
+  throw NotImplementedException("Computing lambda size");
+  int Lambda_size = dim_ * numPoses();
+  SparseMatrix Lambda(Lambda_size, Lambda_size);
+  Lambda.setFromTriplets(elements.begin(), elements.end());
+  return Lambda;
 }
 
 } // namespace CORA
