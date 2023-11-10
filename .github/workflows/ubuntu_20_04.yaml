@@ -1,0 +1,46 @@
+name: Release Build Ubuntu 20.04
+
+on: pull_request
+
+jobs:
+  setup:
+    runs-on: ubuntu-20.04
+
+    env:
+      BUILD_DIR: ${{github.workspace}}/build
+    steps:
+      # Checkout the repo
+      - uses: actions/checkout@v2
+
+      - name: Pull submodules
+        run: git submodule update --init --recursive
+
+      - name: Install Python 3.10
+        run: |
+          sudo apt update -qq
+          sudo apt install -qq -y --no-install-recommends software-properties-common
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt update -qq
+          sudo apt install -qq -y --no-install-recommends python3.10 python3.10-dev python3.10-distutils
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -qq -y --no-install-recommends cmake clang build-essential cppcheck libsuitesparse-dev libeigen3-dev libomp-dev
+
+      - name: Install pre-commit
+        run: |
+          pip3 install pre-commit
+
+      - name: Create build directory
+        run: cmake -E make_directory ${{ env.BUILD_DIR }}
+
+      - name: Configure Cmake
+        run: cmake -S . -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=Release -Wno-dev
+
+      - name: Build
+        run: cmake --build ${{ env.BUILD_DIR }} -j
+
+      - name: Running tests
+        run: |
+          cd ${{ env.BUILD_DIR }}
+          ./bin/tests
