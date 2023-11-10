@@ -1,6 +1,6 @@
 // cppcheck-suppress syntaxError
+#include <CORA/CORA_test_utils.h>
 #include <CORA/CORA_types.h>
-#include <CORA/CORA_utils.h>
 #include <CORA/ObliqueManifold.h>
 
 #include <catch2/catch_test_macros.hpp>
