@@ -25,6 +25,11 @@ Matrix ObliqueManifold::projectToTangentSpace(const Matrix &A,
   // we now want to scale each column of Y by the corresponding inner product
   // and subtract the result from A
   Matrix scaled_cols = Y.array().rowwise() * inner_prods.transpose().array();
+
+  throw NotImplementedException(
+      "ObliqueManifold::projectToTangentSpace not implemented -- the "
+      "projection is currently wrong");
+
   return A - scaled_cols;
 }
 
