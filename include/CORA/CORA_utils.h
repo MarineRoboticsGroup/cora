@@ -18,21 +18,16 @@ namespace CORA {
  * @param S the sparse matrix to be tested for positive-semidefiniteness
  * @param eta the regularization parameter
  * @param nx the block size to use in LOBPCG
- * @param theta the Rayleigh quotient of the computed negative curvature
- * (returned as a scalar)
- * @param x the computed direction of negative curvature (returned as a vector)
- * @param num_iters the number of iterations LOBPCG executed
  * @param max_iters the maximum number of LOBPCG iterations
  * @param max_fill_factor the maximum fill factor to use in the incomplete
  * factorization-based preconditioner
  * @param drop_tol the drop tolerance to use in the incomplete
  * factorization-based preconditioner
- * @return true
- * @return false
+ * @return the results of the PSD test
  */
-bool fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
-                       Scalar &theta, Vector &x, size_t &num_iters,
-                       size_t max_iters = 1000, Scalar max_fill_factor = 3,
-                       Scalar drop_tol = 1e-3);
+CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
+                              size_t max_iters = 1000,
+                              Scalar max_fill_factor = 3,
+                              Scalar drop_tol = 1e-3);
 
 } // namespace CORA
