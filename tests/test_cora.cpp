@@ -9,7 +9,10 @@
 
 namespace CORA {
 
-void printResults(CoraTntResult res, Problem problem, Matrix X_gt) {
+void printResults(CoraTntResult res, Problem problem, Matrix X_gt,
+                  std::string data_subdir) {
+  std::cout << "_____________________________________" << std::endl;
+  std::cout << "Data subdir: " << data_subdir << std::endl;
   std::cout << "Cost at GT: " << problem.evaluateObjective(X_gt) << std::endl;
   std::cout << "Egrad norm at GT: " << problem.Euclidean_gradient(X_gt).norm()
             << std::endl;
@@ -29,11 +32,10 @@ void printResults(CoraTntResult res, Problem problem, Matrix X_gt) {
   for (Scalar val : res.preconditioned_gradient_norms) {
     std::cout << val << "; ";
   }
-  std::cout << std::endl;
+  std::cout << "\n\n\n" << std::endl;
 }
 
-TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
-  std::string data_subdir = "small_ra_slam_problem";
+void testScenario(std::string data_subdir) {
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
   problem.updateProblemData();
@@ -43,11 +45,22 @@ TEST_CASE("Test solve", "[CORA-solve::small_ra_slam_problem]") {
   std::string X_gt_fpath = getTestDataFpath(data_subdir, "X_gt.mm");
   Matrix X_gt = readMatrixMarketFile(X_gt_fpath).toDense();
 
-  checkMatrixShape("CORA-solve::small-ra-slam-problem::X_gt",
+  checkMatrixShape("CORA-solve::" + data_subdir + "::X_gt",
                    problem.getDataMatrixSize(), 2, X_gt.rows(), X_gt.cols());
 
   // just check if it runs
   CoraTntResult res = solveCORA(problem, X_gt);
-  printResults(res, problem, X_gt);
+  printResults(res, problem, X_gt, data_subdir);
 }
+
+TEST_CASE("Test solve RA-SLAM", "[CORA-solve::small_ra_slam_problem]") {
+  std::string data_subdir = "small_ra_slam_problem";
+  testScenario(data_subdir);
+}
+
+TEST_CASE("Test solve single-range", "[CORA-solve::single_range]") {
+  std::string data_subdir = "single_range";
+  testScenario(data_subdir);
+}
+
 } // namespace CORA
