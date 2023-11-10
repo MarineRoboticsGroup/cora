@@ -544,8 +544,8 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
   H_dotY.block(nd, 0, r, relaxation_rank_) =
       manifolds_.oblique_manifold_
           .projectToTangentSpace(
-              euclidean_hessian.transpose(),
-              Y.block(nd, 0, r, relaxation_rank_).transpose())
+              Y.block(nd, 0, r, relaxation_rank_).transpose(),
+              euclidean_hessian.transpose())
           .transpose();
 
   return H_dotY;

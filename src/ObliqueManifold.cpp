@@ -16,11 +16,11 @@ Matrix ObliqueManifold::projectToManifold(const Matrix &A) const {
   return A_normalized;
 }
 
-Matrix ObliqueManifold::projectToTangentSpace(const Matrix &A,
-                                              const Matrix &Y) const {
+Matrix ObliqueManifold::projectToTangentSpace(const Matrix &Y,
+                                              const Matrix &V) const {
   // get the inner product by taking the row-wise summation of the Hadamard
   // product of Y and A
-  Vector inner_prods = (Y.array() * A.array()).colwise().sum();
+  Vector inner_prods = (Y.array() * V.array()).colwise().sum();
 
   // we now want to scale each column of Y by the corresponding inner product
   // and subtract the result from A
@@ -32,7 +32,7 @@ Matrix ObliqueManifold::projectToTangentSpace(const Matrix &A,
   //              "projection is currently wrong"
   //           << std::endl;
 
-  return A - scaled_cols;
+  return V - scaled_cols;
 }
 
 Matrix ObliqueManifold::random_sample(

@@ -27,7 +27,7 @@ TEST_CASE("Testing unit-sphere functions", "[sphere]") {
   Matrix V = Matrix::Random(sphere_dim, num_spheres);
 
   // check that the projection to the tangent space works
-  Matrix V_on_tangent_space = M.projectToTangentSpace(V, Y);
+  Matrix V_on_tangent_space = M.projectToTangentSpace(Y, V);
 
   // in general, the projection to the tangent space should not be zero
   REQUIRE_FALSE(V_on_tangent_space.isZero());
@@ -58,7 +58,7 @@ TEST_CASE("Testing oblique manifold functions", "[oblique]") {
 
   // check that the projection of a random point to the tangent space works
   Matrix rand = Matrix::Random(sphere_dim, num_spheres);
-  Matrix V = M.projectToTangentSpace(rand, Y);
+  Matrix V = M.projectToTangentSpace(Y, rand);
 
   // check that projecting Y to its own tangent space is zero
   Matrix V_zero = M.projectToTangentSpace(Y, Y);

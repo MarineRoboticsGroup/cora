@@ -63,4 +63,9 @@ TEST_CASE("Test solve single-range", "[CORA-solve::single_range]") {
   testScenario(data_subdir);
 }
 
+TEST_CASE("Test solve single-rpm", "[CORA-solve::single_rpm]") {
+  std::string data_subdir = "single_rpm";
+  testScenario(data_subdir);
+}
+
 } // namespace CORA

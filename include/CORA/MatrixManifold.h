@@ -35,15 +35,15 @@ public:
   virtual Matrix projectToManifold(const Matrix &A) const = 0;
 
   /**
-   * @brief projectToTangentSpaceects a matrix A onto the tangent space T_Y(M)
+   * @brief projectToTangentSpaceects a matrix V onto the tangent space T_Y(M)
    * of the manifold at point Y
    *
-   * @param A the matrix to project
    * @param Y the point defining the tangent space
-   * @return Matrix the projection of A onto T_Y(M)
+   * @param V the matrix to project
+   * @return Matrix the projection of V onto T_Y(M)
    */
-  virtual Matrix projectToTangentSpace(const Matrix &A,
-                                       const Matrix &Y) const = 0;
+  virtual Matrix projectToTangentSpace(const Matrix &Y,
+                                       const Matrix &V) const = 0;
 
   /**
    * @brief Computes the trace inner product of A and B

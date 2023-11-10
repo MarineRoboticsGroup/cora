@@ -59,11 +59,11 @@ public:
    * @brief Projects a matrix A in R^{r x n} onto the tangent space T_Y(M) of
    * the oblique manifold at Y in R^{r x n}.
    *
-   * @param A the matrix to project
+   * @param V the matrix to project
    * @param Y the point defining the tangent space
    * @return Matrix
    */
-  Matrix projectToTangentSpace(const Matrix &A, const Matrix &Y) const;
+  Matrix projectToTangentSpace(const Matrix &Y, const Matrix &V) const;
 
   /** Sample a random point on M, using the (optional) passed seed to initialize
    * the random number generator.  */
