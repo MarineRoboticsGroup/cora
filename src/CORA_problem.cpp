@@ -729,16 +729,25 @@ Matrix Problem::compute_Lambda_blocks(const Matrix &Y) const {
   Matrix QY = dataMatrixProduct(Y);
 
   // Preallocate storage for diagonal blocks of Lambda
-  Matrix Lambda_blocks(dim_, numPoses() * dim_);
+  Matrix Lambda_blocks(dim_, numPoses() * dim_ + numRangeMeasurements());
 
   throw NotImplementedException("Computing lambda blocks");
 
 #pragma omp parallel for
   for (size_t i = 0; i < numPoses(); ++i) {
-    Matrix P = QY.block(i * dim_, 0, dim_, Y.rows()) *
-               Y.block(0, i * dim_, Y.rows(), dim_);
+    Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
+               Y.block(0, i * dim_, Y.cols(), dim_);
     Lambda_blocks.block(0, i * dim_, dim_, dim_) = .5 * (P + P.transpose());
   }
+
+#pragma omp parallel for
+  size_t nd = numPoses() * dim_;
+  for (size_t i = 0; i < numRangeMeasurements(); ++i) {
+    Matrix P =
+        QY.block(nd + i, 0, 1, Y.cols()) * Y.block(0, nd + i, Y.cols(), 1);
+    Lambda_blocks.block(0, nd + i, dim_, 1) = P.transpose();
+  }
+
   return Lambda_blocks;
 }
 
