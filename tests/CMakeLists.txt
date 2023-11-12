@@ -10,11 +10,13 @@ add_executable(tests
     test_geometry.cpp
     test_cora.cpp
     test_optimizer_helpers.cpp
+    test_certification.cpp
 )
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
 target_link_libraries(tests PUBLIC CORA)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 ## The basic data that we expect to be in the data directory
 set(DATA_DIR "data")
