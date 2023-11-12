@@ -43,29 +43,31 @@ void printResults(CertResults res) {
 }
 
 void testIdentityMatrixVerification(size_t mat_dim) {
+  // for every test run, we will test both interfaces to the 'fast_verification'
+  // function: one that takes in a dense matrix representing a block of
+  // eigenvectors, and one that takes in a number of eigenvectors to generate
+  // a random block of eigenvectors internally
   Matrix I = Matrix::Identity(mat_dim, mat_dim);
+  Vector x = Vector::Random(mat_dim).normalized();
 
   // Identity matrix is PD so should be certified
-  CertResults identity_res = fast_verification(I.sparseView(), 0, 1);
-  checkResultsCertified(identity_res);
+  checkResultsCertified(fast_verification(I.sparseView(), 0, x));
+  checkResultsCertified(fast_verification(I.sparseView(), 0, 1));
 
   // if we sample a random unit vector 'x' and compute I - xx' then we get a
   // PSD matrix with null space spanned by 'x'
-  Vector x = Vector::Random(mat_dim).normalized();
   Matrix xxT = x * x.transpose();
   Matrix I_minus_xxT = I - xxT;
 
   // when we regularize the matrix with a small eta, it should be certified
-  CertResults I_minus_xxT_res_with_reg =
-      fast_verification(I_minus_xxT.sparseView(), 1e-8, 1);
-  checkResultsCertified(I_minus_xxT_res_with_reg);
+  checkResultsCertified(fast_verification(I_minus_xxT.sparseView(), 1e-8, x));
+  checkResultsCertified(fast_verification(I_minus_xxT.sparseView(), 1e-8, 1));
 
   // however, if we compute I - 2*xx' then we get a matrix that is indefinite
   // with a negative eigenpair of (-1, x)
   Matrix I_minus_2xxT = I - 2 * xxT;
-  CertResults I_minus_2xxT_res =
-      fast_verification(I_minus_2xxT.sparseView(), 0, 1);
-  checkNotCertified(I_minus_2xxT_res, -1, x);
+  checkNotCertified(fast_verification(I_minus_2xxT.sparseView(), 0, x), -1, x);
+  checkNotCertified(fast_verification(I_minus_2xxT.sparseView(), 0, 1), -1, x);
 }
 
 TEST_CASE("Test generic verification (small)") {
