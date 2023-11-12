@@ -132,6 +132,7 @@ ${CORA_HDR_DIR}/pyfg_text_parser.h
 ${CORA_HDR_DIR}/MatrixManifold.h
 ${CORA_HDR_DIR}/StiefelProduct.h
 ${CORA_HDR_DIR}/ObliqueManifold.h
+${CORA_HDR_DIR}/CORA_vis.h
 )
 
 set(CORA_SRCS
@@ -143,6 +144,7 @@ ${CORA_SOURCE_DIR}/Symbol.cpp
 ${CORA_SOURCE_DIR}/pyfg_text_parser.cpp
 ${CORA_SOURCE_DIR}/StiefelProduct.cpp
 ${CORA_SOURCE_DIR}/ObliqueManifold.cpp
+${CORA_SOURCE_DIR}/CORA_vis.cpp
 )
 
 # The CORA library
