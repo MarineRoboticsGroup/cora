@@ -26,12 +26,6 @@ Matrix ObliqueManifold::projectToTangentSpace(const Matrix &Y,
   // and subtract the result from A
   Matrix scaled_cols = Y.array().rowwise() * inner_prods.transpose().array();
 
-  // TODO(alan): check if this is wrong?
-  // std::cout << "WARNING: ObliqueManifold::projectToTangentSpace not "
-  //              "implemented -- the "
-  //              "projection is currently wrong"
-  //           << std::endl;
-
   return V - scaled_cols;
 }
 
