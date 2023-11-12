@@ -25,7 +25,26 @@ struct EigenMatrixApproxMatcher : Catch::Matchers::MatcherBase<MatrixType> {
       : expected_(expected), epsilon_(epsilon) {}
 
   bool match(const MatrixType &actual) const override {
-    return (expected_ - actual).cwiseAbs().maxCoeff() <= epsilon_;
+    if (expected_.rows() != actual.rows() ||
+        expected_.cols() != actual.cols()) {
+      return false;
+    }
+
+    if constexpr (std::is_same_v<MatrixType, CORA::SparseMatrix>) {
+      MatrixType diff = expected_ - actual;
+      for (int k = 0; k < diff.outerSize(); ++k) {
+        for (typename MatrixType::InnerIterator it(diff, k); it; ++it) {
+          const typename MatrixType::Scalar abs_diff = std::abs(it.value());
+          if (abs_diff > epsilon_) {
+            return false;
+          }
+        }
+      }
+    } else {
+      return (expected_ - actual).cwiseAbs().maxCoeff() <= epsilon_;
+    }
+
+    return true;
   }
 
   std::string describe() const override {
@@ -97,6 +116,7 @@ std::string checkSubmatricesAreCorrect(Problem prob,
 // load problem data
 Problem getProblem(std::string data_subdir);
 Matrix getRandInit(std::string data_subdir);
+Matrix getGroundTruthState(std::string data_subdir);
 Matrix getRandDX(std::string data_subdir);
 
 // expected values
