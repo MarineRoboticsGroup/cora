@@ -45,6 +45,7 @@ public:
   void set_n(size_t n) { n_ = n; }
   void addNewSphere() { n_++; }
   void incrementRank() { r_++; }
+  void setRank(size_t r) { r_ = r; }
 
   /// GEOMETRY
 

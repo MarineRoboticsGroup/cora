@@ -58,6 +58,10 @@ struct Manifolds {
     stiefel_prod_manifold_.incrementRank();
     oblique_manifold_.incrementRank();
   }
+  void setRank(int r) {
+    stiefel_prod_manifold_.setRank(r);
+    oblique_manifold_.setRank(r);
+  }
 };
 
 class Problem {
@@ -229,6 +233,8 @@ public:
   // the full size of the full (explicit problem) data matrix
   size_t getDataMatrixSize() const;
 
+  Formulation getFormulation() const { return formulation_; }
+  size_t dim() const { return dim_; }
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
   size_t numRangeMeasurements() const { return range_measurements_.size(); }
@@ -236,10 +242,15 @@ public:
 
   /*****  Riemannian optimization functions  *******/
 
+  inline size_t getRelaxationRank() const { return relaxation_rank_; }
   Matrix getRandomInitialGuess() const;
   void incrementRank() {
     relaxation_rank_++;
     manifolds_.incrementRank();
+  }
+  void setRank(int r) {
+    relaxation_rank_ = r;
+    manifolds_.setRank(r);
   }
 
   Scalar evaluateObjective(const Matrix &Y) const;
@@ -274,8 +285,9 @@ public:
    * @return CertResults
    */
   CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
-                               size_t max_LOBPCG_iters, Scalar max_fill_factor,
-                               Scalar drop_tol) const;
+                               size_t max_LOBPCG_iters = 1000,
+                               Scalar max_fill_factor = 3,
+                               Scalar drop_tol = 1e-3) const;
 
   /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
    * this function computes and returns the matrix Lambda itself */

@@ -9,18 +9,11 @@
 
 namespace CORA {
 
-void printResults(CoraTntResult res, Problem problem, Matrix x0,
-                  std::string data_subdir) {
+void printResults(CoraTntResult res, Problem problem, std::string data_subdir) {
   std::cout << "_____________________________________" << std::endl;
   std::cout << "Data subdir: " << data_subdir << std::endl;
-  std::cout << "Costs (init): " << problem.evaluateObjective(x0)
-            << "; (soln): " << res.f << std::endl;
-  std::cout << "Egrad norms (init): " << problem.Euclidean_gradient(x0).norm()
-            << "; (soln): " << problem.Euclidean_gradient(res.x).norm()
-            << std::endl;
-  std::cout << "Rgrad norm (init): " << problem.Riemannian_gradient(x0).norm()
-            << "; (soln): " << problem.Riemannian_gradient(res.x).norm()
-            << std::endl;
+  std::cout << "Cost (soln): " << res.f << std::endl;
+  std::cout << "Rgrad norm (soln): " << res.gradfx_norm << std::endl;
   std::cout << "Run time: " << res.elapsed_time << std::endl;
   // std::cout << "Estimated state: " << std::endl << res.x << std::endl;
   std::cout << "Outer Iterations: " << res.iterates.size() << std::endl;
@@ -71,7 +64,12 @@ CoraTntResult testScenario(std::string data_subdir) {
 
 TEST_CASE("Test solve RA-SLAM", "[CORA-solve::small_ra_slam_problem]") {
   std::string data_subdir = "small_ra_slam_problem";
-  testScenario(data_subdir);
+  auto results = testScenario(data_subdir);
+  auto prob = getProblem(data_subdir);
+  prob.updateProblemData();
+  printResults(results, prob, data_subdir);
+
+  std::cout << "solution:\n" << results.x << std::endl;
 }
 
 TEST_CASE("Test solve single-range", "[CORA-solve::single_range]") {
