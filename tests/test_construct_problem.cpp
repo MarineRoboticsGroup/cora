@@ -10,7 +10,7 @@
  */
 
 #include <CORA/CORA_problem.h>
-#include <CORA/CORA_utils.h>
+#include <CORA/CORA_test_utils.h>
 
 #include <string>
 

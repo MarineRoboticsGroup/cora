@@ -1,165 +1,167 @@
-
 #include <CORA/CORA_utils.h>
 
-#include <unsupported/Eigen/SparseExtra>
+#include <Eigen/CholmodSupport>
+#include <Eigen/Geometry>
 
-#include <filesystem>
-#include <fstream>
-#include <iostream>
+#include "ILDL/ILDL.h"
+#include "Optimization/LinearAlgebra/LOBPCG.h"
 
-CORA::SparseMatrix CORA::readMatrixMarketFile(const std::string &filename) {
-  CORA::SparseMatrix A;
-  bool is_symmetric;
-  // read the first line of the file to see if it is symmetric
-  std::ifstream file(filename);
+namespace CORA {
 
-  if (!file.is_open()) {
-    throw std::runtime_error("Could not open file");
-  }
+using SymmetricLinOp =
+    Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>;
 
-  // Read the first line of the file
-  std::string line;
-  if (std::getline(file, line)) {
-    // Check if the line contains the word "symmetric"
-    if (line.find("symmetric") != std::string::npos) {
-      is_symmetric = true;
-    } else {
-      is_symmetric = false;
-    }
-  } else {
-    throw std::runtime_error("Could not read first line of file");
-  }
+CertResults fast_verification(const SparseMatrix &S, Scalar eta,
+                              const Matrix &X0, size_t max_iters,
+                              Scalar max_fill_factor, Scalar drop_tol) {
+  // Don't forget to set this on input!
+  size_t num_iters = 0;
+  Scalar theta = 0;
+  Vector x = Vector::Zero(S.rows());
 
-  Eigen::loadMarket(A, filename);
+  unsigned int n = S.rows();
 
-  if (is_symmetric) {
-    return A.selfadjointView<Eigen::Lower>();
-  }
+  /// STEP 1:  Test positive-semidefiniteness of regularized certificate matrix
+  /// M := S + eta * Id via direct factorization
 
-  return A;
+  SparseMatrix Id(n, n);
+  Id.setIdentity();
+  SparseMatrix M = S + eta * Id;
+
+  /// Test positive-semidefiniteness via direct Cholesky factorization
+  Eigen::CholmodSupernodalLLT<SparseMatrix> MChol;
+
+  /// Set various options for the factorization
+
+  // Bail out early if non-positive-semidefiniteness is detected
+  MChol.cholmod().quick_return_if_not_posdef = 1;
+
+  // We know that we might be handling a non-PSD matrix, so suppress Cholmod's
+  // printed error output
+  MChol.cholmod().print = 0;
+
+  // Calculate Cholesky decomposition!
+  MChol.compute(M);
+
+  // Test whether the Cholesky decomposition succeeded
+  bool PSD = (MChol.info() == Eigen::Success);
+
+  if (!PSD) {
+    /// If control reaches here, then lambda_min(S) < -eta, so we must compute
+    /// an approximate minimum eigenpair using LOBPCG
+
+    Vector Theta; // Vector to hold Ritz values of S
+    Matrix X;     // Matrix to hold eigenvector estimates for S
+    size_t num_converged;
+
+    /// Set up matrix-vector multiplication operator with regularized
+    /// certificate matrix M
+
+    // Matrix-vector multiplication with regularized certificate matrix M
+    SymmetricLinOp Mop = [&M](const Matrix &X) -> Matrix { return M * X; };
+
+    // Custom stopping criterion: terminate as soon as a direction of
+    // sufficiently negative curvature is found:
+    //
+    // x'* S * x < - eta / 2
+    //
+    Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix> stopfun =
+        [&S, eta](size_t i, const SymmetricLinOp &M,
+                  const std::optional<SymmetricLinOp> &B,
+                  const std::optional<SymmetricLinOp> &T, size_t nev,
+                  const Vector &Theta, const Matrix &X, const Vector &r,
+                  size_t nc) {
+          // Calculate curvature along estimated minimum eigenvector
+          Scalar theta = X.col(0).dot(S * X.col(0));
+          return (theta < -eta / 2);
+        };
+
+    /// STEP 2:  Try computing a minimum eigenpair of M using *unpreconditioned*
+    /// LOBPCG.
+
+    // This is a useful computational enhancement for the case in
+    // which M has an "obvious" (i.e. well-separated or large-magnitude)
+    // negative eigenpair, since in that case LOBPCG permits us to
+    // well-approximate this eigenpair *without* the need to construct the
+    // preconditioner T
+
+    /// Run preconditioned LOBPCG, using at most 15% of the total allocated
+    /// iterations
+
+    double unprecon_iter_frac = .15;
+    std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
+        Mop, std::optional<SymmetricLinOp>(), std::optional<SymmetricLinOp>(),
+        X0, 1, static_cast<size_t>(unprecon_iter_frac * max_iters), num_iters,
+        num_converged, 0.0,
+        std::optional<
+            Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
+            stopfun));
+
+    // Extract eigenvector estimate
+    x = X.col(0);
+
+    // Calculate curvature along x
+    theta = x.dot(S * x);
+
+    if (!(theta < -eta / 2)) {
+      /// STEP 3:  RUN PRECONDITIONED LOBPCG
+
+      // We did *not* find a direction of sufficiently negative curvature in the
+      // alloted number of iterations, so now run preconditioned LOBPCG.  This
+      // is most useful for the "hard" cases, in which M has a strictly negative
+      // minimum eigenpair that is small-magnitude (i.e. near-zero).
+
+      /// Set up preconditioning operator T
+
+      // Incomplete symmetric indefinite factorization of M
+
+      // Set drop tolerance and max fill factor for ILDL preconditioner
+      Preconditioners::ILDLOpts ildl_opts;
+      ildl_opts.max_fill_factor = max_fill_factor;
+      ildl_opts.drop_tol = drop_tol;
+
+      Preconditioners::ILDL Mfact(M, ildl_opts);
+
+      SymmetricLinOp T = [&Mfact](const Matrix &X) -> Matrix {
+        // Preallocate output matrix TX
+        Matrix TX(X.rows(), X.cols());
+
+#pragma omp parallel for
+        for (unsigned int i = 0; i < X.cols(); ++i) {
+          // Calculate TX by preconditioning the columns of X one-by-one
+          TX.col(i) = Mfact.solve(X.col(i), true);
+        }
+
+        return TX;
+      };
+
+      /// Run preconditioned LOBPCG using the remaining alloted LOBPCG
+      /// iterations
+      std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
+          Mop, std::optional<SymmetricLinOp>(),
+          std::optional<SymmetricLinOp>(T), X0, 1,
+          static_cast<size_t>((1.0 - unprecon_iter_frac) * max_iters),
+          num_iters, num_converged, 0.0,
+          std::optional<
+              Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
+              stopfun));
+
+      // Extract eigenvector estimate
+      x = X.col(0);
+
+      // Calculate curvature along x
+      theta = x.dot(S * x);
+
+      num_iters += static_cast<size_t>(unprecon_iter_frac * num_iters);
+    } // if (!(theta < -eta / 2))
+  }   // if(!PSD)
+
+  CertResults results;
+  results.is_certified = PSD;
+  results.theta = theta;
+  results.x = x;
+  results.num_iters = num_iters;
+  return results;
 }
 
-void CORA::writeMatrixMarketFile(const SparseMatrix &A,
-                                 const std::string &filename) {
-  Eigen::saveMarket(A, filename);
-}
-
-void CORA::printMatrixSparsityPattern(const Matrix &matrix) {
-  // if entry is zero- print "-", otherwise print "X"
-  // make sure that vertical spacing is the same as horizontal spacing
-  std::cout << "Matrix sparsity pattern: " << std::endl;
-
-  auto rows = matrix.rows();
-  auto cols = matrix.cols();
-
-  // Calculate the maximum width needed for any matrix element to ensure
-  // consistent spacing
-  int max_width =
-      std::max(1, static_cast<int>(std::log10(matrix.maxCoeff())) + 1);
-
-  // Print the matrix with proper spacing
-  for (int i = 0; i < rows; ++i) {
-    for (int j = 0; j < cols; ++j) {
-      if (matrix(i, j) != 0) {
-        std::cout << "X";
-      } else {
-        std::cout << "-";
-      }
-
-      // Add padding spaces to ensure identical vertical and horizontal spacing
-      for (int k = 0; k < max_width; ++k) {
-        std::cout << " ";
-      }
-
-      // Add a space between columns
-      if (j < cols - 1) {
-        std::cout << " ";
-      }
-    }
-    std::cout << std::endl;
-  }
-}
-
-std::string CORA::getTestDataFpath(const std::string &data_subdir,
-                                   const std::string &fname) {
-  std::string curr_path = std::filesystem::current_path();
-  std::string filepath =
-      std::filesystem::path(curr_path) / "./bin/data" / data_subdir / fname;
-  if (!std::filesystem::exists(filepath)) {
-    throw std::runtime_error(
-        "File does not exist: " + filepath +
-        "\nThis may be because you are running the tests from the wrong" +
-        " directory. We expect to be running from <repo_root>/build");
-  }
-  return filepath;
-}
-
-std::string CORA::checkSubmatricesAreCorrect(CORA::Problem prob,
-                                             const std::string &data_subdir) {
-  CORA::CoraDataSubmatrices data_submatrices = prob.getDataSubmatrices();
-
-  std::string error_msg;
-
-  // map from file name to the sub matrix
-  std::map<std::string, SparseMatrix> submatrices = {
-      {"Arange.mm", data_submatrices.range_incidence_matrix},
-      {"OmegaRange.mm", data_submatrices.range_precision_matrix},
-      {"RangeDistances.mm", data_submatrices.range_dist_matrix},
-      {"Apose.mm", data_submatrices.rel_pose_incidence_matrix},
-      {"OmegaPose.mm", data_submatrices.rel_pose_translation_precision_matrix},
-      {"T.mm", data_submatrices.rel_pose_translation_data_matrix},
-      {"RotConLaplacian.mm", data_submatrices.rotation_conn_laplacian},
-      {"DataMatrix.mm", prob.getDataMatrix()}};
-
-  for (auto &submatrix : submatrices) {
-    std::string filepath = getTestDataFpath(data_subdir, submatrix.first);
-
-    SparseMatrix expected_submatrix = readMatrixMarketFile(filepath);
-    SparseMatrix actual_submatrix = submatrix.second;
-
-    // if expected matrix has no rows/cols, then we just want to make sure that
-    // the actual matrix either has zero rows or zero cols
-    if (expected_submatrix.rows() == expected_submatrix.cols() &&
-        expected_submatrix.rows() == 0) {
-      if (actual_submatrix.rows() != 0 && actual_submatrix.cols() != 0) {
-        error_msg += "Submatrix " + submatrix.first + " has " +
-                     std::to_string(actual_submatrix.rows()) + " rows and " +
-                     std::to_string(actual_submatrix.cols()) +
-                     " cols but should have 0 rows or 0 cols\n";
-      }
-      continue;
-    }
-
-    if (expected_submatrix.rows() != actual_submatrix.rows()) {
-      // check if matrix has the wrong number of rows
-      error_msg += "Submatrix " + submatrix.first + " has " +
-                   std::to_string(actual_submatrix.rows()) +
-                   " rows but should have " +
-                   std::to_string(expected_submatrix.rows()) + "\n";
-    } else if (expected_submatrix.cols() != actual_submatrix.cols()) {
-      // check if matrix has the wrong number of cols
-      error_msg += "Submatrix " + submatrix.first + " has " +
-                   std::to_string(actual_submatrix.cols()) +
-                   " cols but should have " +
-                   std::to_string(expected_submatrix.cols()) + "\n";
-    } else if (!expected_submatrix.isApprox(actual_submatrix)) {
-      // check if matrix has the wrong values
-      error_msg += "Submatrix " + submatrix.first + " is incorrect\n";
-
-      // //* Debugging
-      // SparseMatrix diff = expected_submatrix - actual_submatrix;
-      // diff.prune(0.5, 1.0);
-      // Eigen::IOFormat CleanFmt = Eigen::IOFormat(4, 0, ", ", "\n", "[", "]");
-      // std::cout << submatrix.first << " diff = \n"
-      //           << diff.toDense().format(CleanFmt) << std::endl;
-      // std::cout << submatrix.first << " expected = \n"
-      //           << expected_submatrix.toDense().format(CleanFmt) <<
-      //           std::endl;
-      // std::cout << submatrix.first << " actual = \n"
-      //           << actual_submatrix.toDense().format(CleanFmt) << std::endl;
-      // //* Debugging
-    }
-  }
-
-  return error_msg;
-}
+} // namespace CORA

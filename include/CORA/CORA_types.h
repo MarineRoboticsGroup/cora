@@ -53,6 +53,13 @@ enum class Formulation {
   Implicit
 };
 
+struct CertResults {
+  bool is_certified;
+  Scalar theta;
+  Vector x;
+  size_t num_iters;
+};
+
 /** Per SE-Sync:
  * We use row-major storage order to take advantage of fast (sparse-matrix) *
  * (dense-vector) multiplications when OpenMP is available (cf. the Eigen

@@ -1,43 +1,14 @@
 #include <CORA/CORA.h>
-#include <CORA/CORA_utils.h>
+#include <CORA/CORA_test_utils.h>
 #include <CORA/pyfg_text_parser.h>
+
+#include <test_utils.h>
 
 #include <filesystem>
 #include <string>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
-
-// Custom Catch2 matcher to check if two Eigen matrices are approximately equal
-template <typename MatrixType>
-struct EigenMatrixApproxMatcher : Catch::Matchers::MatcherBase<MatrixType> {
-  explicit EigenMatrixApproxMatcher(const MatrixType &expected,
-                                    double epsilon = 1e-6)
-      : expected_(expected), epsilon_(epsilon) {}
-
-  bool match(const MatrixType &actual) const override {
-    return (expected_ - actual).cwiseAbs().maxCoeff() <= epsilon_;
-  }
-
-  std::string describe() const override {
-    std::ostringstream oss;
-    oss << "is approximately equal to\n"
-        << expected_ << " within epsilon " << epsilon_;
-    return oss.str();
-  }
-
-private:
-  const MatrixType &expected_;
-  double epsilon_;
-};
-
-// Convenience function to create the custom matcher
-template <typename MatrixType>
-EigenMatrixApproxMatcher<MatrixType>
-IsApproximatelyEqual(const MatrixType &expected, double epsilon = 1e-6) {
-  return EigenMatrixApproxMatcher<MatrixType>(expected, epsilon);
-}
 
 namespace CORA {
 
