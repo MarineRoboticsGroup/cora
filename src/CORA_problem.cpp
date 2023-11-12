@@ -822,4 +822,5 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
   return Y_aligned;
 }
 
+
 } // namespace CORA
