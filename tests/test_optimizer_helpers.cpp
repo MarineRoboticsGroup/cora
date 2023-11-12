@@ -1,7 +1,5 @@
 #include <CORA/CORA.h>
-#include <CORA/CORA_test_utils.h>
 #include <CORA/pyfg_text_parser.h>
-
 #include <test_utils.h>
 
 #include <filesystem>
@@ -11,56 +9,6 @@
 #include <catch2/matchers/catch_matchers.hpp>
 
 namespace CORA {
-
-Problem getProblem(std::string data_subdir) {
-  std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
-  Problem problem = parsePyfgTextToProblem(pyfg_path);
-  return problem;
-}
-
-Matrix getRandInit(std::string data_subdir) {
-  std::string init_path = getTestDataFpath(data_subdir, "X_rand_dim2.mm");
-  Matrix x0 = readMatrixMarketFile(init_path).toDense();
-  return x0;
-}
-
-Matrix getRandDX(std::string data_subdir) {
-  std::string rand_dx_path = getTestDataFpath(data_subdir, "rand_dX.mm");
-  Matrix rand_dx = readMatrixMarketFile(rand_dx_path).toDense();
-  return rand_dx;
-}
-
-Scalar getExpectedCost(std::string data_subdir) {
-  Scalar expected_cost;
-  if (data_subdir == "small_ra_slam_problem") {
-    expected_cost = 1.063888372855624e+03;
-  } else if (data_subdir == "single_rpm") {
-    expected_cost = 0.809173848024762;
-  } else if (data_subdir == "single_range") {
-    expected_cost = 4.718031199983851;
-  } else {
-    throw std::runtime_error("Do not have expected cost for: " + data_subdir);
-  }
-  return expected_cost;
-}
-
-Matrix getExpectedEgrad(std::string data_subdir) {
-  std::string egrad_path = getTestDataFpath(data_subdir, "expected_egrad.mm");
-  Matrix Egrad = readMatrixMarketFile(egrad_path).toDense();
-  return Egrad;
-}
-
-Matrix getExpectedRgrad(std::string data_subdir) {
-  std::string rgrad_path = getTestDataFpath(data_subdir, "expected_rgrad.mm");
-  Matrix Rgrad = readMatrixMarketFile(rgrad_path).toDense();
-  return Rgrad;
-}
-
-Matrix getExpectedHessProd(std::string data_subdir) {
-  std::string hess_prod_path = getTestDataFpath(data_subdir, "hessProd.mm");
-  Matrix hess_prod = readMatrixMarketFile(hess_prod_path).toDense();
-  return hess_prod;
-}
 
 void checkHelperFunctions(std::string data_subdir) {
   Problem prob = getProblem(data_subdir);

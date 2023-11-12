@@ -1,7 +1,7 @@
 #include <CORA/CORA_problem.h>
-#include <CORA/CORA_test_utils.h>
 #include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
+#include <CORA/pyfg_text_parser.h>
 
 #include <test_utils.h>
 
@@ -76,6 +76,12 @@ TEST_CASE("Test generic verification (small)") {
 
 TEST_CASE("Test generic verification (large)") {
   testIdentityMatrixVerification(1000);
+}
+
+TEST_CASE("Test small RA-SLAM verification") {
+  std::string data_subdir = "small_ra_slam_problem";
+  std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
+  Problem problem = parsePyfgTextToProblem(pyfg_path);
 }
 
 } // namespace CORA
