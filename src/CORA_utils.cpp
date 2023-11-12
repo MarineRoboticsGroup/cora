@@ -11,9 +11,9 @@ namespace CORA {
 using SymmetricLinOp =
     Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>;
 
-CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
-                              size_t max_iters, Scalar max_fill_factor,
-                              Scalar drop_tol) {
+CertResults fast_verification(const SparseMatrix &S, Scalar eta,
+                              const Matrix &X0, size_t max_iters,
+                              Scalar max_fill_factor, Scalar drop_tol) {
   // Don't forget to set this on input!
   size_t num_iters = 0;
   Scalar theta = 0;
@@ -71,7 +71,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
                   const std::optional<SymmetricLinOp> &T, size_t nev,
                   const Vector &Theta, const Matrix &X, const Vector &r,
                   size_t nc) {
-          // Calculate curvature along estimated minimum eigenvector X0
+          // Calculate curvature along estimated minimum eigenvector
           Scalar theta = X.col(0).dot(S * X.col(0));
           return (theta < -eta / 2);
         };
@@ -91,8 +91,8 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
     double unprecon_iter_frac = .15;
     std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
         Mop, std::optional<SymmetricLinOp>(), std::optional<SymmetricLinOp>(),
-        n, nx, 1, static_cast<size_t>(unprecon_iter_frac * max_iters),
-        num_iters, num_converged, 0.0,
+        X0, 1, static_cast<size_t>(unprecon_iter_frac * max_iters), num_iters,
+        num_converged, 0.0,
         std::optional<
             Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
             stopfun));
@@ -139,7 +139,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta, size_t nx,
       /// iterations
       std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
           Mop, std::optional<SymmetricLinOp>(),
-          std::optional<SymmetricLinOp>(T), n, nx, 1,
+          std::optional<SymmetricLinOp>(T), X0, 1,
           static_cast<size_t>((1.0 - unprecon_iter_frac) * max_iters),
           num_iters, num_converged, 0.0,
           std::optional<
