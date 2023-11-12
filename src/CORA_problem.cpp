@@ -746,7 +746,7 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
        QY.block(nd, 0, numRangeMeasurements(),
                 Y.cols())
            .array())
-          .colwise()
+          .rowwise()
           .sum(); // (r x 1) vector of inner products
 
   return std::make_pair(stiefel_Lambda_blocks, oblique_inner_prods);
