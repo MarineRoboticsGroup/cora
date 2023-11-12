@@ -60,16 +60,11 @@ CoraTntResult testScenario(std::string data_subdir) {
                    problem.getDataMatrixSize(), 2, X_gt.rows(), X_gt.cols());
 
   CoraTntResult res;
-
-  // just check if it runs
-  // res = solveCORA(problem, X_gt);
-  // std::cout << "Testing with Ground Truth initialization" << std::endl;
-  // printResults(res, problem, X_gt, data_subdir);
-
-  // just check if it runs
   res = solveCORA(problem, x0);
-  std::cout << "Testing with Random initialization" << std::endl;
-  printResults(res, problem, x0, data_subdir);
+
+  // some print output for debugging
+  // std::cout << "Testing with Random initialization" << std::endl;
+  // printResults(res, problem, x0, data_subdir);
 
   return res;
 }
@@ -87,8 +82,6 @@ TEST_CASE("Test solve single-range", "[CORA-solve::single_range]") {
 TEST_CASE("Test solve single-rpm", "[CORA-solve::single_rpm]") {
   std::string data_subdir = "single_rpm";
   CoraTntResult res = testScenario(data_subdir);
-
-  std::cout << "Single RPM soln:\n" << res.x << std::endl;
 }
 
 } // namespace CORA
