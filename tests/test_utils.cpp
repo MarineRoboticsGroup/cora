@@ -189,6 +189,12 @@ Matrix getRandInit(std::string data_subdir) {
   return x0;
 }
 
+Matrix getGroundTruthState(std::string data_subdir) {
+  std::string gt_path = getTestDataFpath(data_subdir, "X_gt.mm");
+  Matrix X_gt = readMatrixMarketFile(gt_path).toDense();
+  return X_gt;
+}
+
 Matrix getRandDX(std::string data_subdir) {
   std::string rand_dx_path = getTestDataFpath(data_subdir, "rand_dX.mm");
   Matrix rand_dx = readMatrixMarketFile(rand_dx_path).toDense();
