@@ -792,4 +792,35 @@ SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
   return data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
 }
 
+Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
+  if (formulation_ == Formulation::Implicit) {
+    throw std::invalid_argument(
+        "Problem::alignEstimateToOrigin not implemented for implicit "
+        "formulation");
+  }
+
+  if (Y.cols() != dim_) {
+    throw std::invalid_argument(
+        "Problem::alignEstimateToOrigin: Y must have "
+        "the same number of columns as the dimension. This method is not "
+        "implemented for a relaxed solution.");
+  }
+
+  // start by rotating everything such that the first dxd block is the identity
+  Matrix first_rot = Y.block(0, 0, dim_, dim_);
+  Matrix Y_aligned = Y * first_rot.transpose();
+
+  // now uniformly translate all of the translation variables such that the
+  // first translation variable is the origin
+  int nd = dim_ * numPoses();
+  int r = numRangeMeasurements();
+  Vector first_translation = Y_aligned.block(nd + r, 0, 1, dim_).transpose();
+  Y_aligned.block(nd + r, 0, numPoses() + numLandmarks(), dim_) =
+      Y_aligned.block(nd + r, 0, numPoses() + numLandmarks(), dim_).rowwise() -
+      first_translation.transpose();
+
+  return Y_aligned;
+}
+
+
 } // namespace CORA

@@ -309,6 +309,19 @@ public:
    * @return SparseMatrix
    */
   SparseMatrix get_certificate_matrix(const Matrix &Y) const;
+
+  /************** Utilities **********************/
+
+  /**
+   * @brief Given an estimate Y with d columns (i.e., not relaxed), this
+   * function aligns the estimate to the origin by rotating the first dxd block
+   * to the identity matrix and offsetting the translational states such that
+   * the first translational variable is at the origin.
+   *
+   * @param Y the estimate to align
+   * @return Matrix the aligned estimate
+   */
+  Matrix alignEstimateToOrigin(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

@@ -65,11 +65,14 @@ CoraTntResult testScenario(std::string data_subdir) {
 TEST_CASE("Test solve RA-SLAM", "[CORA-solve::small_ra_slam_problem]") {
   std::string data_subdir = "small_ra_slam_problem";
   auto results = testScenario(data_subdir);
-  auto prob = getProblem(data_subdir);
-  prob.updateProblemData();
-  printResults(results, prob, data_subdir);
 
-  std::cout << "solution:\n" << results.x << std::endl;
+  /*** Some additional content for playing around **/
+  // auto prob = getProblem(data_subdir);
+  // prob.updateProblemData();
+  // Matrix aligned_x = prob.alignEstimateToOrigin(results.x);
+  // printResults(results, prob, data_subdir);
+  // std::cout << "solution:\n" << results.x << std::endl;
+  // std::cout << "aligned solution:\n" << aligned_x << std::endl;
 }
 
 TEST_CASE("Test solve single-range", "[CORA-solve::single_range]") {
