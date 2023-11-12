@@ -50,12 +50,8 @@ Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
 
   // check that the number of rows of the result is the same as the number of
   // rows of the input vector
-  if (num_result_rows != rhs.rows()) {
-    throw std::invalid_argument(
-        "The number of rows of the result must be the same as the number of "
-        "rows of the input vector for the CORA block Cholesky "
-        "preconditioner");
-  }
+  checkMatrixShape("blockCholeskySolve", num_result_rows, rhs.cols(),
+                   rhs.rows(), rhs.cols());
 
   Matrix result(num_result_rows, rhs.cols());
   int block_start = 0;

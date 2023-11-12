@@ -14,10 +14,11 @@
 #include <random> // For sampling random points on the manifold
 
 #include "CORA/CORA_types.h"
+#include "CORA/MatrixManifold.h"
 
 namespace CORA {
 
-class ObliqueManifold {
+class ObliqueManifold : public MatrixManifold {
 private:
   // Dimension of ambient Euclidean space containing the unit vectors
   size_t r_;
@@ -31,33 +32,38 @@ public:
   // Default constructor -- sets all dimensions to 0
   ObliqueManifold() = default;
 
+  /**
+   * @brief Construct a new Oblique Manifold object
+   *
+   * @param r the dimension of the ambient Euclidean space containing the unit
+   * vectors
+   * @param n the number of unit vectors in the product
+   */
   ObliqueManifold(size_t r, size_t n) : r_(r), n_(n) {}
 
   void set_r(size_t r) { r_ = r; }
   void set_n(size_t n) { n_ = n; }
+  void addNewSphere() { n_++; }
+  void incrementRank() { r_++; }
 
   /// GEOMETRY
 
   /** Given a generic matrix A in R^{r x n}, this function projects A onto the
-   * oblique manifold by normalizing each column of A to have unit norm. */
+   * oblique manifold by normalizing each column of A to have unit norm. Note
+   * that this is a computationally cheap operation but is not a second-order
+   * retraction. See Boumal "Optimization on Smooth Manifolds" for more details.
+   */
   Matrix projectToManifold(const Matrix &A) const;
 
   /**
-   * @brief Projects a matrix A in R^{r x n} onto the tangent space of the
-   * oblique manifold at Y in R^{r x n}.
+   * @brief Projects a matrix A in R^{r x n} onto the tangent space T_Y(M) of
+   * the oblique manifold at Y in R^{r x n}.
    *
-   * @param A the matrix to project
+   * @param V the matrix to project
    * @param Y the point defining the tangent space
    * @return Matrix
    */
-  Matrix projectToTangentSpace(const Matrix &A, const Matrix &Y) const;
-
-  /** Given an element Y in M and a tangent vector V in T_Y(M), this function
-   * computes the retraction along V at Y using the QR-based retraction
-   * specified in eq. (4.8) of Absil et al.'s  "Optimization Algorithms on
-   * Matrix Manifolds").
-   */
-  Matrix retract(const Matrix &Y, const Matrix &V) const;
+  Matrix projectToTangentSpace(const Matrix &Y, const Matrix &V) const;
 
   /** Sample a random point on M, using the (optional) passed seed to initialize
    * the random number generator.  */

@@ -17,6 +17,8 @@ void Problem::addPoseVariable(const Symbol &pose_id) {
     throw std::invalid_argument("Pose variable already exists");
   }
   pose_symbol_idxs_.insert(std::make_pair(pose_id, pose_symbol_idxs_.size()));
+  problem_data_up_to_date_ = false;
+  manifolds_.stiefel_prod_manifold_.addNewFrame();
 }
 
 void Problem::addLandmarkVariable(const Symbol &landmark_id) {
@@ -33,7 +35,8 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
     throw std::invalid_argument("Range measurement already exists");
   }
   range_measurements_.push_back(range_measurement);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
+  manifolds_.oblique_manifold_.addNewSphere();
 }
 
 void Problem::addRelativePoseMeasurement(
@@ -43,7 +46,7 @@ void Problem::addRelativePoseMeasurement(
     throw std::invalid_argument("Relative pose measurement already exists");
   }
   rel_pose_measurements_.push_back(rel_pose_measure);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::addPosePrior(const PosePrior &pose_prior) {
@@ -52,7 +55,7 @@ void Problem::addPosePrior(const PosePrior &pose_prior) {
     throw std::invalid_argument("Pose prior already exists");
   }
   pose_priors_.push_back(pose_prior);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
@@ -61,7 +64,7 @@ void Problem::addLandmarkPrior(const LandmarkPrior &landmark_prior) {
     throw std::invalid_argument("Landmark prior already exists");
   }
   landmark_priors_.push_back(landmark_prior);
-  data_matrix_up_to_date_ = false;
+  problem_data_up_to_date_ = false;
 }
 
 void Problem::fillRangeSubmatrices() {
@@ -93,10 +96,8 @@ void Problem::fillRangeSubmatrices() {
         measure.getPrecision();
 
     // update the incidence matrix
-    auto id1 = getTranslationIdxInExplicitDataMatrix(measure.first_id) -
-               translation_offset;
-    auto id2 = getTranslationIdxInExplicitDataMatrix(measure.second_id) -
-               translation_offset;
+    auto id1 = getTranslationIdx(measure.first_id) - translation_offset;
+    auto id2 = getTranslationIdx(measure.second_id) - translation_offset;
     data_submatrices_.range_incidence_matrix.insert(
         measure_idx, static_cast<Index>(id1)) = -1.0;
     data_submatrices_.range_incidence_matrix.insert(
@@ -137,10 +138,8 @@ void Problem::fillRelPoseSubmatrices() {
         measure_idx, measure_idx) = rpm.getRotPrecision();
 
     // fill in incidence matrix
-    Index id1 = getTranslationIdxInExplicitDataMatrix(rpm.first_id) -
-                translation_offset;
-    Index id2 = getTranslationIdxInExplicitDataMatrix(rpm.second_id) -
-                translation_offset;
+    Index id1 = getTranslationIdx(rpm.first_id) - translation_offset;
+    Index id2 = getTranslationIdx(rpm.second_id) - translation_offset;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
@@ -306,17 +305,51 @@ void Problem::printProblem() const {
 }
 
 SparseMatrix Problem::getDataMatrix() {
-  if (data_matrix_.nonZeros() == 0 || !data_matrix_up_to_date_) {
-    constructDataMatrix();
+  if (data_matrix_.nonZeros() == 0 || !problem_data_up_to_date_) {
+    updateProblemData();
   }
   return data_matrix_;
 }
 
-void Problem::constructDataMatrix() {
+void Problem::updateProblemData() {
   // update the relevant submatrices
   fillRangeSubmatrices();
   fillRelPoseSubmatrices();
+  fillDataMatrix();
+  updatePreconditioner();
+  problem_data_up_to_date_ = true;
+}
 
+void Problem::updatePreconditioner() {
+  if (preconditioner_ == Preconditioner::BlockCholesky) {
+    // blocks are rots: n*d, ranges: r, and translations: n + l
+    std::vector<size_t> block_size_vec = {
+        numPoses() * dim_, numRangeMeasurements(), numPoses() + numLandmarks()};
+    // drop any values that are 0
+    block_size_vec.erase(
+        std::remove(block_size_vec.begin(), block_size_vec.end(), 0),
+        block_size_vec.end());
+
+    // convert to VectorXi
+    VectorXi block_sizes(block_size_vec.size());
+    for (int i = 0; i < block_size_vec.size(); i++) {
+      block_sizes(i) = block_size_vec[i];
+    }
+
+    SparseMatrix epsilonPosDefUpdate =
+        SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
+    epsilonPosDefUpdate.setIdentity();
+    epsilonPosDefUpdate *= 1e-3;
+    preconditioner_matrices_.block_chol_factor_ptrs_ =
+        getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
+                                      block_sizes);
+  } else {
+    throw std::invalid_argument("The desired preconditioner is not "
+                                "implemented");
+  }
+}
+
+void Problem::fillDataMatrix() {
   auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
 
@@ -402,13 +435,12 @@ void Problem::constructDataMatrix() {
   // construct the data matrix
   data_matrix_.setFromTriplets(combined_triplets.begin(),
                                combined_triplets.end());
-
-  // mark the data matrix as up to date
-  data_matrix_up_to_date_ = true;
 }
 
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
   if (formulation_ == Formulation::Explicit) {
+    checkMatrixShape("Problem::dataMatrixProduct::Y", getDataMatrixSize(),
+                     relaxation_rank_, Y.rows(), Y.cols());
     return data_matrix_ * Y;
   } else {
     throw std::invalid_argument("Implicit formulation not implemented");
@@ -417,12 +449,15 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
 
 Scalar Problem::evaluateObjective(const Matrix &Y) const {
   checkUpToDate();
-  return (Y * dataMatrixProduct(Y)).trace();
+  return 0.5 * (Y.transpose() * dataMatrixProduct(Y)).trace();
 }
 
 Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
   checkUpToDate();
-  return 2 * dataMatrixProduct(Y);
+  Matrix egrad = dataMatrixProduct(Y);
+  checkMatrixShape("Problem::Euclidean_gradient", Y.rows(), Y.cols(),
+                   egrad.rows(), egrad.cols());
+  return egrad;
 }
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
@@ -431,57 +466,151 @@ Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y,
                                     const Matrix &NablaF_Y) const {
+  checkUpToDate();
   return tangent_space_projection(Y, NablaF_Y);
 }
 
 Matrix Problem::tangent_space_projection(const Matrix &Y,
                                          const Matrix &Ydot) const {
-  return Ydot - Y * Y.transpose() * Ydot;
+  // similar to projectToManifold, we treat this projection block-wise. The
+  // first n*d columns are Stiefel elements, and thus use the Stiefel
+  // projection. The next r columns are range measurements, and thus use the
+  // oblique projection. The remaining columns are translational variables, and
+  // thus belong to the Euclidean manifold and do not need projection.
+
+  // check that Y and Ydot have the correct dimensions
+  checkMatrixShape("Problem::tangent_space_projection::Y", getDataMatrixSize(),
+                   relaxation_rank_, Y.rows(), Y.cols());
+  checkMatrixShape("Problem::tangent_space_projection::Ydot",
+                   getDataMatrixSize(), relaxation_rank_, Ydot.rows(),
+                   Ydot.cols());
+
+  Matrix result = Ydot;
+
+  // Stiefel component
+  int n = numPoses();
+  int d = dim_;
+  result.block(0, 0, n * d, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToTangentSpace(
+              Y.block(0, 0, n * d, relaxation_rank_).transpose(),
+              result.block(0, 0, n * d, relaxation_rank_).transpose())
+          .transpose();
+
+  // Oblique component
+  int r = numRangeMeasurements();
+  result.block(n * d, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_
+          .projectToTangentSpace(
+              Y.block(n * d, 0, r, relaxation_rank_).transpose(),
+              result.block(n * d, 0, r, relaxation_rank_).transpose())
+          .transpose();
+
+  // remaining component is untouched
+  return result;
 }
 
 Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                                                   const Matrix &nablaF_Y,
                                                   const Matrix &dotY) const {
-  if (formulation_ == Formulation::Implicit) {
-    // return SP_.Proj(Y, 2 * data_matrix_product(dotY.transpose()).transpose()
-    // -
-    //                        SP_.SymBlockDiagProduct(dotY, Y, nablaF_Y));
-    throw std::invalid_argument("Implicit formulation not implemented");
-  } else if (formulation_ == Formulation::Explicit) {
-    // Euclidean Hessian-vector product
-    // Matrix H_dotY = 2 * dotY * M_;
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::Y",
+                   getDataMatrixSize(), relaxation_rank_, Y.rows(), Y.cols());
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::nablaF_Y",
+                   getDataMatrixSize(), relaxation_rank_, nablaF_Y.rows(),
+                   nablaF_Y.cols());
+  checkMatrixShape("Problem::Riemannian_Hessian_vector_product::dotY",
+                   getDataMatrixSize(), relaxation_rank_, dotY.rows(),
+                   dotY.cols());
 
-    // from SE-Sync ... will need to figure out wtf is going on here
-    // H_dotY.block(0, n_, r_, d_ * n_) = SP_.Proj(
-    //     Y.block(0, n_, r_, d_ * n_),
-    //     H_dotY.block(0, n_, r_, d_ * n_) -
-    //         SP_.SymBlockDiagProduct(dotY.block(0, n_, r_, d_ * n_),
-    //                                 Y.block(0, n_, r_, d_ * n_),
-    //                                 nablaF_Y.block(0, n_, r_, d_ * n_)));
-    // return H_dotY;
-    throw std::invalid_argument("Explicit formulation not implemented");
-  } else {
-    throw std::invalid_argument("Unknown formulation");
-  }
+  Matrix H_dotY = dataMatrixProduct(dotY);
+
+  int nd = dim_ * numPoses();
+  // Stiefel component
+  H_dotY.block(0, 0, nd, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToTangentSpace(
+              Y.block(0, 0, nd, relaxation_rank_).transpose(),
+              H_dotY.block(0, 0, nd, relaxation_rank_).transpose() -
+                  manifolds_.stiefel_prod_manifold_.SymBlockDiagProduct(
+                      dotY.block(0, 0, nd, relaxation_rank_).transpose(),
+                      Y.block(0, 0, nd, relaxation_rank_).transpose(),
+                      nablaF_Y.block(0, 0, nd, relaxation_rank_).transpose()))
+          .transpose();
+
+  // Oblique component
+  int r = numRangeMeasurements();
+  Vector diagQXXT = (nablaF_Y.array() * Y.array()).rowwise().sum();
+  // weight the rows of dotY by the diagonal of QXXT (which is a vector)
+  Matrix weightedDotY = dotY.array().colwise() * diagQXXT.array();
+  Matrix QYdot = dataMatrixProduct(dotY);
+  Matrix euclidean_hessian = QYdot.block(nd, 0, r, relaxation_rank_) -
+                             weightedDotY.block(nd, 0, r, relaxation_rank_);
+
+  H_dotY.block(nd, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_
+          .projectToTangentSpace(
+              Y.block(nd, 0, r, relaxation_rank_).transpose(),
+              euclidean_hessian.transpose())
+          .transpose();
+
+  return H_dotY;
 }
 
 Matrix Problem::precondition(const Matrix &V) const {
+  checkMatrixShape("Problem::precondition::input", getDataMatrixSize(),
+                   relaxation_rank_, V.rows(), V.cols());
+  Matrix res;
   if (preconditioner_ == Preconditioner::BlockCholesky) {
-    // return blockCholeskySolve(block_chol_factor_ptrs_, V);
-    throw std::invalid_argument("Block Cholesky preconditioner not "
-                                "implemented");
+    res =
+        blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
   }
+  checkMatrixShape("Problem::precondition::result", getDataMatrixSize(),
+                   relaxation_rank_, res.rows(), res.cols());
+
+  // check for NaNs in res
+  if (res.hasNaN()) {
+    std::cout << "NaNs in preconditioned vector:\n" << res << std::endl;
+    throw std::runtime_error("NaNs in preconditioned vector");
+  }
+  return res;
+}
+
+Matrix Problem::projectToManifold(const Matrix &A) const {
+  checkMatrixShape("Problem::projectToManifold", getDataMatrixSize(),
+                   relaxation_rank_, A.rows(), A.cols());
+
+  Matrix result = A;
+
+  // the first n*d rows are obtained from
+  // manifolds_.stiefel_prod.projectToManifoldresult(1:n*d, :))
+  int n = numPoses();
+  int d = dim_;
+  result.block(0, 0, n * d, relaxation_rank_) =
+      manifolds_.stiefel_prod_manifold_
+          .projectToManifold(
+              result.block(0, 0, n * d, relaxation_rank_).transpose())
+          .transpose();
+
+  // the next r rows are obtained from
+  // manifolds_.oblique_manifold.retract(Y(n*d+1:n*d+r, :), V(n*d+1:n*d+r, :))
+  int r = numRangeMeasurements();
+  result.block(n * d, 0, r, relaxation_rank_) =
+      manifolds_.oblique_manifold_
+          .projectToManifold(
+              result.block(n * d, 0, r, relaxation_rank_).transpose())
+          .transpose();
+
+  // if there are remaining rows, they should be translational variables and
+  // thus belong to the Euclidean manifold and do not need rounding.
+
+  return result;
 }
 
 Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
-  if (formulation_ == Formulation::Explicit) {
-    throw std::invalid_argument("Explicit formulation not implemented");
-  } else {
-    throw std::invalid_argument("Implicit formulation not implemented");
-  }
+  return projectToManifold(Y + V);
 }
 
 size_t Problem::getDataMatrixSize() const {
@@ -504,8 +633,7 @@ Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
   throw std::invalid_argument("Unknown pose symbol");
 }
 
-Index Problem::getRangeIdxInExplicitDataMatrix(
-    const SymbolPair &range_symbol_pair) const {
+Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
   // all range measurements come after the rotations
   auto rot_offset = static_cast<Index>(numPoses() * dim_);
 
@@ -527,8 +655,7 @@ Index Problem::getRangeIdxInExplicitDataMatrix(
   throw std::invalid_argument("Unknown range symbol");
 }
 
-Index Problem::getTranslationIdxInExplicitDataMatrix(
-    const Symbol &trans_symbol) const {
+Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   // all translations come after the rotations and range measurement variables
   // (unit spheres) so we need to offset by the dimension of the rotations and
   // the number of range measurements
@@ -552,4 +679,12 @@ Index Problem::getTranslationIdxInExplicitDataMatrix(
   // if we get here, we didn't find the translation symbol
   throw std::invalid_argument("Unknown translation symbol");
 }
+
+Matrix Problem::getRandomInitialGuess() const {
+  // assert that the problem data must be up to date
+  assert(problem_data_up_to_date_);
+  Matrix x0 = Matrix::Random(getDataMatrixSize(), relaxation_rank_);
+  return projectToManifold(x0);
+}
+
 } // namespace CORA

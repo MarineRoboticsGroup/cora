@@ -5,13 +5,23 @@
 #include "CORA/StiefelProduct.h"
 namespace CORA {
 
-Matrix StiefelProduct::project(const Matrix &A) const {
+Matrix StiefelProduct::projectToManifold(const Matrix &A) const {
   // We use a generalization of the well-known SVD-based projection for the
   // orthogonal and special orthogonal groups; see for example Proposition 7
-  // in the paper "Projection-Like Retractions on Matrix Manifolds" by Absil
-  // and Malick.
+  // in the paper "Projection-Like Retractions on Matrix
+  // Manifolds" by Absil and Malick.
 
   Matrix P(p_, k_ * n_);
+
+  // check that A is the correct size
+  if (A.rows() != p_ || A.cols() != k_ * n_) {
+    throw std::runtime_error("Error in StiefelProduct::projectToManifold: "
+                             "Shape of A is: " +
+                             std::to_string(A.rows()) + " x " +
+                             std::to_string(A.cols()) +
+                             " but should be: " + std::to_string(p_) + " x " +
+                             std::to_string(k_ * n_));
+  }
 
 #pragma omp parallel for default(none) shared(A, P, Eigen::Dynamic)
   for (auto i = 0; i < n_; ++i) {
@@ -46,10 +56,11 @@ Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &B,
 }
 
 Matrix StiefelProduct::retract(const Matrix &Y, const Matrix &V) const {
-  // We use projection-based retraction, as described in "Projection-Like
-  // Retractions on Matrix Manifolds" by Absil and Malick
+  // We use projection-based retraction, as described in
+  // "Projection-Like Retractions on Matrix Manifolds" by Absil
+  // and Malick
 
-  return project(Y + V);
+  return projectToManifold(Y + V);
 }
 
 Matrix StiefelProduct::random_sample(
@@ -63,6 +74,6 @@ Matrix StiefelProduct::random_sample(
   for (size_t r = 0; r < p_; ++r)
     for (size_t c = 0; c < k_ * n_; ++c)
       R(static_cast<Index>(r), static_cast<Index>(c)) = g(generator);
-  return project(R);
+  return projectToManifold(R);
 }
 } // namespace CORA

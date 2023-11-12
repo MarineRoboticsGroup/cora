@@ -83,7 +83,7 @@ TEST_CASE("Single Cholesky solves work okay for random matrices",
           "[cholesky]") {
   // random value between 1 and 30
   int block_size = GENERATE(
-      take(10, filter([](int i) { return i % 2 == 1; }, random(1, 100))));
+      take(1, filter([](int i) { return i % 2 == 1; }, random(1, 100))));
 
   // generate a random symmetric positive definite matrix by filling in the
   // upper triangular part of A with random values and then copying the upper

@@ -4,9 +4,7 @@
 
 namespace CORA {
 
-using CoraTntResult = Optimization::Riemannian::TNTResult<Matrix, Scalar>;
-
-Matrix solveCORA(const Problem &problem, const Matrix &x0) {
+CoraTntResult solveCORA(const Problem &problem, const Matrix &x0) {
   // objective function
   Optimization::Objective<Matrix, Scalar, Matrix> f =
       [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
@@ -66,7 +64,7 @@ Matrix solveCORA(const Problem &problem, const Matrix &x0) {
       Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
           f, QM, metric, retract, x0, NablaF_Y, precon, params, user_function);
 
-  return result.x;
+  return result;
 }
 
 } // namespace CORA

@@ -1,8 +1,8 @@
 %%MatrixMarket matrix coordinate real general
 % Generated 09-Nov-2023
-5 12 5
-1 1 -1
-2 3 -1
-3 5 -1
-4 7 -1
-5 10 -1
+6 2 5
+1 1  1
+3 1  1
+6 1  1
+2 2  1
+4 2  1

@@ -3,7 +3,14 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Debug' as none was specified.")
 endif()
 
-add_executable(tests test.cpp test_parse_pyfg.cpp test_construct_problem.cpp)
+add_executable(tests
+    test.cpp
+    test_parse_pyfg.cpp
+    test_construct_problem.cpp
+    test_geometry.cpp
+    test_cora.cpp
+    test_optimizer_helpers.cpp
+)
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
 target_link_libraries(tests PUBLIC CORA)
@@ -23,6 +30,15 @@ set(EXPECTED_FILES
 "Arange.mm"
 "OmegaRange.mm"
 "RangeDistances.mm"
+# candidate initializations
+"X_gt.mm"
+"X_odom.mm"
+"X_rand_dim2.mm"
+# info for testing the optimization helper functions
+"expected_egrad.mm"
+"expected_rgrad.mm"
+"hessProd.mm"
+"rand_dX.mm"
 )
 
 ## For each problem type in our tests, we expect these directories

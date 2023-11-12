@@ -13,10 +13,11 @@
 #include <random> // For sampling random points on the manifold
 
 #include "CORA/CORA_types.h"
+#include "CORA/MatrixManifold.h"
 
 namespace CORA {
 
-class StiefelProduct {
+class StiefelProduct : public MatrixManifold {
 private:
   // Number of vectors in each orthonormal k-frame
   size_t k_;
@@ -33,11 +34,20 @@ public:
   // Default constructor -- sets all dimensions to 0
   StiefelProduct() = default;
 
+  /**
+   * @brief Construct a new Stiefel Product object
+   *
+   * @param k the number of vectors in each orthonormal k-frame
+   * @param p the dimension of ambient Euclidean space containing the frames
+   * @param n the number of copies of St(k,p) in the product
+   */
   StiefelProduct(size_t k, size_t p, size_t n) : k_(k), p_(p), n_(n) {}
 
   void set_k(size_t k) { k_ = k; }
   void set_p(size_t p) { p_ = p; }
   void set_n(size_t n) { n_ = n; }
+  void addNewFrame() { n_++; }
+  void incrementRank() { p_++; }
 
   /// ACCESSORS
   size_t get_k() const { return k_; }
@@ -48,7 +58,7 @@ public:
 
   /** Given a generic matrix A in R^{p x kn}, this function computes the
    * projection of A onto R (closest point in the Frobenius norm sense).  */
-  Matrix project(const Matrix &A) const;
+  Matrix projectToManifold(const Matrix &A) const;
 
   /** Helper function -- this computes and returns the product
    *
@@ -65,7 +75,7 @@ public:
    * the *entire* ambient Euclidean space at X), this function computes and
    * returns the projection of V onto T_X(M), the tangent space of M at X (cf.
    * eq. (42) in the SE-Sync tech report).*/
-  Matrix Proj(const Matrix &Y, const Matrix &V) const {
+  Matrix projectToTangentSpace(const Matrix &Y, const Matrix &V) const {
     return V - SymBlockDiagProduct(Y, Y, V);
   }
 

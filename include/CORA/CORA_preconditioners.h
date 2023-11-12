@@ -43,19 +43,4 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
 Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
                           const Matrix &rhs);
 
-class CoraPreconditioner {
-public:
-  CholFactorPtrVector block_chol_factor_ptrs_;
-  Formulation formulation_;
-  CoraPreconditioner(const SparseMatrix &A, const VectorXi &block_sizes,
-                     Formulation formulation)
-      : block_chol_factor_ptrs_(getBlockCholeskyFactorization(A, block_sizes)),
-        formulation_(formulation) {
-    if (formulation_ == Formulation::Implicit) {
-      throw std::invalid_argument("The implicit formulation is not currently "
-                                  "supported by the CORA preconditioner");
-    }
-  }
-};
-
 } // namespace CORA
