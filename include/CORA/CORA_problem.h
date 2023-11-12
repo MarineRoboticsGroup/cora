@@ -256,6 +256,8 @@ public:
 
   /********** Certification **************/
 
+  using LambdaBlocks = std::pair<Matrix, Vector>;
+
   /**
    * @brief Check if a solution is certified. If not, compute a direction of
    * negative curvature and its associated Rayleigh quotient.
@@ -278,14 +280,14 @@ public:
   /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
    * this function computes and returns the matrix Lambda itself */
   SparseMatrix
-  compute_Lambda_from_Lambda_blocks(const Matrix &Lambda_blocks) const;
+  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks) const;
 
   /** Given a critical point Y of the rank-r relaxation, this function computes
    * and returns a d x dn matrix comprised of d x d block elements of the
    * associated block-diagonal Lagrange multiplier matrix associated with the
    * orthonormality constraints on the generalized orientations of the poses
    * (cf. eq. (119) in the SE-Sync tech report) */
-  Matrix compute_Lambda_blocks(const Matrix &Y) const;
+  LambdaBlocks compute_Lambda_blocks(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

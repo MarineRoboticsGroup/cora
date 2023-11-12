@@ -694,7 +694,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
                                       Scalar drop_tol) const {
   /// Construct certificate matrix S
 
-  Matrix Lambda_blocks;
+  LambdaBlocks Lambda_blocks;
   SparseMatrix S;
 
   // We compute the certificate matrix corresponding to the *full* (i.e.
@@ -723,47 +723,57 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   return results;
 }
 
-Matrix Problem::compute_Lambda_blocks(const Matrix &Y) const {
+Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   // Compute S * Y, where S is the data matrix defining the quadratic form
   // for the specific version of the SE-Sync problem we're solving
   Matrix QY = dataMatrixProduct(Y);
 
   // Preallocate storage for diagonal blocks of Lambda
-  Matrix Lambda_blocks(dim_, numPoses() * dim_ + numRangeMeasurements());
-
-  throw NotImplementedException("Computing lambda blocks");
+  Matrix stiefel_Lambda_blocks(dim_, numPoses() * dim_);
 
 #pragma omp parallel for
   for (size_t i = 0; i < numPoses(); ++i) {
     Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
-               Y.block(0, i * dim_, Y.cols(), dim_);
-    Lambda_blocks.block(0, i * dim_, dim_, dim_) = .5 * (P + P.transpose());
+               Y.block(i * dim_, 0, dim_, Y.cols()).transpose();
+    stiefel_Lambda_blocks.block(0, i * dim_, dim_, dim_) =
+        .5 * (P + P.transpose());
   }
 
-#pragma omp parallel for
+  Vector oblique_Lambda_blocks(numRangeMeasurements());
   size_t nd = numPoses() * dim_;
-  for (size_t i = 0; i < numRangeMeasurements(); ++i) {
-    Matrix P =
-        QY.block(nd + i, 0, 1, Y.cols()) * Y.block(0, nd + i, Y.cols(), 1);
-    Lambda_blocks.block(0, nd + i, dim_, 1) = P.transpose();
-  }
+  Vector oblique_inner_prods =
+      (Y.block(nd, 0, numRangeMeasurements(), Y.cols()).array() *
+       QY.block(nd, 0, numRangeMeasurements(),
+                Y.cols())
+           .array())
+          .colwise()
+          .sum(); // (r x 1) vector of inner products
 
-  return Lambda_blocks;
+  return std::make_pair(stiefel_Lambda_blocks, oblique_inner_prods);
 }
 
-SparseMatrix
-Problem::compute_Lambda_from_Lambda_blocks(const Matrix &Lambda_blocks) const {
+SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
+    const LambdaBlocks &Lambda_blocks) const {
   std::vector<Eigen::Triplet<Scalar>> elements;
-  elements.reserve(dim_ * dim_ * numPoses());
+  elements.reserve(dim_ * dim_ * numPoses() + numRangeMeasurements());
 
-  for (size_t i = 0; i < numPoses(); ++i) // block index
-    for (size_t r = 0; r < dim_; ++r)     // block row index
-      for (size_t c = 0; c < dim_; ++c)   // block column index
+  // add the symmetric diagonal blocks for the Stiefel constraints
+  for (size_t i = 0; i < numPoses(); ++i) { // block index
+    for (size_t r = 0; r < dim_; ++r) {     // block row index
+      for (size_t c = 0; c < dim_; ++c) {   // block column index
         elements.emplace_back(i * dim_ + r, i * dim_ + c,
-                              Lambda_blocks(r, i * dim_ + c));
+                              Lambda_blocks.first(r, i * dim_ + c));
+      }
+    }
+  }
 
-  throw NotImplementedException("Computing lambda size");
-  int Lambda_size = dim_ * numPoses();
+  // add the diagonal block for the Oblique constraints
+  for (size_t i = 0; i < numRangeMeasurements(); ++i) {
+    elements.emplace_back(numPoses() * dim_ + i, numPoses() * dim_ + i,
+                          Lambda_blocks.second(i));
+  }
+
+  int Lambda_size = dim_ * numPoses() + numRangeMeasurements();
   SparseMatrix Lambda(Lambda_size, Lambda_size);
   Lambda.setFromTriplets(elements.begin(), elements.end());
   return Lambda;
