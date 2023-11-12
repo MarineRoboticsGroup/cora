@@ -164,4 +164,20 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   return results;
 }
 
+Matrix projectToSOd(const Matrix &M) {
+  // Compute the SVD of M
+  Eigen::JacobiSVD<Matrix> svd(M, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+  Scalar detU = svd.matrixU().determinant();
+  Scalar detV = svd.matrixV().determinant();
+
+  if (detU * detV > 0) {
+    return svd.matrixU() * svd.matrixV().transpose();
+  } else {
+    Matrix Uprime = svd.matrixU();
+    Uprime.col(Uprime.cols() - 1) *= -1;
+    return Uprime * svd.matrixV().transpose();
+  }
+}
+
 } // namespace CORA

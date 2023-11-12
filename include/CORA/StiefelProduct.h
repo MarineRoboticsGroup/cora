@@ -48,6 +48,7 @@ public:
   void set_n(size_t n) { n_ = n; }
   void addNewFrame() { n_++; }
   void incrementRank() { p_++; }
+  void setRank(size_t p) { p_ = p; }
 
   /// ACCESSORS
   size_t get_k() const { return k_; }

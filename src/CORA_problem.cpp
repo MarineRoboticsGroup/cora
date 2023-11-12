@@ -704,14 +704,17 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
-  CertResults results = fast_verification(S, eta, nx, max_LOBPCG_iters,
-                                          max_fill_factor, drop_tol);
+  size_t num_eigvecs = std::min(Eigen::Index(nx), S.rows());
+  Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
+  init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
+  CertResults results = fast_verification(
+      S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
 
   if (!results.is_certified && (formulation_ == Formulation::Implicit)) {
-    // Extract the (trailing) portion of the tangent vector corresponding to the
-    // rotational states
+    // Extract the (leading) portion of the tangent vector corresponding to the
+    // rotational and spherical variables
     Vector v =
-        results.x.tail(numPoses() * dim_ + numRangeMeasurements()).normalized();
+        results.x.head(numPoses() * dim_ + numRangeMeasurements()).normalized();
     results.x = v;
 
     // Compute x's Rayleight quotient with the simplified certificate matrix
