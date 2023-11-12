@@ -3,6 +3,10 @@ if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Debug' as none was specified.")
 endif()
 
+add_library(test_utils test_utils.cpp)
+target_link_libraries(test_utils PUBLIC CORA PRIVATE Catch2::Catch2WithMain)
+target_include_directories(test_utils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 add_executable(tests
     test.cpp
     test_parse_pyfg.cpp
@@ -14,7 +18,7 @@ add_executable(tests
 )
 
 message(STATUS "Building test command-line executable in directory ${EXECUTABLE_OUTPUT_PATH}\n")
-target_link_libraries(tests PUBLIC CORA)
+target_link_libraries(tests PUBLIC CORA test_utils)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_include_directories(tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 

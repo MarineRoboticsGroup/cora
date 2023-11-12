@@ -1,10 +1,21 @@
 #pragma once
 
+#include <CORA/CORA_problem.h>
+#include <CORA/CORA_types.h>
+#include <CORA/pyfg_text_parser.h>
+
+#include <unsupported/Eigen/SparseExtra>
+
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <string>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
+
+/********  MATCHERS    **********/
 
 // Custom Catch2 matcher to check if two Eigen matrices are approximately equal
 template <typename MatrixType>
@@ -69,3 +80,28 @@ IsApproximatelyEqualUpToSign(const MatrixType &expected,
                              double epsilon = 1e-6) {
   return EigenMatrixApproxMatcherUpToSign<MatrixType>(expected, epsilon);
 }
+
+/*********   PROBLEM SETUP   ***********/
+
+namespace CORA {
+
+SparseMatrix readMatrixMarketFile(const std::string &filename);
+void writeMatrixMarketFile(const SparseMatrix &A, const std::string &filename);
+
+void printMatrixSparsityPattern(const Matrix &matrix);
+std::string getTestDataFpath(const std::string &data_subdir,
+                             const std::string &fname);
+std::string checkSubmatricesAreCorrect(Problem prob,
+                                       const std::string &data_subdir);
+
+// load problem data
+Problem getProblem(std::string data_subdir);
+Matrix getRandInit(std::string data_subdir);
+Matrix getRandDX(std::string data_subdir);
+
+// expected values
+Scalar getExpectedCost(std::string data_subdir);
+Matrix getExpectedEgrad(std::string data_subdir);
+Matrix getExpectedRgrad(std::string data_subdir);
+Matrix getExpectedHessProd(std::string data_subdir);
+} // namespace CORA

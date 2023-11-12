@@ -124,7 +124,6 @@ set(CORA_HDRS
 ${CORA_HDR_DIR}/CORA.h
 ${CORA_HDR_DIR}/CORA_types.h
 ${CORA_HDR_DIR}/CORA_utils.h
-${CORA_HDR_DIR}/CORA_test_utils.h
 ${CORA_HDR_DIR}/CORA_problem.h
 ${CORA_HDR_DIR}/CORA_preconditioners.h
 ${CORA_HDR_DIR}/Symbol.h
@@ -139,7 +138,6 @@ set(CORA_SRCS
 ${CORA_SOURCE_DIR}/CORA.cpp
 ${CORA_SOURCE_DIR}/CORA_problem.cpp
 ${CORA_SOURCE_DIR}/CORA_utils.cpp
-${CORA_SOURCE_DIR}/CORA_test_utils.cpp
 ${CORA_SOURCE_DIR}/CORA_preconditioners.cpp
 ${CORA_SOURCE_DIR}/Symbol.cpp
 ${CORA_SOURCE_DIR}/pyfg_text_parser.cpp
