@@ -288,6 +288,15 @@ public:
    * orthonormality constraints on the generalized orientations of the poses
    * (cf. eq. (119) in the SE-Sync tech report) */
   LambdaBlocks compute_Lambda_blocks(const Matrix &Y) const;
+
+  /**
+   * @brief Get the certificate matrix as Q - Lambda. If this matrix is PSD,
+   * then the solution is certified.
+   *
+   * @param Lambda the Lagrange multiplier matrix
+   * @return SparseMatrix
+   */
+  SparseMatrix get_certificate_matrix(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

@@ -773,10 +773,20 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
                           Lambda_blocks.second(i));
   }
 
+  // add additional zeros if we're using the explicit formulation
   int Lambda_size = dim_ * numPoses() + numRangeMeasurements();
+  if (formulation_ == Formulation::Explicit) {
+    Lambda_size += numLandmarks() + numPoses();
+  }
+
   SparseMatrix Lambda(Lambda_size, Lambda_size);
   Lambda.setFromTriplets(elements.begin(), elements.end());
   return Lambda;
+}
+
+SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
+  LambdaBlocks Lambda_blocks = compute_Lambda_blocks(Y);
+  return data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
 }
 
 } // namespace CORA
