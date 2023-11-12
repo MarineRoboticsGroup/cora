@@ -224,6 +224,16 @@ public:
     return data_submatrices_;
   }
 
+  // Get copies of pose and landmark symbol maps
+  std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }
+  std::map<Symbol, int> getLandmarkSymbolMap() const {
+    return landmark_symbol_idxs_;
+  }
+  // Get copy of range measurements
+  std::vector<RangeMeasurement> getRangeMeasurements() const {
+    return range_measurements_;
+  }
+
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 

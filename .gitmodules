@@ -7,3 +7,6 @@
 [submodule "libs/Catch2"]
 	path = libs/Catch2
 	url = https://github.com/catchorg/Catch2.git
+[submodule "libs/tonioviz"]
+	path = libs/tonioviz
+	url = https://github.com/MarineRoboticsGroup/tonioviz.git

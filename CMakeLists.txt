@@ -56,15 +56,9 @@ message(STATUS "Enabling code profiling using Google Performance Tools")
 set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} -lprofiler)
 endif()
 
-if(${ENABLE_VISUALIZATION})
-  find_package(Pangolin REQUIRED)
-endif()
-
 if(${BUILD_PYTHON_BINDINGS})
 message(STATUS "Building Python bindings")
 endif()
-
-message(STATUS "")
 
 # DEPENDENCIES
 
@@ -81,22 +75,25 @@ set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 # Testing
 set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
+add_subdirectory(${CATCH2_DIR})
 
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
-
 # Run the Optimization package's CMake file
 add_subdirectory(${OPTIMIZATION_DIR})
 get_property(OPTIMIZATION_INCLUDE_DIR TARGET Optimization PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 
 # Find Preconditioners library
 set(PRECONDITIONERS_DIR ${LIBS_DIR}/Preconditioners/ CACHE PATH "Path to top-level directory of Preconditioners library (the one containing CMakeLists.txt)")
-
 # Run the Preconditioners package's CMake file
 add_subdirectory(${PRECONDITIONERS_DIR})
 
-# Find the Catch2 library
-add_subdirectory(${CATCH2_DIR})
+# Find Optimization library
+if (${ENABLE_VISUALIZATION})
+set(TONIOVIZ_DIR ${LIBS_DIR}/tonioviz/ CACHE PATH "Path to top-level directory of TonioViz library (the one containing CMakeLists.txt)")
+add_subdirectory(${TONIOVIZ_DIR})
+get_property(TONIOVIZ_INCLUDE_DIRS TARGET tonioviz PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+endif ()
 
 # PERFORMANCE IMPROVEMENTS
 if(${ENABLE_OPENMP})
@@ -132,7 +129,6 @@ ${CORA_HDR_DIR}/pyfg_text_parser.h
 ${CORA_HDR_DIR}/MatrixManifold.h
 ${CORA_HDR_DIR}/StiefelProduct.h
 ${CORA_HDR_DIR}/ObliqueManifold.h
-${CORA_HDR_DIR}/CORA_vis.h
 )
 
 set(CORA_SRCS
@@ -144,22 +140,28 @@ ${CORA_SOURCE_DIR}/Symbol.cpp
 ${CORA_SOURCE_DIR}/pyfg_text_parser.cpp
 ${CORA_SOURCE_DIR}/StiefelProduct.cpp
 ${CORA_SOURCE_DIR}/ObliqueManifold.cpp
-${CORA_SOURCE_DIR}/CORA_vis.cpp
 )
+
+if (${ENABLE_VISUALIZATION})
+    # Add CORA_vis.cpp to CORA_SRCS
+    list(APPEND CORA_SRCS ${CORA_SOURCE_DIR}/CORA_vis.cpp)
+    # Add CORA_vis.h to CORA_HDRS
+    list(APPEND CORA_HDRS ${CORA_HDR_DIR}/CORA_vis.h)
+endif()
 
 # The CORA library
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC ILDL ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
 
+if (${ENABLE_VISUALIZATION})
+    target_include_directories(${PROJECT_NAME} PUBLIC ${TONIOVIZ_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME} PUBLIC tonioviz)
+endif()
+
 if(OPENMP_FOUND)
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
 set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS ${OpenMP_CXX_FLAGS})
-endif()
-
-# If visualization is enabled, set warning that this is not implemented yet
-if(${ENABLE_VISUALIZATION})
-message(WARNING "Visualization is not implemented yet.")
 endif()
 
 # If python bindings are enabled, set warning that this is not implemented yet
