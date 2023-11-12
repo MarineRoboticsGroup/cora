@@ -1,14 +1,28 @@
 
-#include <CORA/CORA_test_utils.h>
+#include <CORA/CORA_problem.h>
+#include <CORA/CORA_types.h>
+#include <CORA/pyfg_text_parser.h>
+#include <test_utils.h>
 
 #include <unsupported/Eigen/SparseExtra>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <string>
 
-CORA::SparseMatrix CORA::readMatrixMarketFile(const std::string &filename) {
-  CORA::SparseMatrix A;
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
+
+/*********   PROBLEM SETUP   ***********/
+
+namespace CORA {
+
+SparseMatrix readMatrixMarketFile(const std::string &filename) {
+  SparseMatrix A;
   bool is_symmetric;
   // read the first line of the file to see if it is symmetric
   std::ifstream file(filename);
@@ -39,12 +53,11 @@ CORA::SparseMatrix CORA::readMatrixMarketFile(const std::string &filename) {
   return A;
 }
 
-void CORA::writeMatrixMarketFile(const SparseMatrix &A,
-                                 const std::string &filename) {
+void writeMatrixMarketFile(const SparseMatrix &A, const std::string &filename) {
   Eigen::saveMarket(A, filename);
 }
 
-void CORA::printMatrixSparsityPattern(const Matrix &matrix) {
+void printMatrixSparsityPattern(const Matrix &matrix) {
   // if entry is zero- print "-", otherwise print "X"
   // make sure that vertical spacing is the same as horizontal spacing
   std::cout << "Matrix sparsity pattern: " << std::endl;
@@ -80,8 +93,8 @@ void CORA::printMatrixSparsityPattern(const Matrix &matrix) {
   }
 }
 
-std::string CORA::getTestDataFpath(const std::string &data_subdir,
-                                   const std::string &fname) {
+std::string getTestDataFpath(const std::string &data_subdir,
+                             const std::string &fname) {
   std::string curr_path = std::filesystem::current_path();
   std::string filepath =
       std::filesystem::path(curr_path) / "./bin/data" / data_subdir / fname;
@@ -94,9 +107,9 @@ std::string CORA::getTestDataFpath(const std::string &data_subdir,
   return filepath;
 }
 
-std::string CORA::checkSubmatricesAreCorrect(CORA::Problem prob,
-                                             const std::string &data_subdir) {
-  CORA::CoraDataSubmatrices data_submatrices = prob.getDataSubmatrices();
+std::string checkSubmatricesAreCorrect(Problem prob,
+                                       const std::string &data_subdir) {
+  CoraDataSubmatrices data_submatrices = prob.getDataSubmatrices();
 
   std::string error_msg;
 
@@ -163,3 +176,60 @@ std::string CORA::checkSubmatricesAreCorrect(CORA::Problem prob,
 
   return error_msg;
 }
+
+Problem getProblem(std::string data_subdir) {
+  std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
+  Problem problem = parsePyfgTextToProblem(pyfg_path);
+  return problem;
+}
+
+Matrix getRandInit(std::string data_subdir) {
+  std::string init_path = getTestDataFpath(data_subdir, "X_rand_dim2.mm");
+  Matrix x0 = readMatrixMarketFile(init_path).toDense();
+  return x0;
+}
+
+Matrix getGroundTruthState(std::string data_subdir) {
+  std::string gt_path = getTestDataFpath(data_subdir, "X_gt.mm");
+  Matrix X_gt = readMatrixMarketFile(gt_path).toDense();
+  return X_gt;
+}
+
+Matrix getRandDX(std::string data_subdir) {
+  std::string rand_dx_path = getTestDataFpath(data_subdir, "rand_dX.mm");
+  Matrix rand_dx = readMatrixMarketFile(rand_dx_path).toDense();
+  return rand_dx;
+}
+
+Scalar getExpectedCost(std::string data_subdir) {
+  Scalar expected_cost;
+  if (data_subdir == "small_ra_slam_problem") {
+    expected_cost = 1.063888372855624e+03;
+  } else if (data_subdir == "single_rpm") {
+    expected_cost = 0.809173848024762;
+  } else if (data_subdir == "single_range") {
+    expected_cost = 4.718031199983851;
+  } else {
+    throw std::runtime_error("Do not have expected cost for: " + data_subdir);
+  }
+  return expected_cost;
+}
+
+Matrix getExpectedEgrad(std::string data_subdir) {
+  std::string egrad_path = getTestDataFpath(data_subdir, "expected_egrad.mm");
+  Matrix Egrad = readMatrixMarketFile(egrad_path).toDense();
+  return Egrad;
+}
+
+Matrix getExpectedRgrad(std::string data_subdir) {
+  std::string rgrad_path = getTestDataFpath(data_subdir, "expected_rgrad.mm");
+  Matrix Rgrad = readMatrixMarketFile(rgrad_path).toDense();
+  return Rgrad;
+}
+
+Matrix getExpectedHessProd(std::string data_subdir) {
+  std::string hess_prod_path = getTestDataFpath(data_subdir, "hessProd.mm");
+  Matrix hess_prod = readMatrixMarketFile(hess_prod_path).toDense();
+  return hess_prod;
+}
+} // namespace CORA

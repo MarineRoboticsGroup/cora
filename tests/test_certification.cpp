@@ -1,7 +1,7 @@
 #include <CORA/CORA_problem.h>
-#include <CORA/CORA_test_utils.h>
 #include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
+#include <CORA/pyfg_text_parser.h>
 
 #include <test_utils.h>
 
@@ -76,6 +76,49 @@ TEST_CASE("Test generic verification (small)") {
 
 TEST_CASE("Test generic verification (large)") {
   testIdentityMatrixVerification(1000);
+}
+
+TEST_CASE("Test small RA-SLAM verification") {
+  std::string data_subdir = "small_ra_slam_problem";
+  std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
+  Problem problem = parsePyfgTextToProblem(pyfg_path);
+  problem.updateProblemData();
+
+  // test that at ground truth the following properties hold:
+  // 1. the computed Lambda matrix is all zeros (constraints are not affecting
+  // the solution -- this is because the problem is from noiseless data)
+  // 2. the solution is certified
+  Matrix X_gt = getGroundTruthState(data_subdir);
+  Problem::LambdaBlocks lambda_blocks = problem.compute_Lambda_blocks(X_gt);
+  CHECK_THAT(lambda_blocks.first, IsApproximatelyEqual<Matrix>(
+                                      Matrix::Zero(lambda_blocks.first.rows(),
+                                                   lambda_blocks.first.cols()),
+                                      1e-6));
+  CHECK_THAT(lambda_blocks.second,
+             IsApproximatelyEqual<Matrix>(
+                 Vector::Zero(lambda_blocks.second.rows()), 1e-6));
+
+  // build the sparse matrix from the lambda blocks and verify that it is
+  // still all zeros
+  SparseMatrix Lambda =
+      problem.compute_Lambda_from_Lambda_blocks(lambda_blocks);
+  CHECK_THAT(Lambda, IsApproximatelyEqual<SparseMatrix>(
+                         SparseMatrix(Lambda.rows(), Lambda.cols()), 1e-6));
+
+  // verify that the solution is certified (within)
+  SparseMatrix S_gt = problem.get_certificate_matrix(X_gt);
+  Scalar numerical_tolerance = 1e-6;
+  CertResults res_gt = fast_verification(S_gt, numerical_tolerance, 1);
+  checkResultsCertified(res_gt);
+
+  // get the random initialization and verify that it is not certified and that
+  // the returned theta and x are indeed second order directions of descent
+  Matrix X0 = getRandInit(data_subdir);
+  SparseMatrix S_rand = problem.get_certificate_matrix(X0);
+  CertResults res = fast_verification(S_rand, numerical_tolerance, 1);
+  REQUIRE_FALSE(res.is_certified);
+  Scalar expected_theta = res.x.transpose() * S_rand * res.x;
+  CHECK_THAT(res.theta, Catch::Matchers::WithinAbs(expected_theta, 1e-6));
 }
 
 } // namespace CORA

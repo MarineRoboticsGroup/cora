@@ -59,4 +59,6 @@ inline CertResults fast_verification(const SparseMatrix &S, Scalar eta,
                            max_fill_factor, drop_tol);
 }
 
+Matrix projectToSOd(const Matrix &A);
+
 } // namespace CORA

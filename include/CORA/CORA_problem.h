@@ -58,6 +58,10 @@ struct Manifolds {
     stiefel_prod_manifold_.incrementRank();
     oblique_manifold_.incrementRank();
   }
+  void setRank(int r) {
+    stiefel_prod_manifold_.setRank(r);
+    oblique_manifold_.setRank(r);
+  }
 };
 
 class Problem {
@@ -229,6 +233,8 @@ public:
   // the full size of the full (explicit problem) data matrix
   size_t getDataMatrixSize() const;
 
+  Formulation getFormulation() const { return formulation_; }
+  size_t dim() const { return dim_; }
   size_t numPoses() const { return pose_symbol_idxs_.size(); }
   size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
   size_t numRangeMeasurements() const { return range_measurements_.size(); }
@@ -236,10 +242,15 @@ public:
 
   /*****  Riemannian optimization functions  *******/
 
+  inline size_t getRelaxationRank() const { return relaxation_rank_; }
   Matrix getRandomInitialGuess() const;
   void incrementRank() {
     relaxation_rank_++;
     manifolds_.incrementRank();
+  }
+  void setRank(int r) {
+    relaxation_rank_ = r;
+    manifolds_.setRank(r);
   }
 
   Scalar evaluateObjective(const Matrix &Y) const;
@@ -255,6 +266,8 @@ public:
   Matrix retract(const Matrix &Y, const Matrix &V) const;
 
   /********** Certification **************/
+
+  using LambdaBlocks = std::pair<Matrix, Vector>;
 
   /**
    * @brief Check if a solution is certified. If not, compute a direction of
@@ -272,20 +285,30 @@ public:
    * @return CertResults
    */
   CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
-                               size_t max_LOBPCG_iters, Scalar max_fill_factor,
-                               Scalar drop_tol) const;
+                               size_t max_LOBPCG_iters = 1000,
+                               Scalar max_fill_factor = 3,
+                               Scalar drop_tol = 1e-3) const;
 
   /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
    * this function computes and returns the matrix Lambda itself */
   SparseMatrix
-  compute_Lambda_from_Lambda_blocks(const Matrix &Lambda_blocks) const;
+  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks) const;
 
   /** Given a critical point Y of the rank-r relaxation, this function computes
    * and returns a d x dn matrix comprised of d x d block elements of the
    * associated block-diagonal Lagrange multiplier matrix associated with the
    * orthonormality constraints on the generalized orientations of the poses
    * (cf. eq. (119) in the SE-Sync tech report) */
-  Matrix compute_Lambda_blocks(const Matrix &Y) const;
+  LambdaBlocks compute_Lambda_blocks(const Matrix &Y) const;
+
+  /**
+   * @brief Get the certificate matrix as Q - Lambda. If this matrix is PSD,
+   * then the solution is certified.
+   *
+   * @param Lambda the Lagrange multiplier matrix
+   * @return SparseMatrix
+   */
+  SparseMatrix get_certificate_matrix(const Matrix &Y) const;
 }; // class Problem
 
 } // namespace CORA

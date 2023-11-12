@@ -1,7 +1,7 @@
 // cppcheck-suppress syntaxError
-#include <CORA/CORA_test_utils.h>
 #include <CORA/CORA_types.h>
 #include <CORA/ObliqueManifold.h>
+#include <test_utils.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
