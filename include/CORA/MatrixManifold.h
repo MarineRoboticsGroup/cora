@@ -58,9 +58,7 @@ public:
     return (A.array() * B.array()).sum();
   }
 
-  Matrix retract(const Matrix &Y, const Matrix &V) const {
-    return projectToManifold(Y + V);
-  }
+  virtual Matrix retract(const Matrix &Y, const Matrix &V) const = 0;
 };
 
 } // namespace CORA
