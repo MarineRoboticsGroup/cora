@@ -58,10 +58,20 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   // Iterate through all poses and draw using TonioViz
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
     auto rotation = aligned_sol_matrix.block(pose_idx, 0, dim, dim);
+    auto translation =
+        aligned_sol_matrix.block(problem.numPosesDim() + pose_idx, 0, 1, dim);
+
+    // Convert rotation and translation to SE3 as a Matrix4d
+    Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
+    pose_matrix.block(0, 0, dim, dim) = rotation;
+    pose_matrix.block(0, dim, dim, 1) = translation.transpose();
+
+    viz.AddVizPose(pose_matrix, 0.1, 2.0, pose_sym.index());
   }
 
   // Draw all landmarks
   // Draw ranges as lines to landmark
+  viz.RenderWorld();
 }
 
 } // namespace CORA
