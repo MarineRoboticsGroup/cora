@@ -31,7 +31,7 @@ public:
                          std::to_string(act_cols) + ")") {}
 };
 inline void checkMatrixShape(const std::string &func_name, Index exp_rows,
-                             Index exp_cols, int act_rows, int act_cols) {
+                             Index exp_cols, Index act_rows, Index act_cols) {
   if (exp_rows != act_rows || exp_cols != act_cols) {
     throw MatrixShapeException(func_name, exp_rows, exp_cols, act_rows,
                                act_cols);

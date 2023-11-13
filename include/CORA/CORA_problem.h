@@ -231,7 +231,7 @@ public:
   SparseMatrix getDataMatrix();
 
   // the full size of the full (explicit problem) data matrix
-  size_t getDataMatrixSize() const;
+  int getDataMatrixSize() const;
 
   Formulation getFormulation() const { return formulation_; }
   int dim() const { return dim_; }
