@@ -18,18 +18,20 @@ public:
       : std::logic_error(str + " not implemented") {}
 };
 
+using Index = Eigen::Index;
+
 class MatrixShapeException : public std::logic_error {
 public:
-  MatrixShapeException(std::string func_name, int exp_rows, int exp_cols,
-                       int act_rows, int act_cols)
+  MatrixShapeException(const std::string &func_name, Index exp_rows,
+                       Index exp_cols, Index act_rows, Index act_cols)
       : std::logic_error(func_name + ": " + "expected matrix of shape (" +
                          std::to_string(exp_rows) + ", " +
                          std::to_string(exp_cols) + ") but got (" +
                          std::to_string(act_rows) + ", " +
                          std::to_string(act_cols) + ")") {}
 };
-inline void checkMatrixShape(std::string func_name, int exp_rows, int exp_cols,
-                             int act_rows, int act_cols) {
+inline void checkMatrixShape(const std::string &func_name, Index exp_rows,
+                             Index exp_cols, Index act_rows, Index act_cols) {
   if (exp_rows != act_rows || exp_cols != act_cols) {
     throw MatrixShapeException(func_name, exp_rows, exp_cols, act_rows,
                                act_cols);

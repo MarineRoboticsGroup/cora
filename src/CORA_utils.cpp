@@ -103,11 +103,11 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     // Calculate curvature along x
     theta = x.dot(S * x);
 
-    if (!(theta < -eta / 2)) {
+    if (theta >= -eta / 2) {
       /// STEP 3:  RUN PRECONDITIONED LOBPCG
 
       // We did *not* find a direction of sufficiently negative curvature in the
-      // alloted number of iterations, so now run preconditioned LOBPCG.  This
+      // allotted number of iterations, so now run preconditioned LOBPCG.  This
       // is most useful for the "hard" cases, in which M has a strictly negative
       // minimum eigenpair that is small-magnitude (i.e. near-zero).
 

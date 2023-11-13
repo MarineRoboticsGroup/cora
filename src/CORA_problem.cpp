@@ -124,8 +124,7 @@ void Problem::fillRelPoseSubmatrices() {
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
-  auto translation_offset =
-      static_cast<Index>(numPoses() * dim_ + numRangeMeasurements());
+  auto translation_offset = numPoses() * dim_ + numRangeMeasurements();
 
   // for diagonal matrices, get the diagonal vector and set the values
   for (int measure_idx = 0; measure_idx < rel_pose_measurements_.size();
@@ -324,7 +323,7 @@ void Problem::updateProblemData() {
 void Problem::updatePreconditioner() {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
     // blocks are rots: n*d, ranges: r, and translations: n + l
-    std::vector<size_t> block_size_vec = {
+    std::vector<int> block_size_vec = {
         numPoses() * dim_, numRangeMeasurements(), numPoses() + numLandmarks()};
     // drop any values that are 0
     block_size_vec.erase(
@@ -614,7 +613,7 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
   return projectToManifold(Y + V);
 }
 
-size_t Problem::getDataMatrixSize() const {
+int Problem::getDataMatrixSize() const {
   if (formulation_ == Formulation::Explicit) {
     return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();
   } else if (formulation_ == Formulation::Implicit) {
@@ -636,7 +635,7 @@ Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
 
 Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
   // all range measurements come after the rotations
-  auto rot_offset = static_cast<Index>(numPoses() * dim_);
+  auto rot_offset = numPoses() * dim_;
 
   // search for the range symbol
   auto range_search_it = std::find_if(
@@ -704,7 +703,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
-  size_t num_eigvecs = std::min(Eigen::Index(nx), S.rows());
+  auto num_eigvecs = std::min(Eigen::Index(nx), S.rows());
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
   init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
   CertResults results = fast_verification(
@@ -734,8 +733,9 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   // Preallocate storage for diagonal blocks of Lambda
   Matrix stiefel_Lambda_blocks(dim_, numPoses() * dim_);
 
-#pragma omp parallel for
-  for (size_t i = 0; i < numPoses(); ++i) {
+#pragma omp parallel for default(none)                                         \
+    shared(Y, QY, stiefel_Lambda_blocks, Eigen::Dynamic)
+  for (auto i = 0; i < numPoses(); ++i) {
     Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
                Y.block(i * dim_, 0, dim_, Y.cols()).transpose();
     stiefel_Lambda_blocks.block(0, i * dim_, dim_, dim_) =
@@ -743,7 +743,7 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   }
 
   Vector oblique_Lambda_blocks(numRangeMeasurements());
-  size_t nd = numPoses() * dim_;
+  auto nd = numPoses() * dim_;
   Vector oblique_inner_prods =
       (Y.block(nd, 0, numRangeMeasurements(), Y.cols()).array() *
        QY.block(nd, 0, numRangeMeasurements(),
@@ -761,9 +761,9 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
   elements.reserve(dim_ * dim_ * numPoses() + numRangeMeasurements());
 
   // add the symmetric diagonal blocks for the Stiefel constraints
-  for (size_t i = 0; i < numPoses(); ++i) { // block index
-    for (size_t r = 0; r < dim_; ++r) {     // block row index
-      for (size_t c = 0; c < dim_; ++c) {   // block column index
+  for (auto i = 0; i < numPoses(); ++i) { // block index
+    for (auto r = 0; r < dim_; ++r) {     // block row index
+      for (auto c = 0; c < dim_; ++c) {   // block column index
         elements.emplace_back(i * dim_ + r, i * dim_ + c,
                               Lambda_blocks.first(r, i * dim_ + c));
       }
@@ -771,7 +771,7 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
   }
 
   // add the diagonal block for the Oblique constraints
-  for (size_t i = 0; i < numRangeMeasurements(); ++i) {
+  for (auto i = 0; i < numRangeMeasurements(); ++i) {
     elements.emplace_back(numPoses() * dim_ + i, numPoses() * dim_ + i,
                           Lambda_blocks.second(i));
   }
@@ -821,6 +821,5 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
 
   return Y_aligned;
 }
-
 
 } // namespace CORA

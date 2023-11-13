@@ -59,6 +59,10 @@ public:
   }
 
   Matrix retract(const Matrix &Y, const Matrix &V) const {
+    // We use projection-based retraction, as described in
+    // "Projection-Like Retractions on Matrix Manifolds" by Absil
+    // and Malick
+
     return projectToManifold(Y + V);
   }
 };

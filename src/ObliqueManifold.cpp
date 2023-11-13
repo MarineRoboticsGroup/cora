@@ -10,7 +10,7 @@ Matrix ObliqueManifold::projectToManifold(const Matrix &A) const {
 
   // in parallel, normalize each column of A to have unit norm
   Matrix A_normalized = A;
-  for (int64_t j = 0; j < A_normalized.cols(); j++) {
+  for (auto j = 0; j < A_normalized.cols(); j++) {
     A_normalized.col(j) /= A_normalized.col(j).norm();
   }
   return A_normalized;
@@ -37,8 +37,8 @@ Matrix ObliqueManifold::random_sample(
   // sample each column of the matrix from the standard normal distribution
   std::normal_distribution<Scalar> g;
   Matrix A(r_, n_);
-  for (int64_t j = 0; j < A.cols(); j++) {
-    for (int64_t i = 0; i < A.rows(); i++) {
+  for (auto j = 0; j < A.cols(); j++) {
+    for (auto i = 0; i < A.rows(); i++) {
       A(i, j) = g(generator);
     }
   }
