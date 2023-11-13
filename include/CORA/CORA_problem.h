@@ -234,15 +234,29 @@ public:
   int getDataMatrixSize() const;
 
   Formulation getFormulation() const { return formulation_; }
-  int dim() const { return dim_; }
-  int numPoses() const { return static_cast<int>(pose_symbol_idxs_.size()); }
-  int numLandmarks() const {
+  inline int dim() const { return dim_; }
+  inline int numPoses() const {
+    return static_cast<int>(pose_symbol_idxs_.size());
+  }
+  inline int numPoseMeasurements() const {
+    return static_cast<int>(rel_pose_measurements_.size());
+  }
+  inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());
   }
-  int numRangeMeasurements() const {
+  inline int numRangeMeasurements() const {
     return static_cast<int>(range_measurements_.size());
   }
-  int numTranslationalStates() const { return numPoses() + numLandmarks(); }
+  inline int numTranslationalStates() const {
+    return numPoses() + numLandmarks();
+  }
+
+  // Offset calculations
+  inline int rotationOffset() const { return 0; }
+  inline int rangeOffset() const { return dim() * numPoses(); }
+  inline int translationOffset() const {
+    return rangeOffset() + numRangeMeasurements();
+  }
 
   /*****  Riemannian optimization functions  *******/
 
