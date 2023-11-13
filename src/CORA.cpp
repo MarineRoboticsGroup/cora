@@ -263,10 +263,11 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
 
   // Project each spherical variable to the unit sphere by normalizing
   // the respective rows
-  int nd = n * d;
+  int rot_mat_sz = problem.numPosesDim();
 #pragma omp parallel for
   for (size_t i = 0; i < r; ++i) {
-    Yd.block(nd + i, 0, 1, d) /= Yd.block(nd + i, 0, 1, d).norm();
+    Yd.block(rot_mat_sz + i, 0, 1, d) /=
+        Yd.block(rot_mat_sz + i, 0, 1, d).norm();
   }
 
   if (problem.getFormulation() == Formulation::Explicit) {
@@ -278,7 +279,7 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
     Matrix X(d, (d + 1) * n);
 
     // Set rotational states
-    X.block(0, 0, d * n, d) = Yd;
+    X.block(0, 0, rot_mat_sz, d) = Yd;
 
     // Recover translational states
     throw NotImplementedException(

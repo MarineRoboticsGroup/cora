@@ -252,10 +252,9 @@ public:
   }
 
   // Offset calculations
-  inline int rotationOffset() const { return 0; }
-  inline int rangeOffset() const { return dim() * numPoses(); }
-  inline int translationOffset() const {
-    return rangeOffset() + numRangeMeasurements();
+  inline int numPosesDim() const { return dim() * numPoses(); }
+  inline int rotAndRangeMatrixSize() const {
+    return numPosesDim() + numRangeMeasurements();
   }
 
   /*****  Riemannian optimization functions  *******/
