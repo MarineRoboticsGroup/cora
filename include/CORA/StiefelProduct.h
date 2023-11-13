@@ -20,13 +20,13 @@ namespace CORA {
 class StiefelProduct : public MatrixManifold {
 private:
   // Number of vectors in each orthonormal k-frame
-  size_t k_;
+  size_t k_{};
 
   // Dimension of ambient Euclidean space containing the frames
-  size_t p_;
+  size_t p_{};
 
   // Number of copies of St(k,p) in the product
-  size_t n_;
+  size_t n_{};
 
 public:
   /// CONSTRUCTORS AND MUTATORS
@@ -79,13 +79,6 @@ public:
   Matrix projectToTangentSpace(const Matrix &Y, const Matrix &V) const {
     return V - SymBlockDiagProduct(Y, Y, V);
   }
-
-  /** Given an element Y in M and a tangent vector V in T_Y(M), this function
-   * computes the retraction along V at Y using the QR-based retraction
-   * specified in eq. (4.8) of Absil et al.'s  "Optimization Algorithms on
-   * Matrix Manifolds").
-   */
-  Matrix retract(const Matrix &Y, const Matrix &V) const;
 
   /** Sample a random point on M, using the (optional) passed seed to initialize
    * the random number generator.  */
