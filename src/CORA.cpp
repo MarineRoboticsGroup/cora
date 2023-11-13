@@ -53,6 +53,18 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
 
   // default TNT parameters
   Optimization::Riemannian::TNTParams<Scalar> params;
+  params.max_TPCG_iterations = 150;
+  params.preconditioned_gradient_tolerance = 1e-1;
+  params.gradient_tolerance = 1e-1;
+  params.theta = 0.8;
+  params.Delta_tolerance = 1e-3;
+  params.verbose = true;
+  params.precision = 2;
+  params.max_computation_time = 30;
+  params.relative_decrease_tolerance = 1e-4;
+  params.stepsize_tolerance = 1e-4;
+
+  Scalar rel_cert_eta = 1e-5;
 
   // metric over the tangent space is the standard matrix trace inner product
   Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
@@ -63,15 +75,24 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // no custom instrumentation function for now
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
+  std::chrono::time_point<std::chrono::high_resolution_clock> opt_time;
+  std::chrono::time_point<std::chrono::high_resolution_clock> cert_time;
+  std::chrono::time_point<std::chrono::high_resolution_clock> saddle_time;
+
   CoraTntResult result;
   Matrix X = x0;
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
     // solve the problem
+    std::cout << "\nSolving problem at rank " << problem.getRelaxationRank()
+              << std::endl;
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
 
     // check if the solution is certified
-    CertResults cert_results = problem.certify_solution(result.x, 1e-6, 10);
+    CertResults cert_results =
+        problem.certify_solution(result.x, result.f * rel_cert_eta, 10);
+    std::cout << "Obtained solution with objective value: " << result.f
+              << std::endl;
 
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
@@ -80,8 +101,8 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
 
     // otherwise, increment the relaxation rank and try again
     problem.incrementRank();
-    Scalar grad_tol = 1e-6;
-    Scalar precon_grad_tol = 1e-6;
+    Scalar grad_tol = 1e-4;
+    Scalar precon_grad_tol = 1e-4;
     X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
                      grad_tol, precon_grad_tol);
   }
@@ -96,7 +117,10 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   }
 
   // let's check if the solution is certified
-  CertResults cert_results = problem.certify_solution(result.x, 1e-6, 10);
+  CertResults cert_results =
+      problem.certify_solution(result.x, result.f * rel_cert_eta, 10);
+  std::cout << "Obtained solution with objective value: " << result.f
+            << std::endl;
 
   // print out whether or not the solution is certified
   if (!cert_results.is_certified) {
@@ -149,7 +173,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
   // steplength,
   Scalar alpha_min = 1e-6; // Minimum stepsize
   Scalar alpha =
-      std::max(16 * alpha_min, 10 * gradient_tolerance / fabs(theta));
+      std::max(16 * alpha_min, 100 * gradient_tolerance / fabs(theta));
 
   // Vectors of trial stepsizes and corresponding function values
   std::vector<double> alphas;
@@ -242,6 +266,11 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
     if (determinants(i) > 0)
       ++ng0;
   }
+
+  std::cout << "Out of " << n << " blocks, " << ng0
+            << " have positive determinant. This is "
+            << static_cast<double>(ng0) / n * 100 << "% of the total."
+            << std::endl;
 
   if (ng0 < n / 2) {
     // Less than half of the total number of blocks have the correct sign, so
