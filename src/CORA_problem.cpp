@@ -72,11 +72,9 @@ void Problem::fillRangeSubmatrices() {
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
-  size_t translation_offset = numPoses() * dim_ + numRangeMeasurements();
-
-  auto num_translations = static_cast<Index>(numTranslationalStates());
-  auto num_range_measurements = static_cast<Index>(range_measurements_.size());
-
+  auto translation_offset = rotAndRangeMatrixSize();
+  auto num_range_measurements = numRangeMeasurements();
+  auto num_translations = numTranslationalStates();
   // initialize the submatrices to the correct sizes
   data_submatrices_.range_incidence_matrix =
       SparseMatrix(num_range_measurements, num_translations);
@@ -99,36 +97,32 @@ void Problem::fillRangeSubmatrices() {
     // update the incidence matrix
     auto id1 = getTranslationIdx(measure.first_id) - translation_offset;
     auto id2 = getTranslationIdx(measure.second_id) - translation_offset;
-    data_submatrices_.range_incidence_matrix.insert(
-        measure_idx, static_cast<Index>(id1)) = -1.0;
-    data_submatrices_.range_incidence_matrix.insert(
-        measure_idx, static_cast<Index>(id2)) = 1.0;
+    data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = 1.0;
   }
 }
 
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
-  auto num_pose_measurements =
-      static_cast<Index>(rel_pose_measurements_.size());
-  auto num_translations = static_cast<Index>(numTranslationalStates());
+  auto num_pose_measurements = numPoseMeasurements();
+  auto num_translations = numTranslationalStates();
+
+  // need to account for the fact that the indices will be offset by the
+  // dimension of the rotation and the range variables that precede the
+  // translations
+  auto translation_offset = rotAndRangeMatrixSize();
   // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_incidence_matrix =
       SparseMatrix(num_pose_measurements, num_translations);
-  data_submatrices_.rel_pose_translation_data_matrix = SparseMatrix(
-      num_pose_measurements, static_cast<Index>(dim_ * numPoses()));
+  data_submatrices_.rel_pose_translation_data_matrix =
+      SparseMatrix(num_pose_measurements, numPosesDim());
   data_submatrices_.rel_pose_translation_precision_matrix =
       SparseMatrix(num_pose_measurements, num_pose_measurements);
   data_submatrices_.rel_pose_rotation_precision_matrix =
       SparseMatrix(num_pose_measurements, num_pose_measurements);
 
-  // need to account for the fact that the indices will be offset by the
-  // dimension of the rotation and the range variables that precede the
-  // translations
-  auto translation_offset =
-      static_cast<Index>(numPoses() * dim_ + numRangeMeasurements());
-
   // for diagonal matrices, get the diagonal vector and set the values
-  for (int measure_idx = 0; measure_idx < rel_pose_measurements_.size();
+  for (int measure_idx = 0; measure_idx < num_pose_measurements;
        measure_idx++) {
     RelativePoseMeasurement rpm = rel_pose_measurements_[measure_idx];
 
@@ -163,7 +157,7 @@ void Problem::fillRotConnLaplacian() {
   size_t measurement_stride = 2 * (d + d * d);
 
   std::vector<Eigen::Triplet<Scalar>> triplets;
-  triplets.reserve(measurement_stride * rel_pose_measurements_.size());
+  triplets.reserve(measurement_stride * numPoseMeasurements());
 
   size_t i, j;
   for (const RelativePoseMeasurement &measurement : rel_pose_measurements_) {
@@ -195,11 +189,9 @@ void Problem::fillRotConnLaplacian() {
                                   measurement.R(c, r));
   }
 
-  auto num_poses = static_cast<Index>(numPoses());
-
   // Construct and return a sparse matrix from these triplets
   data_submatrices_.rotation_conn_laplacian =
-      SparseMatrix(d * num_poses, d * num_poses);
+      SparseMatrix(numPosesDim(), numPosesDim());
   data_submatrices_.rotation_conn_laplacian.setFromTriplets(triplets.begin(),
                                                             triplets.end());
 }
@@ -227,7 +219,7 @@ DiagonalMatrix diagMatrixMult(const DiagonalMatrix &first,
 
 void Problem::printProblem() const {
   // print out all of the pose variables
-  if (numPoses()) {
+  if (numPoses() > 0) {
     std::cout << "Pose variables:" << std::endl;
     for (const auto &[pose_sym, pose_idx] : pose_symbol_idxs_) {
       std::cout << pose_sym.string() << " -> " << pose_idx << std::endl;
@@ -238,7 +230,7 @@ void Problem::printProblem() const {
   }
 
   // print out all of the landmark variables
-  if (numLandmarks()) {
+  if (numLandmarks() > 0) {
     std::cout << "\nLandmark variables:" << std::endl;
     for (const auto &[landmark_sym, landmark_idx] : landmark_symbol_idxs_) {
       std::cout << landmark_sym.string() << " -> " << landmark_idx << std::endl;
@@ -249,7 +241,7 @@ void Problem::printProblem() const {
   }
 
   // print out all of the range measurements
-  if (numRangeMeasurements()) {
+  if (numRangeMeasurements() > 0) {
     std::cout << "\nRange measurements:" << std::endl;
     for (const auto &range_measurement : range_measurements_) {
       std::cout << range_measurement.first_id.string() << " -> "
@@ -263,7 +255,7 @@ void Problem::printProblem() const {
   }
 
   // print out all of the relative pose measurements
-  if (!rel_pose_measurements_.empty()) {
+  if (numPoseMeasurements() > 0) {
     std::cout << "\nRelative pose measurements:" << std::endl;
     for (auto rel_pose_measurement : rel_pose_measurements_) {
       std::cout << rel_pose_measurement.first_id.string() << " -> "
@@ -324,8 +316,8 @@ void Problem::updateProblemData() {
 void Problem::updatePreconditioner() {
   if (preconditioner_ == Preconditioner::BlockCholesky) {
     // blocks are rots: n*d, ranges: r, and translations: n + l
-    std::vector<size_t> block_size_vec = {
-        numPoses() * dim_, numRangeMeasurements(), numPoses() + numLandmarks()};
+    std::vector<int> block_size_vec = {numPosesDim(), numRangeMeasurements(),
+                                       numPoses() + numLandmarks()};
     // drop any values that are 0
     block_size_vec.erase(
         std::remove(block_size_vec.begin(), block_size_vec.end(), 0),
@@ -363,13 +355,8 @@ void Problem::updatePreconditioner() {
 }
 
 void Problem::fillDataMatrix() {
-  auto data_matrix_size = static_cast<Index>(getDataMatrixSize());
+  auto data_matrix_size = getDataMatrixSize();
   data_matrix_ = SparseMatrix(data_matrix_size, data_matrix_size);
-
-  size_t n = numPoses();
-  size_t dn = dim_ * n;
-  size_t r = numRangeMeasurements();
-  size_t l = numLandmarks();
 
   /**
    * @brief From here we form the sub blocks of the data matrix Q
@@ -434,16 +421,18 @@ void Problem::fillDataMatrix() {
     }
   };
 
+  auto rot_mat_sz = numPosesDim();
+  auto rot_range_mat_sz = rotAndRangeMatrixSize();
   // Q11, Q13, Q22, Q23, Q33
   addTriplets(Q11, 0, 0);
-  addTriplets(Q13, 0, dn + r);
-  addTriplets(Q22, dn, dn);
-  addTriplets(Q23, dn, dn + r);
-  addTriplets(Q33, dn + r, dn + r);
+  addTriplets(Q13, 0, rot_range_mat_sz);
+  addTriplets(Q22, rot_mat_sz, rot_mat_sz);
+  addTriplets(Q23, rot_mat_sz, rot_range_mat_sz);
+  addTriplets(Q33, rot_range_mat_sz, rot_range_mat_sz);
 
   // also add Q13 and Q23 transposed to the triplets
-  addTriplets(Q13.transpose(), dn + r, 0);
-  addTriplets(Q23.transpose(), dn + r, dn);
+  addTriplets(Q13.transpose(), rot_range_mat_sz, 0);
+  addTriplets(Q23.transpose(), rot_range_mat_sz, rot_mat_sz);
 
   // construct the data matrix
   data_matrix_.setFromTriplets(combined_triplets.begin(),
@@ -501,22 +490,21 @@ Matrix Problem::tangent_space_projection(const Matrix &Y,
   Matrix result = Ydot;
 
   // Stiefel component
-  int n = numPoses();
-  int d = dim_;
-  result.block(0, 0, n * d, relaxation_rank_) =
+  auto rot_mat_sz = numPosesDim();
+  result.block(0, 0, rot_mat_sz, relaxation_rank_) =
       manifolds_.stiefel_prod_manifold_
           .projectToTangentSpace(
-              Y.block(0, 0, n * d, relaxation_rank_).transpose(),
-              result.block(0, 0, n * d, relaxation_rank_).transpose())
+              Y.block(0, 0, rot_mat_sz, relaxation_rank_).transpose(),
+              result.block(0, 0, rot_mat_sz, relaxation_rank_).transpose())
           .transpose();
 
   // Oblique component
   int r = numRangeMeasurements();
-  result.block(n * d, 0, r, relaxation_rank_) =
+  result.block(rot_mat_sz, 0, r, relaxation_rank_) =
       manifolds_.oblique_manifold_
           .projectToTangentSpace(
-              Y.block(n * d, 0, r, relaxation_rank_).transpose(),
-              result.block(n * d, 0, r, relaxation_rank_).transpose())
+              Y.block(rot_mat_sz, 0, r, relaxation_rank_).transpose(),
+              result.block(rot_mat_sz, 0, r, relaxation_rank_).transpose())
           .transpose();
 
   // remaining component is untouched
@@ -537,17 +525,19 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
 
   Matrix H_dotY = dataMatrixProduct(dotY);
 
-  int nd = dim_ * numPoses();
+  auto rot_mat_sz = numPosesDim();
   // Stiefel component
-  H_dotY.block(0, 0, nd, relaxation_rank_) =
+  H_dotY.block(0, 0, rot_mat_sz, relaxation_rank_) =
       manifolds_.stiefel_prod_manifold_
           .projectToTangentSpace(
-              Y.block(0, 0, nd, relaxation_rank_).transpose(),
-              H_dotY.block(0, 0, nd, relaxation_rank_).transpose() -
+              Y.block(0, 0, rot_mat_sz, relaxation_rank_).transpose(),
+              H_dotY.block(0, 0, rot_mat_sz, relaxation_rank_).transpose() -
                   manifolds_.stiefel_prod_manifold_.SymBlockDiagProduct(
-                      dotY.block(0, 0, nd, relaxation_rank_).transpose(),
-                      Y.block(0, 0, nd, relaxation_rank_).transpose(),
-                      nablaF_Y.block(0, 0, nd, relaxation_rank_).transpose()))
+                      dotY.block(0, 0, rot_mat_sz, relaxation_rank_)
+                          .transpose(),
+                      Y.block(0, 0, rot_mat_sz, relaxation_rank_).transpose(),
+                      nablaF_Y.block(0, 0, rot_mat_sz, relaxation_rank_)
+                          .transpose()))
           .transpose();
 
   // Oblique component
@@ -555,12 +545,12 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
   Vector diagQXXT = (nablaF_Y.array() * Y.array()).rowwise().sum();
   // weight the rows of dotY by the diagonal of QXXT (which is a vector)
   Matrix weightedDotY = dotY.array().colwise() * diagQXXT.array();
-  Matrix euclidean_hessian = H_dotY.block(nd, 0, r, relaxation_rank_) =
+  Matrix euclidean_hessian = H_dotY.block(rot_mat_sz, 0, r, relaxation_rank_) =
       manifolds_.oblique_manifold_
           .projectToTangentSpace(
-              Y.block(nd, 0, r, relaxation_rank_).transpose(),
-              (H_dotY.block(nd, 0, r, relaxation_rank_) -
-               weightedDotY.block(nd, 0, r, relaxation_rank_))
+              Y.block(rot_mat_sz, 0, r, relaxation_rank_).transpose(),
+              (H_dotY.block(rot_mat_sz, 0, r, relaxation_rank_) -
+               weightedDotY.block(rot_mat_sz, 0, r, relaxation_rank_))
                   .transpose())
           .transpose();
 
@@ -598,21 +588,21 @@ Matrix Problem::projectToManifold(const Matrix &A) const {
 
   // the first n*d rows are obtained from
   // manifolds_.stiefel_prod.projectToManifoldresult(1:n*d, :))
-  int n = numPoses();
-  int d = dim_;
-  result.block(0, 0, n * d, relaxation_rank_) =
+
+  auto rot_mat_sz = numPosesDim();
+  result.block(0, 0, rot_mat_sz, relaxation_rank_) =
       manifolds_.stiefel_prod_manifold_
           .projectToManifold(
-              result.block(0, 0, n * d, relaxation_rank_).transpose())
+              result.block(0, 0, rot_mat_sz, relaxation_rank_).transpose())
           .transpose();
 
   // the next r rows are obtained from
   // manifolds_.oblique_manifold.retract(Y(n*d+1:n*d+r, :), V(n*d+1:n*d+r, :))
   int r = numRangeMeasurements();
-  result.block(n * d, 0, r, relaxation_rank_) =
+  result.block(rot_mat_sz, 0, r, relaxation_rank_) =
       manifolds_.oblique_manifold_
           .projectToManifold(
-              result.block(n * d, 0, r, relaxation_rank_).transpose())
+              result.block(rot_mat_sz, 0, r, relaxation_rank_).transpose())
           .transpose();
 
   // if there are remaining rows, they should be translational variables and
@@ -625,11 +615,11 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
   return projectToManifold(Y + V);
 }
 
-size_t Problem::getDataMatrixSize() const {
+int Problem::getDataMatrixSize() const {
   if (formulation_ == Formulation::Explicit) {
     return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();
   } else if (formulation_ == Formulation::Implicit) {
-    return (numPoses() * dim_) + numRangeMeasurements();
+    return rotAndRangeMatrixSize();
   } else {
     throw std::invalid_argument("Unknown formulation");
   }
@@ -647,7 +637,7 @@ Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
 
 Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
   // all range measurements come after the rotations
-  auto rot_offset = static_cast<Index>(numPoses() * dim_);
+  auto rot_offset = numPosesDim();
 
   // search for the range symbol
   auto range_search_it = std::find_if(
@@ -671,7 +661,7 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   // all translations come after the rotations and range measurement variables
   // (unit spheres) so we need to offset by the dimension of the rotations and
   // the number of range measurements
-  size_t idx_offset = numPoses() * dim_ + numRangeMeasurements();
+  size_t idx_offset = rotAndRangeMatrixSize();
 
   // is a pose translation
   auto pose_search_it = pose_symbol_idxs_.find(trans_symbol);
@@ -715,7 +705,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
-  size_t num_eigvecs = std::min(Eigen::Index(nx), S.rows());
+  auto num_eigvecs = std::min(Eigen::Index(nx), S.rows());
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
   init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
   CertResults results = fast_verification(
@@ -724,8 +714,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   if (!results.is_certified && (formulation_ == Formulation::Implicit)) {
     // Extract the (leading) portion of the tangent vector corresponding to the
     // rotational and spherical variables
-    Vector v =
-        results.x.head(numPoses() * dim_ + numRangeMeasurements()).normalized();
+    Vector v = results.x.head(rotAndRangeMatrixSize()).normalized();
     results.x = v;
 
     // Compute x's Rayleight quotient with the simplified certificate matrix
@@ -743,10 +732,11 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   Matrix QY = dataMatrixProduct(Y);
 
   // Preallocate storage for diagonal blocks of Lambda
-  Matrix stiefel_Lambda_blocks(dim_, numPoses() * dim_);
+  Matrix stiefel_Lambda_blocks(dim_, numPosesDim());
 
-#pragma omp parallel for
-  for (size_t i = 0; i < numPoses(); ++i) {
+#pragma omp parallel for default(none)                                         \
+    shared(Y, QY, stiefel_Lambda_blocks, Eigen::Dynamic)
+  for (auto i = 0; i < numPoses(); ++i) {
     Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
                Y.block(i * dim_, 0, dim_, Y.cols()).transpose();
     stiefel_Lambda_blocks.block(0, i * dim_, dim_, dim_) =
@@ -754,10 +744,10 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   }
 
   Vector oblique_Lambda_blocks(numRangeMeasurements());
-  size_t nd = numPoses() * dim_;
+  auto rot_mat_sz = numPosesDim();
   Vector oblique_inner_prods =
-      (Y.block(nd, 0, numRangeMeasurements(), Y.cols()).array() *
-       QY.block(nd, 0, numRangeMeasurements(),
+      (Y.block(rot_mat_sz, 0, numRangeMeasurements(), Y.cols()).array() *
+       QY.block(rot_mat_sz, 0, numRangeMeasurements(),
                 Y.cols())
            .array())
           .rowwise()
@@ -769,26 +759,27 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
 SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
     const LambdaBlocks &Lambda_blocks) const {
   std::vector<Eigen::Triplet<Scalar>> elements;
-  elements.reserve(dim_ * dim_ * numPoses() + numRangeMeasurements());
+  elements.reserve(dim_ * numPosesDim() + numRangeMeasurements());
 
   // add the symmetric diagonal blocks for the Stiefel constraints
-  for (size_t i = 0; i < numPoses(); ++i) { // block index
-    for (size_t r = 0; r < dim_; ++r) {     // block row index
-      for (size_t c = 0; c < dim_; ++c) {   // block column index
+  for (auto i = 0; i < numPoses(); ++i) { // block index
+    for (auto r = 0; r < dim_; ++r) {     // block row index
+      for (auto c = 0; c < dim_; ++c) {   // block column index
         elements.emplace_back(i * dim_ + r, i * dim_ + c,
                               Lambda_blocks.first(r, i * dim_ + c));
       }
     }
   }
 
+  auto rot_mat_sz = numPosesDim();
   // add the diagonal block for the Oblique constraints
-  for (size_t i = 0; i < numRangeMeasurements(); ++i) {
-    elements.emplace_back(numPoses() * dim_ + i, numPoses() * dim_ + i,
+  for (auto i = 0; i < numRangeMeasurements(); ++i) {
+    elements.emplace_back(rot_mat_sz + i, rot_mat_sz + i,
                           Lambda_blocks.second(i));
   }
 
   // add additional zeros if we're using the explicit formulation
-  int Lambda_size = dim_ * numPoses() + numRangeMeasurements();
+  int Lambda_size = rotAndRangeMatrixSize();
   if (formulation_ == Formulation::Explicit) {
     Lambda_size += numLandmarks() + numPoses();
   }
@@ -823,11 +814,12 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
 
   // now uniformly translate all of the translation variables such that the
   // first translation variable is the origin
-  int nd = dim_ * numPoses();
-  int r = numRangeMeasurements();
-  Vector first_translation = Y_aligned.block(nd + r, 0, 1, dim_).transpose();
-  Y_aligned.block(nd + r, 0, numPoses() + numLandmarks(), dim_) =
-      Y_aligned.block(nd + r, 0, numPoses() + numLandmarks(), dim_).rowwise() -
+  auto rot_range_mat_sz = rotAndRangeMatrixSize();
+  Vector first_translation =
+      Y_aligned.block(rot_range_mat_sz, 0, 1, dim_).transpose();
+  Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_) =
+      Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_)
+          .rowwise() -
       first_translation.transpose();
 
   return Y_aligned;

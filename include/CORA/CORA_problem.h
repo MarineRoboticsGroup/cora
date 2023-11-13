@@ -67,11 +67,11 @@ struct Manifolds {
 class Problem {
 private:
   /** dimension of the pose and landmark variables e.g., SO(dim_) */
-  const int64_t dim_;
+  const int dim_;
 
   /** rank of the relaxation e.g., the latent embedding space of Stiefel
    * manifold */
-  int64_t relaxation_rank_;
+  int relaxation_rank_;
 
   // maps from pose symbol to pose index (e.g., x1 -> 0, x2 -> 1, etc.)
   std::map<Symbol, int> pose_symbol_idxs_;
@@ -178,7 +178,7 @@ private:
   Index getTranslationIdx(const Symbol &trans_symbol) const;
 
 public:
-  Problem(int64_t dim, int64_t relaxation_rank,
+  Problem(int dim, int relaxation_rank,
           Formulation formulation = Formulation::Explicit,
           Preconditioner preconditioner = Preconditioner::RegularizedCholesky)
       : dim_(dim),
@@ -231,14 +231,31 @@ public:
   SparseMatrix getDataMatrix();
 
   // the full size of the full (explicit problem) data matrix
-  size_t getDataMatrixSize() const;
+  int getDataMatrixSize() const;
 
   Formulation getFormulation() const { return formulation_; }
-  size_t dim() const { return dim_; }
-  size_t numPoses() const { return pose_symbol_idxs_.size(); }
-  size_t numLandmarks() const { return landmark_symbol_idxs_.size(); }
-  size_t numRangeMeasurements() const { return range_measurements_.size(); }
-  size_t numTranslationalStates() const { return numPoses() + numLandmarks(); }
+  inline int dim() const { return dim_; }
+  inline int numPoses() const {
+    return static_cast<int>(pose_symbol_idxs_.size());
+  }
+  inline int numPoseMeasurements() const {
+    return static_cast<int>(rel_pose_measurements_.size());
+  }
+  inline int numLandmarks() const {
+    return static_cast<int>(landmark_symbol_idxs_.size());
+  }
+  inline int numRangeMeasurements() const {
+    return static_cast<int>(range_measurements_.size());
+  }
+  inline int numTranslationalStates() const {
+    return numPoses() + numLandmarks();
+  }
+
+  // Offset calculations
+  inline int numPosesDim() const { return dim() * numPoses(); }
+  inline int rotAndRangeMatrixSize() const {
+    return numPosesDim() + numRangeMeasurements();
+  }
 
   /*****  Riemannian optimization functions  *******/
 

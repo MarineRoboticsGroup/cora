@@ -55,14 +55,6 @@ Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &B,
   return R;
 }
 
-Matrix StiefelProduct::retract(const Matrix &Y, const Matrix &V) const {
-  // We use projection-based retraction, as described in
-  // "Projection-Like Retractions on Matrix Manifolds" by Absil
-  // and Malick
-
-  return projectToManifold(Y + V);
-}
-
 Matrix StiefelProduct::random_sample(
     const std::default_random_engine::result_type &seed) const {
   // Generate a matrix of the appropriate dimension by sampling its elements
