@@ -9,11 +9,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set the default build type to debug
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
     message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
 else()
     message(STATUS "Build type set to '${CMAKE_BUILD_TYPE}'.")
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Add the -O3 optimization flag
+    add_compile_options(-O3)
 endif()
 
 # Directory for built libraries
@@ -23,9 +28,9 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory 
 
 # BUILD CONFIGURATIONS
 # Enable faster instruction sets (SIMD/AVX)
-set(ENABLE_VECTORIZATION OFF CACHE BOOL "Enable vectorized instruction sets (SIMD/AVX)? [disabled by default]")
+set(ENABLE_VECTORIZATION ON CACHE BOOL "Enable vectorized instruction sets (SIMD/AVX)? [enabled by default]")
 # Enable OpenMP (if available)
-set(ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP (if available)")
+set(ENABLE_OPENMP OFF CACHE BOOL "Enable OpenMP (if available)")
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
