@@ -6,6 +6,7 @@
 #define CORA_CORA_VIS_H
 
 #include <CORA/CORA.h>
+#include <CORA/CORA_types.h>
 #include <memory>
 
 #include "tonioviz/Visualizer.h"
@@ -21,10 +22,10 @@ private:
   std::unique_ptr<mrg::Visualizer> viz;
 
   static Eigen::Matrix4d getPose(const Problem &problem,
-                                 const Eigen::MatrixXd &solution_matrix,
+                                 const Matrix &solution_matrix,
                                  const Symbol &pose_sym);
   static Eigen::Vector3d getPoint(const Problem &problem,
-                                  const Eigen::MatrixXd &solution_matrix,
+                                  const Matrix &solution_matrix,
                                   const Symbol &point_sym);
 };
 

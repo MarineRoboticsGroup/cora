@@ -89,7 +89,7 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
 }
 
 Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
-                                 const Eigen::MatrixXd &solution_matrix,
+                                 const Matrix &solution_matrix,
                                  const Symbol &pose_sym) {
   auto dim = problem.dim();
   auto rotation_idx = problem.getRotationIdx(pose_sym);
@@ -104,7 +104,7 @@ Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
 }
 
 Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
-                                  const Eigen::MatrixXd &solution_matrix,
+                                  const Matrix &solution_matrix,
                                   const Symbol &point_sym) {
   return solution_matrix
       .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
