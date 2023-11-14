@@ -4,10 +4,16 @@
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
 
+void printIfVerbose(bool verbose, std::string msg) {
+  if (verbose) {
+    std::cout << msg << std::endl;
+  }
+}
+
 namespace CORA {
 
 CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
-                        int max_relaxation_rank) {
+                        int max_relaxation_rank, bool verbose) {
   // objective function
   Optimization::Objective<Matrix, Scalar, Matrix> f =
       [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
@@ -86,21 +92,23 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   CertResults cert_results;
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
     // solve the problem
-    std::cout << "\nSolving problem at rank " << problem.getRelaxationRank()
-              << std::endl;
+    printIfVerbose(verbose, "\nSolving problem at rank " +
+                                std::to_string(problem.getRelaxationRank()));
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
 
     // check if the solution is certified
-    std::cout << "Obtained solution with objective value: " << result.f
-              << std::endl;
     eta = result.f * rel_cert_eta;
     eta = std::min(1e-1, eta);
     eta = std::max(1e-6, eta);
     cert_results = problem.certify_solution(result.x, eta, 10);
-    std::cout << "Result is certified: " << cert_results.is_certified
-              << " with eta: " << eta << " and theta: " << cert_results.theta
-              << std::endl;
+    printIfVerbose(
+        verbose,
+        "Result is certified: " + std::to_string(cert_results.is_certified) +
+            " with eta: " + std::to_string(eta) +
+            " and theta: " + std::to_string(cert_results.theta));
 
     // if theta is NaN, then throw an exception
     if (std::isnan(cert_results.theta)) {
@@ -123,14 +131,15 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // if X has more columns than 'd' then we want to project it down to the
   // correct dimension and refine the solution
   if (X.cols() > problem.dim()) {
-    std::cout << "\nProjecting solution to rank " << problem.dim()
-              << " and refining." << std::endl;
-    X = projectSolution(problem, X);
+    printIfVerbose(verbose, "\nProjecting solution to rank " +
+                                std::to_string(problem.dim()) +
+                                " and refining.");
+    X = projectSolution(problem, X, verbose);
     problem.setRank(problem.dim());
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-    std::cout << "Obtained solution with objective value: " << result.f
-              << std::endl;
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
 
     // let's check if the solution is certified
     eta = result.f * rel_cert_eta;
@@ -140,9 +149,11 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   }
 
   // print out whether or not the solution is certified
-  std::cout << "Final solution is certified: " << cert_results.is_certified
-            << " with eta: " << eta << " and theta: " << cert_results.theta
-            << std::endl;
+  printIfVerbose(verbose,
+                 "Final solution is certified: " +
+                     std::to_string(cert_results.is_certified) +
+                     " with eta: " + std::to_string(eta) +
+                     " and theta: " + std::to_string(cert_results.theta));
 
   return result;
 }
@@ -254,7 +265,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
   }
 }
 
-Matrix projectSolution(const Problem &problem, const Matrix &Y) {
+Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int d = problem.dim();
   int n = problem.numPoses();
   int l = problem.numLandmarks();
@@ -284,10 +295,12 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
       ++ng0;
   }
 
-  std::cout << "Out of " << n << " blocks, " << ng0
-            << " have positive determinant. This is "
-            << static_cast<double>(ng0) / n * 100 << "% of the total."
-            << std::endl;
+  printIfVerbose(verbose,
+                 "Out of " + std::to_string(n) + " blocks, " +
+                     std::to_string(ng0) +
+                     " have positive determinant. This is " +
+                     std::to_string(static_cast<double>(ng0) / n * 100) +
+                     "% of the total.");
 
   if (ng0 < n / 2) {
     // Less than half of the total number of blocks have the correct sign, so

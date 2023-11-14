@@ -17,7 +17,7 @@ namespace CORA {
 using CoraTntResult = Optimization::Riemannian::TNTResult<Matrix, Scalar>;
 
 CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
-                        int max_relaxation_rank = 20);
+                        int max_relaxation_rank = 20, bool verbose = false);
 inline CoraTntResult solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
   Matrix x0 = Matrix();
@@ -30,6 +30,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
                     const Vector &v, Scalar gradient_tolerance,
                     Scalar preconditioned_gradient_tolerance);
 
-Matrix projectSolution(const Problem &problem, const Matrix &Y);
+Matrix projectSolution(const Problem &problem, const Matrix &Y,
+                       bool verbose = false);
 
 } // namespace CORA
