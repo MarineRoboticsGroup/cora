@@ -173,10 +173,6 @@ private:
 
   Matrix dataMatrixProduct(const Matrix &Y) const;
 
-  Index getRotationIdx(const Symbol &pose_symbol) const;
-  Index getRangeIdx(const SymbolPair &range_symbol_pair) const;
-  Index getTranslationIdx(const Symbol &trans_symbol) const;
-
 public:
   Problem(int dim, int relaxation_rank,
           Formulation formulation = Formulation::Explicit,
@@ -213,6 +209,11 @@ public:
   addRelativePoseMeasurement(const RelativePoseMeasurement &rel_pose_measure);
   void addPosePrior(const PosePrior &pose_prior);
   void addLandmarkPrior(const LandmarkPrior &landmark_prior);
+
+  // Indexing helpers
+  Index getRotationIdx(const Symbol &pose_symbol) const;
+  Index getRangeIdx(const SymbolPair &range_symbol_pair) const;
+  Index getTranslationIdx(const Symbol &trans_symbol) const;
 
   void printProblem() const;
 

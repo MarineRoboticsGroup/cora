@@ -56,21 +56,41 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   auto range_measurements = problem.getRangeMeasurements();
   auto dim = problem.dim();
   // Iterate through all poses and draw using TonioViz
+  mrg::Trajectory3 poses;
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
-    auto rotation = aligned_sol_matrix.block(pose_idx, 0, dim, dim);
-    auto translation =
-        aligned_sol_matrix.block(problem.numPosesDim() + pose_idx, 0, 1, dim);
-
+    auto rotation = aligned_sol_matrix.block(pose_idx * dim, 0, dim, dim);
+    auto translation = aligned_sol_matrix.block(
+        problem.getTranslationIdx(pose_sym), 0, 1, dim);
     // Convert rotation and translation to SE3 as a Matrix4d
     Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
     pose_matrix.block(0, 0, dim, dim) = rotation;
-    pose_matrix.block(0, dim, dim, 1) = translation.transpose();
-
-    viz.AddVizPose(pose_matrix, 0.1, 2.0, pose_sym.index());
+    pose_matrix.block(0, 3, dim, 1) = translation.transpose();
+    viz.AddVizPose(pose_matrix, 0.5, 4.0);
+    poses.push_back(pose_matrix);
   }
 
-  // Draw all landmarks
-  // Draw ranges as lines to landmark
+  for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
+    Eigen::Vector3d landmark = Eigen::Vector3d::Zero();
+    landmark.block(0, 0, dim, 1) =
+        aligned_sol_matrix
+            .block(problem.getTranslationIdx(landmark_sym), 0, 1, dim)
+            .transpose();
+    viz.AddVizLandmark(landmark);
+  }
+
+  for (auto range_measurement : range_measurements) {
+    int index{0};
+    if (pose_sym_to_idx.find(range_measurement.first_id) ==
+        pose_sym_to_idx.end()) {
+      index = pose_sym_to_idx[range_measurement.second_id];
+    } else {
+      index = pose_sym_to_idx[range_measurement.first_id];
+    }
+
+    mrg::Circle circle{poses[index](0, 3), poses[index](1, 3),
+                       range_measurement.r};
+    viz.AddRangeMeasurement(circle);
+  }
   viz.RenderWorld();
 }
 

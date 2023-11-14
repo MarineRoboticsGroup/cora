@@ -13,9 +13,10 @@ class CORAVis {
 public:
   CORAVis();
 
+  void visualize(const Problem &problem, const CoraTntResult &result);
+
 private:
   mrg::Visualizer viz{};
-  void visualize(const Problem &problem, const CoraTntResult &result);
 };
 
 } // namespace CORA
