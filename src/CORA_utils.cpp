@@ -54,8 +54,8 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     // directly compute the minimum eigenpair
     if (n <= 100) {
       Eigen::SelfAdjointEigenSolver<Matrix> eigensolver(S);
-      theta = eigensolver.eigenvalues().minCoeff();
-      x = eigensolver.eigenvectors().col(eigensolver.eigenvalues().minCoeff());
+      theta = eigensolver.eigenvalues()(0);
+      x = eigensolver.eigenvectors().col(0);
       num_iters = 0;
       CertResults results;
       results.is_certified = PSD;
