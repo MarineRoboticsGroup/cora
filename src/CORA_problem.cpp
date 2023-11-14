@@ -535,7 +535,7 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                   manifolds_.stiefel_prod_manifold_.SymBlockDiagProduct(
                       dotY.block(0, 0, rot_mat_sz, relaxation_rank_)
                           .transpose(),
-                      Y.block(0, 0, rot_mat_sz, relaxation_rank_).transpose(),
+                      Y.block(0, 0, rot_mat_sz, relaxation_rank_),
                       nablaF_Y.block(0, 0, rot_mat_sz, relaxation_rank_)
                           .transpose()))
           .transpose();
@@ -740,8 +740,6 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   // Preallocate storage for diagonal blocks of Lambda
   Matrix stiefel_Lambda_blocks(dim_, numPosesDim());
 
-#pragma omp parallel for default(none)                                         \
-    shared(Y, QY, stiefel_Lambda_blocks, Eigen::Dynamic)
   for (auto i = 0; i < numPoses(); ++i) {
     Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
                Y.block(i * dim_, 0, dim_, Y.cols()).transpose();

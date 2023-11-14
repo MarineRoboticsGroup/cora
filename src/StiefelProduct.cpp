@@ -23,7 +23,6 @@ Matrix StiefelProduct::projectToManifold(const Matrix &A) const {
                              std::to_string(k_ * n_));
   }
 
-#pragma omp parallel for default(none) shared(A, P, Eigen::Dynamic)
   for (auto i = 0; i < n_; ++i) {
     auto start_col = static_cast<Index>(i * k_);
     // Compute the (thin) SVD of the ith block of A
@@ -36,17 +35,15 @@ Matrix StiefelProduct::projectToManifold(const Matrix &A) const {
   return P;
 }
 
-Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &B,
+Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &BT,
                                            const Matrix &C) const {
   // Preallocate result matrix
   Matrix R(p_, k_ * n_);
 
-#pragma omp parallel for default(none) shared(A, B, C, R, Eigen::Dynamic)
   for (auto i = 0; i < n_; ++i) {
     auto start_col = static_cast<Index>(i * k_);
     // Compute block product Bi' * Ci
-    Matrix P = B.block(0, start_col, p_, k_).transpose() *
-               C.block(0, start_col, p_, k_);
+    Matrix P = BT.block(start_col, 0, k_, p_) * C.block(0, start_col, p_, k_);
     // Symmetrize this block
     Matrix S = .5 * (P + P.transpose());
     // Compute Ai * S and set corresponding block of R

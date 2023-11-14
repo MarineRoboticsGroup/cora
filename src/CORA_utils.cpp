@@ -141,7 +141,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
         // Preallocate output matrix TX
         Matrix TX(X.rows(), X.cols());
 
-#pragma omp parallel for
         for (unsigned int i = 0; i < X.cols(); ++i) {
           // Calculate TX by preconditioning the columns of X one-by-one
           TX.col(i) = Mfact.solve(X.col(i), true);

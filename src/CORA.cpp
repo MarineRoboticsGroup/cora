@@ -314,20 +314,15 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
     Yd = Yd * reflector;
   }
 
-// Project each dxd rotation block to SO(d)
-#pragma omp parallel for
+  // Project each dxd rotation block to SO(d)
   for (size_t i = 0; i < n; ++i) {
     Yd.block(i * d, 0, d, d) = projectToSOd(Yd.block(i * d, 0, d, d));
   }
 
   // Project each spherical variable to the unit sphere by normalizing
-  // the respective rows
+  // the respective rows from (rot_mat_sz + 1) to (rot_mat_sz + r)
   int rot_mat_sz = problem.numPosesDim();
-#pragma omp parallel for
-  for (size_t i = 0; i < r; ++i) {
-    Yd.block(rot_mat_sz + i, 0, 1, d) /=
-        Yd.block(rot_mat_sz + i, 0, 1, d).norm();
-  }
+  Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
   if (problem.getFormulation() == Formulation::Explicit) {
     // Yd already includes the translation estimates (Explicit)

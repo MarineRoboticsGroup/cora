@@ -68,7 +68,7 @@ public:
    * where A, B, and C are p x kn matrices (cf. eq. (5) in the SE-Sync tech
    * report).
    */
-  Matrix SymBlockDiagProduct(const Matrix &A, const Matrix &B,
+  Matrix SymBlockDiagProduct(const Matrix &A, const Matrix &BT,
                              const Matrix &C) const;
 
   /** Given an element Y in M and a matrix V in T_X(R^{p x kn}) (that is, a (p
@@ -77,7 +77,7 @@ public:
    * returns the projection of V onto T_X(M), the tangent space of M at X (cf.
    * eq. (42) in the SE-Sync tech report).*/
   Matrix projectToTangentSpace(const Matrix &Y, const Matrix &V) const {
-    return V - SymBlockDiagProduct(Y, Y, V);
+    return V - SymBlockDiagProduct(Y, Y.transpose(), V);
   }
 
   /** Sample a random point on M, using the (optional) passed seed to initialize
