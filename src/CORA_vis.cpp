@@ -11,6 +11,7 @@ CORAVis::CORAVis() {
   params.frustum_scale = 0.3; // size of frustum in m
   params.landtype = mrg::LandmarkDrawType::kCross;
   params.f = 600.0f; // focal length in px
+  params.rangetype = mrg::RangeDrawType::kLine;
   viz = std::make_unique<mrg::Visualizer>(params);
 }
 using TNTStatus = Optimization::Riemannian::TNTStatus;
@@ -60,13 +61,10 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   auto pose_sym_to_idx = problem.getPoseSymbolMap();
   auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
   auto range_measurements = problem.getRangeMeasurements();
-  auto dim = problem.dim();
   // Iterate through all poses and draw using TonioViz
-  mrg::Trajectory3 poses;
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
     auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
     viz->AddVizPose(pose, 0.5, 4.0);
-    poses.push_back(pose);
   }
 
   for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
@@ -74,23 +72,15 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   }
 
   for (const auto &range_measurement : range_measurements) {
-    int pose_idx{0};
-    int landmark_idx{0};
-    if (pose_sym_to_idx.find(range_measurement.first_id) ==
-        pose_sym_to_idx.end()) {
-      pose_idx = pose_sym_to_idx[range_measurement.second_id];
-      landmark_idx = landmark_sym_to_idx[range_measurement.first_id];
-    } else {
-      pose_idx = pose_sym_to_idx[range_measurement.first_id];
-      landmark_idx = landmark_sym_to_idx[range_measurement.second_id];
-    }
-
-    mrg::Range range{poses[pose_idx](0, 3), poses[pose_idx](1, 3),
-                     range_measurement.r};
+    auto p1 = getPoint(problem, aligned_sol_matrix, range_measurement.first_id);
+    auto p2 =
+        getPoint(problem, aligned_sol_matrix, range_measurement.second_id);
+    mrg::Range range{p1(0), p1(1), range_measurement.r, p2(0), p2(1)};
     viz->AddRangeMeasurement(range);
   }
   viz->RenderWorld();
 }
+
 Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
                                  const Eigen::MatrixXd &solution_matrix,
                                  const Symbol &pose_sym) {
@@ -109,8 +99,9 @@ Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
 Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
                                   const Eigen::MatrixXd &solution_matrix,
                                   const Symbol &point_sym) {
-  return solution_matrix.block(problem.getTranslationIdx(point_sym), 0, 1,
-                               problem.dim());
+  return solution_matrix
+      .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
+      .transpose();
 }
 
 } // namespace CORA
