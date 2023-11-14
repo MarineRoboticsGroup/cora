@@ -342,7 +342,7 @@ void Problem::updatePreconditioner() {
     SparseMatrix epsilonPosDefUpdate =
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
     epsilonPosDefUpdate.setIdentity();
-    epsilonPosDefUpdate *= 1e-3;
+    epsilonPosDefUpdate *= 1e-2;
     VectorXi block_sizes(1);
     block_sizes(0) = data_matrix_.rows();
     preconditioner_matrices_.block_chol_factor_ptrs_ =
@@ -705,7 +705,13 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
-  auto num_eigvecs = std::min(Eigen::Index(nx), S.rows());
+  auto num_eigvecs =
+      std::min(std::max(Eigen::Index(nx), Y.cols() + 2), S.rows());
+  if (S.rows() < Y.cols()) {
+    throw std::invalid_argument(
+        "The number of rows of S must be greater than or "
+        "equal to the number of columns of Y");
+  }
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
   init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
   CertResults results = fast_verification(

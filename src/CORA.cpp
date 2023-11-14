@@ -64,7 +64,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-4;
 
-  Scalar rel_cert_eta = 1e-5;
+  Scalar rel_cert_eta = 1e-6;
 
   // metric over the tangent space is the standard matrix trace inner product
   Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
@@ -81,6 +81,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
 
   CoraTntResult result;
   Matrix X = x0;
+  CertResults cert_results;
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
     // solve the problem
     std::cout << "\nSolving problem at rank " << problem.getRelaxationRank()
@@ -89,10 +90,17 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
 
     // check if the solution is certified
-    CertResults cert_results =
-        problem.certify_solution(result.x, result.f * rel_cert_eta, 10);
     std::cout << "Obtained solution with objective value: " << result.f
               << std::endl;
+    auto eta = std::min(1e-1, result.f * rel_cert_eta);
+    cert_results = problem.certify_solution(result.x, eta, 10);
+    std::cout << "Result is certified: " << cert_results.is_certified
+              << std::endl;
+
+    // if theta is NaN, then throw an exception
+    if (std::isnan(cert_results.theta)) {
+      throw std::runtime_error("Theta is NaN");
+    }
 
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
@@ -110,17 +118,19 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // if X has more columns than 'd' then we want to project it down to the
   // correct dimension and refine the solution
   if (X.cols() > problem.dim()) {
+    std::cout << "Projecting solution to rank " << problem.dim()
+              << " and refining." << std::endl;
     X = projectSolution(problem, X);
     problem.setRank(problem.dim());
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-  }
+    std::cout << "Obtained solution with objective value: " << result.f
+              << std::endl;
 
-  // let's check if the solution is certified
-  CertResults cert_results =
-      problem.certify_solution(result.x, result.f * rel_cert_eta, 10);
-  std::cout << "Obtained solution with objective value: " << result.f
-            << std::endl;
+    // let's check if the solution is certified
+    auto eta = std::min(1e-1, result.f * rel_cert_eta);
+    cert_results = problem.certify_solution(result.x, eta, 10);
+  }
 
   // print out whether or not the solution is certified
   if (!cert_results.is_certified) {
