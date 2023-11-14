@@ -54,17 +54,19 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // default TNT parameters
   Optimization::Riemannian::TNTParams<Scalar> params;
   params.max_TPCG_iterations = 150;
-  params.preconditioned_gradient_tolerance = 1e-1;
-  params.gradient_tolerance = 1e-1;
+  params.max_iterations = 300;
+  params.preconditioned_gradient_tolerance = 1e-3;
+  params.gradient_tolerance = 1e-3;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-3;
-  params.verbose = true;
+  params.verbose = false;
   params.precision = 2;
   params.max_computation_time = 30;
   params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-4;
 
   Scalar rel_cert_eta = 1e-6;
+  Scalar eta;
 
   // metric over the tangent space is the standard matrix trace inner product
   Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
@@ -92,9 +94,12 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
     // check if the solution is certified
     std::cout << "Obtained solution with objective value: " << result.f
               << std::endl;
-    auto eta = std::min(1e-1, result.f * rel_cert_eta);
+    eta = result.f * rel_cert_eta;
+    eta = std::min(1e-1, eta);
+    eta = std::max(1e-6, eta);
     cert_results = problem.certify_solution(result.x, eta, 10);
     std::cout << "Result is certified: " << cert_results.is_certified
+              << " with eta: " << eta << " and theta: " << cert_results.theta
               << std::endl;
 
     // if theta is NaN, then throw an exception
@@ -118,7 +123,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // if X has more columns than 'd' then we want to project it down to the
   // correct dimension and refine the solution
   if (X.cols() > problem.dim()) {
-    std::cout << "Projecting solution to rank " << problem.dim()
+    std::cout << "\nProjecting solution to rank " << problem.dim()
               << " and refining." << std::endl;
     X = projectSolution(problem, X);
     problem.setRank(problem.dim());
@@ -128,14 +133,16 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
               << std::endl;
 
     // let's check if the solution is certified
-    auto eta = std::min(1e-1, result.f * rel_cert_eta);
+    eta = result.f * rel_cert_eta;
+    eta = std::min(1e-1, eta);
+    eta = std::max(1e-6, eta);
     cert_results = problem.certify_solution(result.x, eta, 10);
   }
 
   // print out whether or not the solution is certified
-  if (!cert_results.is_certified) {
-    std::cout << "Warning! Solution is not certified!" << std::endl;
-  }
+  std::cout << "Final solution is certified: " << cert_results.is_certified
+            << " with eta: " << eta << " and theta: " << cert_results.theta
+            << std::endl;
 
   return result;
 }
