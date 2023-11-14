@@ -75,6 +75,13 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
     auto p1 = getPoint(problem, aligned_sol_matrix, range_measurement.first_id);
     auto p2 =
         getPoint(problem, aligned_sol_matrix, range_measurement.second_id);
+
+    if (pose_sym_to_idx.find(range_measurement.first_id) ==
+        pose_sym_to_idx.end()) {
+      // P1 is the landmark, P2 is the pose. We need to flip them
+      std::swap(p1, p2);
+    }
+
     mrg::Range range{p1(0), p1(1), range_measurement.r, p2(0), p2(1)};
     viz->AddRangeMeasurement(range);
   }
