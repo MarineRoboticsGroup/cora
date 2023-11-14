@@ -6,7 +6,13 @@
 #include "CORA/CORA_problem.h"
 namespace CORA {
 
-CORAVis::CORAVis() = default;
+CORAVis::CORAVis() {
+  mrg::VisualizerParams params;
+  params.frustum_scale = 0.3; // size of frustum in m
+  params.landtype = mrg::LandmarkDrawType::kCross;
+  params.f = 600.0f; // focal length in px
+  viz = std::make_unique<mrg::Visualizer>(params);
+}
 using TNTStatus = Optimization::Riemannian::TNTStatus;
 /**
  * @brief Visualize the result trajectory using TonioViz
@@ -58,40 +64,53 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   // Iterate through all poses and draw using TonioViz
   mrg::Trajectory3 poses;
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
-    auto rotation = aligned_sol_matrix.block(pose_idx * dim, 0, dim, dim);
-    auto translation = aligned_sol_matrix.block(
-        problem.getTranslationIdx(pose_sym), 0, 1, dim);
-    // Convert rotation and translation to SE3 as a Matrix4d
-    Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
-    pose_matrix.block(0, 0, dim, dim) = rotation;
-    pose_matrix.block(0, 3, dim, 1) = translation.transpose();
-    viz.AddVizPose(pose_matrix, 0.5, 4.0);
-    poses.push_back(pose_matrix);
+    auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
+    viz->AddVizPose(pose, 0.5, 4.0);
+    poses.push_back(pose);
   }
 
   for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
-    Eigen::Vector3d landmark = Eigen::Vector3d::Zero();
-    landmark.block(0, 0, dim, 1) =
-        aligned_sol_matrix
-            .block(problem.getTranslationIdx(landmark_sym), 0, 1, dim)
-            .transpose();
-    viz.AddVizLandmark(landmark);
+    viz->AddVizLandmark(getPoint(problem, aligned_sol_matrix, landmark_sym));
   }
 
-  for (auto range_measurement : range_measurements) {
-    int index{0};
+  for (const auto &range_measurement : range_measurements) {
+    int pose_idx{0};
+    int landmark_idx{0};
     if (pose_sym_to_idx.find(range_measurement.first_id) ==
         pose_sym_to_idx.end()) {
-      index = pose_sym_to_idx[range_measurement.second_id];
+      pose_idx = pose_sym_to_idx[range_measurement.second_id];
+      landmark_idx = landmark_sym_to_idx[range_measurement.first_id];
     } else {
-      index = pose_sym_to_idx[range_measurement.first_id];
+      pose_idx = pose_sym_to_idx[range_measurement.first_id];
+      landmark_idx = landmark_sym_to_idx[range_measurement.second_id];
     }
 
-    mrg::Circle circle{poses[index](0, 3), poses[index](1, 3),
-                       range_measurement.r};
-    viz.AddRangeMeasurement(circle);
+    mrg::Range range{poses[pose_idx](0, 3), poses[pose_idx](1, 3),
+                     range_measurement.r};
+    viz->AddRangeMeasurement(range);
   }
-  viz.RenderWorld();
+  viz->RenderWorld();
+}
+Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
+                                 const Eigen::MatrixXd &solution_matrix,
+                                 const Symbol &pose_sym) {
+  auto dim = problem.dim();
+  auto rotation_idx = problem.getRotationIdx(pose_sym);
+  auto rotation = solution_matrix.block(rotation_idx * dim, 0, dim, dim);
+  auto translation =
+      solution_matrix.block(problem.getTranslationIdx(pose_sym), 0, 1, dim);
+  // Convert rotation and translation to SE3 as a Matrix4d
+  Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
+  pose_matrix.block(0, 0, dim, dim) = rotation;
+  pose_matrix.block(0, 3, dim, 1) = translation.transpose();
+  return pose_matrix;
+}
+
+Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
+                                  const Eigen::MatrixXd &solution_matrix,
+                                  const Symbol &point_sym) {
+  return solution_matrix.block(problem.getTranslationIdx(point_sym), 0, 1,
+                               problem.dim());
 }
 
 } // namespace CORA

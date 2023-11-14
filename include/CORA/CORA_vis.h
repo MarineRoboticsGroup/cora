@@ -5,7 +5,9 @@
 #ifndef CORA_CORA_VIS_H
 #define CORA_CORA_VIS_H
 
-#include "CORA.h"
+#include <CORA/CORA.h>
+#include <memory>
+
 #include "tonioviz/Visualizer.h"
 
 namespace CORA {
@@ -16,7 +18,14 @@ public:
   void visualize(const Problem &problem, const CoraTntResult &result);
 
 private:
-  mrg::Visualizer viz{};
+  std::unique_ptr<mrg::Visualizer> viz;
+
+  static Eigen::Matrix4d getPose(const Problem &problem,
+                                 const Eigen::MatrixXd &solution_matrix,
+                                 const Symbol &pose_sym);
+  static Eigen::Vector3d getPoint(const Problem &problem,
+                                  const Eigen::MatrixXd &solution_matrix,
+                                  const Symbol &point_sym);
 };
 
 } // namespace CORA
