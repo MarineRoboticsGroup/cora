@@ -64,7 +64,7 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   // Iterate through all poses and draw using TonioViz
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
     auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
-    viz->AddVizPose(pose, 0.5, 4.0);
+    viz->AddVizPose(pose, 0.5, 4.0, static_cast<int>(pose_sym.chr()));
   }
 
   for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
