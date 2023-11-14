@@ -50,6 +50,21 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     /// If control reaches here, then lambda_min(S) < -eta, so we must compute
     /// an approximate minimum eigenpair using LOBPCG
 
+    // if the matrix is sufficiently small (i.e. n <= 100), then we can
+    // directly compute the minimum eigenpair
+    if (n <= 100) {
+      Eigen::SelfAdjointEigenSolver<Matrix> eigensolver(S);
+      theta = eigensolver.eigenvalues().minCoeff();
+      x = eigensolver.eigenvectors().col(eigensolver.eigenvalues().minCoeff());
+      num_iters = 0;
+      CertResults results;
+      results.is_certified = PSD;
+      results.theta = theta;
+      results.x = x;
+      results.num_iters = num_iters;
+      return results;
+    }
+
     Vector Theta; // Vector to hold Ritz values of S
     Matrix X;     // Matrix to hold eigenvector estimates for S
     size_t num_converged;
