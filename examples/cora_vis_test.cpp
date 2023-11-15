@@ -4,7 +4,6 @@
 #include <CORA/CORA.h>
 #include <CORA/CORA_vis.h>
 
-#include <string>
 #include <thread> // NOLINT [build/c++11]
 
 int main() {
