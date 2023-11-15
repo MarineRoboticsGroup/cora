@@ -29,8 +29,6 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory 
 # BUILD CONFIGURATIONS
 # Enable faster instruction sets (SIMD/AVX)
 set(ENABLE_VECTORIZATION ON CACHE BOOL "Enable vectorized instruction sets (SIMD/AVX)? [enabled by default]")
-# Enable OpenMP (if available)
-set(ENABLE_OPENMP OFF CACHE BOOL "Enable OpenMP (if available)")
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
@@ -103,14 +101,6 @@ add_subdirectory(${PRECONDITIONERS_DIR})
 # Find the Catch2 library
 add_subdirectory(${CATCH2_DIR})
 
-# PERFORMANCE IMPROVEMENTS
-if(${ENABLE_OPENMP})
-find_package(OpenMP)
-if(OPENMP_FOUND)
-message(STATUS "Found OpenMP! Turning on support for parallelization\n")
-endif()
-endif()
-
 # BUILD CORA LIBRARY
 
 set(CORA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -154,11 +144,6 @@ ${CORA_SOURCE_DIR}/ObliqueManifold.cpp
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC ILDL ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
-
-if(OPENMP_FOUND)
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
-set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS ${OpenMP_CXX_FLAGS})
-endif()
 
 # If visualization is enabled, set warning that this is not implemented yet
 if(${ENABLE_VISUALIZATION})
