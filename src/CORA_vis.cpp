@@ -98,7 +98,11 @@ Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
       solution_matrix.block(problem.getTranslationIdx(pose_sym), 0, 1, dim);
   // Convert rotation and translation to SE3 as a Matrix4d
   Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
-  pose_matrix.block(0, 0, dim, dim) = rotation;
+
+  // we need to transpose the rotation matrix b/c the solution matrix is
+  // actually [R0, R1, ..., Rn, t0, t1, ..., tn]^T so each rotation block is
+  // actually R^T
+  pose_matrix.block(0, 0, dim, dim) = rotation.transpose();
   pose_matrix.block(0, 3, dim, 1) = translation.transpose();
   return pose_matrix;
 }
