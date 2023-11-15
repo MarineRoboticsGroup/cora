@@ -106,9 +106,12 @@ Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
 Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
                                   const Matrix &solution_matrix,
                                   const Symbol &point_sym) {
-  return solution_matrix
-      .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
-      .transpose();
+  Eigen::Vector3d point = Eigen::Vector3d::Zero();
+  point.block(0, 0, problem.dim(), 1) =
+      solution_matrix
+          .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
+          .transpose();
+  return point;
 }
 
 } // namespace CORA
