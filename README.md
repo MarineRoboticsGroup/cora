@@ -41,6 +41,28 @@ cd /path/to/cora
 pre-commit install
 ```
 
+## Let there be Viz
+
+To build with visualization there is a bit more set up needed. The following
+terminal commands should get you up and running with visualization.
+
+```bash
+# install Pangolin
+git clone git@github.com:stevenlovegrove/Pangolin.git
+cd Pangolin
+git checkout dd801d2 # this is Tag 0.6 - was most recent tag we were able to build
+mkdir build
+cd build
+cmake ..
+make -j
+sudo make install
+
+# install GTSAM 4.2
+sudo add-apt-repository ppa:borglab/gtsam-release-4.2
+sudo apt-get update
+sudo apt-get install libgtsam-dev libgtsam-unstable-dev
+```
+
 
 ## Standing on the Shoulders of Giants
 
