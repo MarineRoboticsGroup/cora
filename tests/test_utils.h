@@ -120,6 +120,7 @@ Matrix getGroundTruthState(std::string data_subdir);
 Matrix getRandDX(std::string data_subdir);
 
 // expected values
+SparseMatrix getExpectedRandCertMatrix(std::string data_subdir);
 Scalar getExpectedCost(std::string data_subdir);
 Matrix getExpectedEgrad(std::string data_subdir);
 Matrix getExpectedRgrad(std::string data_subdir);

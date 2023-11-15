@@ -61,12 +61,19 @@ sudo make install
 sudo add-apt-repository ppa:borglab/gtsam-release-4.2
 sudo apt-get update
 sudo apt-get install libgtsam-dev libgtsam-unstable-dev
-```
 
+## Code Profiling
+
+Additionally, if you want to run profiling you will need to install the Google
+Performance Tools
+
+```bash
+sudo apt-get install libgoogle-perftools-dev google-perftools graphviz
+```
 
 ## Standing on the Shoulders of Giants
 
-This implementation largely follows the structure of the
+This implementation borrows from the structure of the
 [SE-Sync C++ implementation](https://github.com/david-m-rosen/SE-Sync).
 
 

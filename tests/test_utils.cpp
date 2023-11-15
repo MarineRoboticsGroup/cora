@@ -201,6 +201,12 @@ Matrix getRandDX(std::string data_subdir) {
   return rand_dx;
 }
 
+SparseMatrix getExpectedRandCertMatrix(std::string data_subdir) {
+  std::string cert_path = getTestDataFpath(data_subdir, "S_rand.mm");
+  SparseMatrix S_rand = readMatrixMarketFile(cert_path);
+  return S_rand;
+}
+
 Scalar getExpectedCost(std::string data_subdir) {
   Scalar expected_cost;
   if (data_subdir == "small_ra_slam_problem") {
