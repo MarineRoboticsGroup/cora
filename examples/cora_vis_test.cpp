@@ -5,11 +5,11 @@
 #include <CORA/CORA_vis.h>
 
 #include <string>
-#include <thread>
+#include <thread> // NOLINT [build/c++11]
 
 int main() {
   CORA::Problem problem =
-      CORA::parsePyfgTextToProblem("factor_graph_small.pyfg");
+      CORA::parsePyfgTextToProblem("./bin/factor_graph_small.pyfg");
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
