@@ -7,8 +7,8 @@
 #include <thread> // NOLINT [build/c++11]
 
 int main() {
-  CORA::Problem problem =
-      CORA::parsePyfgTextToProblem("./bin/factor_graph_small.pyfg");
+  CORA::Problem problem = CORA::parsePyfgTextToProblem(
+      "./bin/example_data/factor_graph_small.pyfg");
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
