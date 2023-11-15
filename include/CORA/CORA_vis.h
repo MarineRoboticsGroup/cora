@@ -2,8 +2,7 @@
 // Created by tim on 11/12/23.
 //
 
-#ifndef CORA_CORA_VIS_H
-#define CORA_CORA_VIS_H
+#pragma once
 
 #include <CORA/CORA.h>
 #include <CORA/CORA_types.h>
@@ -30,5 +29,3 @@ private:
 };
 
 } // namespace CORA
-
-#endif // CORA_CORA_VIS_H
