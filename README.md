@@ -61,6 +61,7 @@ sudo make install
 sudo add-apt-repository ppa:borglab/gtsam-release-4.2
 sudo apt-get update
 sudo apt-get install libgtsam-dev libgtsam-unstable-dev
+```
 
 ## Code Profiling
 
