@@ -115,6 +115,9 @@ TEST_CASE("Test small RA-SLAM verification") {
   // the returned theta and x are indeed second order directions of descent
   Matrix X0 = getRandInit(data_subdir);
   SparseMatrix S_rand = problem.get_certificate_matrix(X0);
+  SparseMatrix S_rand_expected = getExpectedRandCertMatrix(data_subdir);
+  CHECK_THAT(S_rand, IsApproximatelyEqual<SparseMatrix>(S_rand_expected, 1e-6));
+
   CertResults res = fast_verification(S_rand, numerical_tolerance, 1);
   REQUIRE_FALSE(res.is_certified);
   Scalar expected_theta = res.x.transpose() * S_rand * res.x;

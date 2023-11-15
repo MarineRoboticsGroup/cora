@@ -9,10 +9,7 @@ Matrix ObliqueManifold::projectToManifold(const Matrix &A) const {
                    A.cols());
 
   // in parallel, normalize each column of A to have unit norm
-  Matrix A_normalized = A;
-  for (auto j = 0; j < A_normalized.cols(); j++) {
-    A_normalized.col(j) /= A_normalized.col(j).norm();
-  }
+  Matrix A_normalized = A.colwise().normalized();
   return A_normalized;
 }
 

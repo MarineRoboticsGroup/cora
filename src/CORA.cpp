@@ -4,10 +4,27 @@
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
 
+void printIfVerbose(bool verbose, std::string msg) {
+  if (verbose) {
+    std::cout << msg << std::endl;
+  }
+}
+
+CORA::Scalar thresholdVal(CORA::Scalar val, CORA::Scalar lower_bound,
+                          CORA::Scalar upper_bound) {
+  if (val < lower_bound) {
+    return lower_bound;
+  } else if (val > upper_bound) {
+    return upper_bound;
+  } else {
+    return val;
+  }
+}
+
 namespace CORA {
 
 CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
-                        int max_relaxation_rank) {
+                        int max_relaxation_rank, bool verbose) {
   // objective function
   Optimization::Objective<Matrix, Scalar, Matrix> f =
       [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
@@ -51,8 +68,26 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
         return problem.tangent_space_projection(Y, problem.precondition(Ydot));
       };
 
-  // default TNT parameters
+  // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
+  params.max_TPCG_iterations = 150;
+  params.max_iterations = 300;
+  params.preconditioned_gradient_tolerance = 1e-3;
+  params.gradient_tolerance = 1e-3;
+  params.theta = 0.8;
+  params.Delta_tolerance = 1e-3;
+  params.verbose = false;
+  params.precision = 2;
+  params.max_computation_time = 30;
+  params.relative_decrease_tolerance = 1e-4;
+  params.stepsize_tolerance = 1e-4;
+
+  // certification parameters
+  const Scalar MIN_CERT_ETA = 1e-6;
+  const Scalar MAX_CERT_ETA = 1e-1;
+  const Scalar REL_CERT_ETA = 1e-6;
+  const int LOBPCG_BLOCK_SIZE = 10;
+  Scalar eta;
 
   // metric over the tangent space is the standard matrix trace inner product
   Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
@@ -63,15 +98,35 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   // no custom instrumentation function for now
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
+  std::chrono::time_point<std::chrono::high_resolution_clock> opt_time;
+  std::chrono::time_point<std::chrono::high_resolution_clock> cert_time;
+  std::chrono::time_point<std::chrono::high_resolution_clock> saddle_time;
+
   CoraTntResult result;
   Matrix X = x0;
+  CertResults cert_results;
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
     // solve the problem
+    printIfVerbose(verbose, "\nSolving problem at rank " +
+                                std::to_string(problem.getRelaxationRank()));
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
 
     // check if the solution is certified
-    CertResults cert_results = problem.certify_solution(result.x, 1e-6, 10);
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
+    printIfVerbose(
+        verbose,
+        "Result is certified: " + std::to_string(cert_results.is_certified) +
+            " with eta: " + std::to_string(eta) +
+            " and theta: " + std::to_string(cert_results.theta));
+
+    // if theta is NaN, then throw an exception
+    if (std::isnan(cert_results.theta)) {
+      throw std::runtime_error("Theta is NaN");
+    }
 
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
@@ -79,29 +134,37 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
     }
 
     // otherwise, increment the relaxation rank and try again
+    const Scalar SADDLE_GRAD_TOL = 1e-4;
+    const Scalar PRECON_SADDLE_GRAD_TOL = 1e-4;
     problem.incrementRank();
-    Scalar grad_tol = 1e-6;
-    Scalar precon_grad_tol = 1e-6;
     X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
-                     grad_tol, precon_grad_tol);
+                     SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
   }
 
   // if X has more columns than 'd' then we want to project it down to the
   // correct dimension and refine the solution
   if (X.cols() > problem.dim()) {
-    X = projectSolution(problem, X);
+    printIfVerbose(verbose, "\nProjecting solution to rank " +
+                                std::to_string(problem.dim()) +
+                                " and refining.");
+    X = projectSolution(problem, X, verbose);
     problem.setRank(problem.dim());
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-  }
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
 
-  // let's check if the solution is certified
-  CertResults cert_results = problem.certify_solution(result.x, 1e-6, 10);
+    // let's check if the solution is certified
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
+  }
 
   // print out whether or not the solution is certified
-  if (!cert_results.is_certified) {
-    std::cout << "Warning! Solution is not certified!" << std::endl;
-  }
+  printIfVerbose(verbose,
+                 "Final solution is certified: " +
+                     std::to_string(cert_results.is_certified) +
+                     " with eta: " + std::to_string(eta) +
+                     " and theta: " + std::to_string(cert_results.theta));
 
   return result;
 }
@@ -149,7 +212,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
   // steplength,
   Scalar alpha_min = 1e-6; // Minimum stepsize
   Scalar alpha =
-      std::max(16 * alpha_min, 10 * gradient_tolerance / fabs(theta));
+      std::max(16 * alpha_min, 100 * gradient_tolerance / fabs(theta));
 
   // Vectors of trial stepsizes and corresponding function values
   std::vector<double> alphas;
@@ -213,7 +276,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
   }
 }
 
-Matrix projectSolution(const Problem &problem, const Matrix &Y) {
+Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int d = problem.dim();
   int n = problem.numPoses();
   int l = problem.numLandmarks();
@@ -243,6 +306,13 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
       ++ng0;
   }
 
+  printIfVerbose(verbose,
+                 "Out of " + std::to_string(n) + " blocks, " +
+                     std::to_string(ng0) +
+                     " have positive determinant. This is " +
+                     std::to_string(static_cast<double>(ng0) / n * 100) +
+                     "% of the total.");
+
   if (ng0 < n / 2) {
     // Less than half of the total number of blocks have the correct sign, so
     // reverse their orientations
@@ -255,20 +325,15 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y) {
     Yd = Yd * reflector;
   }
 
-// Project each dxd rotation block to SO(d)
-#pragma omp parallel for
+  // Project each dxd rotation block to SO(d)
   for (size_t i = 0; i < n; ++i) {
     Yd.block(i * d, 0, d, d) = projectToSOd(Yd.block(i * d, 0, d, d));
   }
 
   // Project each spherical variable to the unit sphere by normalizing
-  // the respective rows
+  // the respective rows from (rot_mat_sz + 1) to (rot_mat_sz + r)
   int rot_mat_sz = problem.numPosesDim();
-#pragma omp parallel for
-  for (size_t i = 0; i < r; ++i) {
-    Yd.block(rot_mat_sz + i, 0, 1, d) /=
-        Yd.block(rot_mat_sz + i, 0, 1, d).norm();
-  }
+  Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
   if (problem.getFormulation() == Formulation::Explicit) {
     // Yd already includes the translation estimates (Explicit)

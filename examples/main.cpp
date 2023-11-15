@@ -1,5 +1,7 @@
-#include <fstream>
-#include <iostream>
+#include <CORA/CORA.h>
+#include <CORA/CORA_problem.h>
+#include <CORA/CORA_types.h>
+#include <CORA/pyfg_text_parser.h>
 
 #ifdef GPERFTOOLS
 #include <gperftools/profiler.h>
@@ -11,9 +13,21 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  CORA::Problem problem = CORA::parsePyfgTextToProblem(argv[1]);
+  problem.updateProblemData();
+
 #ifdef GPERFTOOLS
   ProfilerStart("SE-Sync.prof");
 #endif
+
+  CORA::Matrix x0 = problem.getRandomInitialGuess();
+  int max_rank = 10;
+
+  CORA::CoraTntResult soln = CORA::solveCORA(problem, x0, max_rank);
+  CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.x);
+
+  // std::cout << "Solution: " << std::endl;
+  // std::cout << aligned_soln << std::endl;
 
 #ifdef GPERFTOOLS
   ProfilerStop();

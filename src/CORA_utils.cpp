@@ -50,6 +50,21 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     /// If control reaches here, then lambda_min(S) < -eta, so we must compute
     /// an approximate minimum eigenpair using LOBPCG
 
+    // if the matrix is sufficiently small (i.e. n <= 100), then we can
+    // directly compute the minimum eigenpair
+    if (n <= 100) {
+      Eigen::SelfAdjointEigenSolver<Matrix> eigensolver(S);
+      theta = eigensolver.eigenvalues()(0);
+      x = eigensolver.eigenvectors().col(0);
+      num_iters = 0;
+      CertResults results;
+      results.is_certified = PSD;
+      results.theta = theta;
+      results.x = x;
+      results.num_iters = num_iters;
+      return results;
+    }
+
     Vector Theta; // Vector to hold Ritz values of S
     Matrix X;     // Matrix to hold eigenvector estimates for S
     size_t num_converged;
@@ -126,7 +141,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
         // Preallocate output matrix TX
         Matrix TX(X.rows(), X.cols());
 
-#pragma omp parallel for
         for (unsigned int i = 0; i < X.cols(); ++i) {
           // Calculate TX by preconditioning the columns of X one-by-one
           TX.col(i) = Mfact.solve(X.col(i), true);

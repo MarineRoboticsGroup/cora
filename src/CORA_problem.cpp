@@ -336,6 +336,18 @@ void Problem::updatePreconditioner() {
     preconditioner_matrices_.block_chol_factor_ptrs_ =
         getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
                                       block_sizes);
+  } else if (preconditioner_ == Preconditioner::RegularizedCholesky) {
+    // add a small value to the diagonal of the data matrix to ensure that it is
+    // positive definite
+    SparseMatrix epsilonPosDefUpdate =
+        SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
+    epsilonPosDefUpdate.setIdentity();
+    epsilonPosDefUpdate *= 1e-2;
+    VectorXi block_sizes(1);
+    block_sizes(0) = data_matrix_.rows();
+    preconditioner_matrices_.block_chol_factor_ptrs_ =
+        getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
+                                      block_sizes);
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -523,7 +535,7 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                   manifolds_.stiefel_prod_manifold_.SymBlockDiagProduct(
                       dotY.block(0, 0, rot_mat_sz, relaxation_rank_)
                           .transpose(),
-                      Y.block(0, 0, rot_mat_sz, relaxation_rank_).transpose(),
+                      Y.block(0, 0, rot_mat_sz, relaxation_rank_),
                       nablaF_Y.block(0, 0, rot_mat_sz, relaxation_rank_)
                           .transpose()))
           .transpose();
@@ -533,16 +545,13 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
   Vector diagQXXT = (nablaF_Y.array() * Y.array()).rowwise().sum();
   // weight the rows of dotY by the diagonal of QXXT (which is a vector)
   Matrix weightedDotY = dotY.array().colwise() * diagQXXT.array();
-  Matrix QYdot = dataMatrixProduct(dotY);
-  Matrix euclidean_hessian =
-      QYdot.block(rot_mat_sz, 0, r, relaxation_rank_) -
-      weightedDotY.block(rot_mat_sz, 0, r, relaxation_rank_);
-
-  H_dotY.block(rot_mat_sz, 0, r, relaxation_rank_) =
+  Matrix euclidean_hessian = H_dotY.block(rot_mat_sz, 0, r, relaxation_rank_) =
       manifolds_.oblique_manifold_
           .projectToTangentSpace(
               Y.block(rot_mat_sz, 0, r, relaxation_rank_).transpose(),
-              euclidean_hessian.transpose())
+              (H_dotY.block(rot_mat_sz, 0, r, relaxation_rank_) -
+               weightedDotY.block(rot_mat_sz, 0, r, relaxation_rank_))
+                  .transpose())
           .transpose();
 
   return H_dotY;
@@ -552,7 +561,8 @@ Matrix Problem::precondition(const Matrix &V) const {
   checkMatrixShape("Problem::precondition::input", getDataMatrixSize(),
                    relaxation_rank_, V.rows(), V.cols());
   Matrix res;
-  if (preconditioner_ == Preconditioner::BlockCholesky) {
+  if (preconditioner_ == Preconditioner::BlockCholesky ||
+      preconditioner_ == Preconditioner::RegularizedCholesky) {
     res =
         blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
   } else {
@@ -695,7 +705,13 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
-  auto num_eigvecs = std::min(Eigen::Index(nx), S.rows());
+  auto num_eigvecs =
+      std::min(std::max(Eigen::Index(nx), Y.cols() + 2), S.rows());
+  if (S.rows() < Y.cols()) {
+    throw std::invalid_argument(
+        "The number of rows of S must be greater than or "
+        "equal to the number of columns of Y");
+  }
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
   init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
   CertResults results = fast_verification(
@@ -724,8 +740,6 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   // Preallocate storage for diagonal blocks of Lambda
   Matrix stiefel_Lambda_blocks(dim_, numPosesDim());
 
-#pragma omp parallel for default(none)                                         \
-    shared(Y, QY, stiefel_Lambda_blocks, Eigen::Dynamic)
   for (auto i = 0; i < numPoses(); ++i) {
     Matrix P = QY.block(i * dim_, 0, dim_, Y.cols()) *
                Y.block(i * dim_, 0, dim_, Y.cols()).transpose();

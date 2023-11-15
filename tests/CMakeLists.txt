@@ -41,6 +41,7 @@ set(EXPECTED_FILES
 "X_odom.mm"
 "X_rand_dim2.mm"
 # info for testing the optimization helper functions
+"S_rand.mm"
 "expected_egrad.mm"
 "expected_rgrad.mm"
 "hessProd.mm"

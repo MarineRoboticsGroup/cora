@@ -180,7 +180,7 @@ private:
 public:
   Problem(int dim, int relaxation_rank,
           Formulation formulation = Formulation::Explicit,
-          Preconditioner preconditioner = Preconditioner::BlockCholesky)
+          Preconditioner preconditioner = Preconditioner::RegularizedCholesky)
       : dim_(dim),
         relaxation_rank_(relaxation_rank),
         formulation_(formulation),

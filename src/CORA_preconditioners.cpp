@@ -16,8 +16,11 @@ namespace CORA {
 CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
                                                   const VectorXi &block_sizes) {
   if (block_sizes.sum() != A.rows()) {
-    throw std::invalid_argument("The block sizes must sum to A.rows() for the "
-                                "CORA block Cholesky preconditioner");
+    throw std::invalid_argument(
+        "The block sizes must sum to A.rows() for the "
+        "CORA block Cholesky preconditioner. Block sizes sum: " +
+        std::to_string(block_sizes.sum()) +
+        ", A.rows(): " + std::to_string(A.rows()));
   }
 
   // for each block along the diagonal of A compute the Cholesky decomposition
@@ -27,7 +30,7 @@ CholFactorPtrVector getBlockCholeskyFactorization(const SparseMatrix &A,
   int block_start = 0;
   CholFactorPtrVector block_cholesky_factors;
   for (int block_idx = 0; block_idx < block_sizes.size(); block_idx++) {
-    int blockSize = block_sizes(block_idx);
+    int blockSize = block_sizes[block_idx];
     // extract the block from A
     SparseMatrix block =
         A.block(block_start, block_start, blockSize, blockSize);
