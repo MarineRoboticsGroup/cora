@@ -4,6 +4,7 @@
 
 #include "CORA/CORA_vis.h"
 #include "CORA/CORA_problem.h"
+#include <thread> // NOLINT [build/c++11]
 namespace CORA {
 
 CORAVis::CORAVis() {
@@ -16,6 +17,7 @@ CORAVis::CORAVis() {
   params.landmark_color = std::make_tuple(0.0f, 0.0f, 0.0f); // Black
   viz = std::make_unique<mrg::Visualizer>(params);
 }
+
 using TNTStatus = Optimization::Riemannian::TNTStatus;
 /**
  * @brief Visualize the result trajectory using TonioViz
@@ -24,6 +26,16 @@ using TNTStatus = Optimization::Riemannian::TNTStatus;
  * the trajectory, landmark location, and the ranges
  * @param result The result of the CORA algorithm
  */
+
+void CORAVis::run(const Problem &problem, std::vector<CoraTntResult> results,
+                  double rate_hz) {
+  // Start the data thread to periodically feed data into the visualizer
+  auto data_thread = std::thread(&CORAVis::dataPlaybackLoop, this, problem,
+                                 std::move(results), rate_hz);
+  auto render_thread = std::thread(&CORAVis::renderLoop, this);
+  data_thread.join();
+  render_thread.join();
+}
 
 void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   auto aligned_sol_matrix = problem.alignEstimateToOrigin(result.x);
@@ -64,6 +76,7 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
   auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
   auto range_measurements = problem.getRangeMeasurements();
   // Iterate through all poses and draw using TonioViz
+  viz->Clear();
   for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
     auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
     viz->AddVizPose(pose, 0.5, 4.0, static_cast<int>(pose_sym.chr()));
@@ -87,8 +100,25 @@ void CORAVis::visualize(const Problem &problem, const CoraTntResult &result) {
     mrg::Range range{p1(0), p1(1), range_measurement.r, p2(0), p2(1)};
     viz->AddRangeMeasurement(range);
   }
-  viz->RenderWorld();
 }
+
+void CORAVis::dataPlaybackLoop(const Problem &problem,
+                               std::vector<CoraTntResult> results,
+                               double rate_hz) {
+  auto result_idx{0};
+  while (true) {
+    std::cout << "Data thread running " << result_idx << std::endl;
+    visualize(problem, results[result_idx]);
+    std::this_thread::sleep_for(std::chrono::duration<double>(1 / rate_hz));
+
+    result_idx++;
+    if (result_idx >= static_cast<int>(results.size())) {
+      result_idx = 0;
+    }
+  }
+}
+
+void CORAVis::renderLoop() { viz->RenderWorld(); }
 
 Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
                                  const Matrix &solution_matrix,

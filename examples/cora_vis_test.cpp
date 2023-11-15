@@ -19,8 +19,6 @@ int main() {
   std::cout << "Testing with Random initialization" << std::endl;
   // Visualize the result
   CORA::CORAVis viz{};
-  viz.visualize(problem, res);
-  std::this_thread::sleep_for(std::chrono::duration<double>(1));
-
+  viz.run(problem, {res}, 1.0);
   return 0;
 }
