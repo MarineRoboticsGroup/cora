@@ -6,6 +6,7 @@
 
 # build directory
 build
+build*/
 
 # Prerequisites
 *.d
