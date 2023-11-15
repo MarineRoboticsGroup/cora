@@ -10,6 +10,17 @@ void printIfVerbose(bool verbose, std::string msg) {
   }
 }
 
+CORA::Scalar thresholdVal(CORA::Scalar val, CORA::Scalar lower_bound,
+                          CORA::Scalar upper_bound) {
+  if (val < lower_bound) {
+    return lower_bound;
+  } else if (val > upper_bound) {
+    return upper_bound;
+  } else {
+    return val;
+  }
+}
+
 namespace CORA {
 
 CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
@@ -57,7 +68,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
         return problem.tangent_space_projection(Y, problem.precondition(Ydot));
       };
 
-  // default TNT parameters
+  // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
   params.max_TPCG_iterations = 150;
   params.max_iterations = 300;
@@ -71,7 +82,11 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-4;
 
-  Scalar rel_cert_eta = 1e-6;
+  // certification parameters
+  const Scalar MIN_CERT_ETA = 1e-6;
+  const Scalar MAX_CERT_ETA = 1e-1;
+  const Scalar REL_CERT_ETA = 1e-6;
+  const int LOBPCG_BLOCK_SIZE = 10;
   Scalar eta;
 
   // metric over the tangent space is the standard matrix trace inner product
@@ -100,10 +115,8 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
                                 std::to_string(result.f));
 
     // check if the solution is certified
-    eta = result.f * rel_cert_eta;
-    eta = std::min(1e-1, eta);
-    eta = std::max(1e-6, eta);
-    cert_results = problem.certify_solution(result.x, eta, 10);
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
     printIfVerbose(
         verbose,
         "Result is certified: " + std::to_string(cert_results.is_certified) +
@@ -121,11 +134,11 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
     }
 
     // otherwise, increment the relaxation rank and try again
+    const Scalar SADDLE_GRAD_TOL = 1e-4;
+    const Scalar PRECON_SADDLE_GRAD_TOL = 1e-4;
     problem.incrementRank();
-    Scalar grad_tol = 1e-4;
-    Scalar precon_grad_tol = 1e-4;
     X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
-                     grad_tol, precon_grad_tol);
+                     SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
   }
 
   // if X has more columns than 'd' then we want to project it down to the
@@ -142,10 +155,8 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
                                 std::to_string(result.f));
 
     // let's check if the solution is certified
-    eta = result.f * rel_cert_eta;
-    eta = std::min(1e-1, eta);
-    eta = std::max(1e-6, eta);
-    cert_results = problem.certify_solution(result.x, eta, 10);
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
   }
 
   // print out whether or not the solution is certified
