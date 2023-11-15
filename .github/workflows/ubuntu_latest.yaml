@@ -18,11 +18,35 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update -qq
-          sudo apt install -qq -y --no-install-recommends cmake clang build-essential cppcheck libsuitesparse-dev libeigen3-dev libomp-dev python3.10
+          sudo apt install -qq -y --no-install-recommends cmake clang build-essential cppcheck libsuitesparse-dev libeigen3-dev libomp-dev python3.10 libopencv-dev python3-opencv
 
       - name: Install pre-commit
         run: |
           pip3 install pre-commit
+
+      - name: Install Pangolin dependencies
+        run: |
+          sudo apt install -qq -y --no-install-recommends libgl1-mesa-dev
+          sudo apt install -qq -y --no-install-recommends libglew-dev
+
+      - name: Install Pangolin
+        run: |
+          git clone https://github.com/stevenlovegrove/Pangolin.git
+          cd Pangolin
+          git checkout dd801d2
+          mkdir build
+          cd build
+          cmake ..
+          make -j
+          sudo make install
+
+      - name: Install GTSAM 4.2
+        run: |
+          sudo add-apt-repository ppa:borglab/gtsam-release-4.2
+          sudo apt-get update
+          sudo apt-get install libgtsam-dev libgtsam-unstable-dev
+
+
 
       - name: Create build directory
         run: cmake -E make_directory ${{ env.BUILD_DIR }}

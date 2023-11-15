@@ -173,10 +173,6 @@ private:
 
   Matrix dataMatrixProduct(const Matrix &Y) const;
 
-  Index getRotationIdx(const Symbol &pose_symbol) const;
-  Index getRangeIdx(const SymbolPair &range_symbol_pair) const;
-  Index getTranslationIdx(const Symbol &trans_symbol) const;
-
 public:
   Problem(int dim, int relaxation_rank,
           Formulation formulation = Formulation::Explicit,
@@ -214,6 +210,11 @@ public:
   void addPosePrior(const PosePrior &pose_prior);
   void addLandmarkPrior(const LandmarkPrior &landmark_prior);
 
+  // Indexing helpers
+  Index getRotationIdx(const Symbol &pose_symbol) const;
+  Index getRangeIdx(const SymbolPair &range_symbol_pair) const;
+  Index getTranslationIdx(const Symbol &trans_symbol) const;
+
   void printProblem() const;
 
   // function to get read-only references to the data submatrices
@@ -222,6 +223,16 @@ public:
       updateProblemData();
     }
     return data_submatrices_;
+  }
+
+  // Get copies of pose and landmark symbol maps
+  std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }
+  std::map<Symbol, int> getLandmarkSymbolMap() const {
+    return landmark_symbol_idxs_;
+  }
+  // Get copy of range measurements
+  std::vector<RangeMeasurement> getRangeMeasurements() const {
+    return range_measurements_;
   }
 
   // the data matrix that is used to construct the problem
