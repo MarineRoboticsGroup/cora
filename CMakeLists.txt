@@ -29,7 +29,7 @@ set(ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP (if available)")
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
-set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+set(ENABLE_VISUALIZATION ON CACHE BOOL "Enable visualization module.")
 # Build C++ examples
 set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
