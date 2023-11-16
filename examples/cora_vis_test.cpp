@@ -19,6 +19,6 @@ int main() {
   std::cout << "Testing with Random initialization" << std::endl;
   // Visualize the result
   CORA::CORAVis viz{};
-  viz.run(problem, {res}, 1.0);
+  viz.run(problem, {res}, 1.0, true);
   return 0;
 }

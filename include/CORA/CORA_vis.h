@@ -6,6 +6,7 @@
 
 #include <CORA/CORA.h>
 #include <CORA/CORA_types.h>
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -16,10 +17,12 @@ class CORAVis {
 public:
   CORAVis();
   void run(const Problem &problem, std::vector<CoraTntResult> results,
-           double rate_hz);
+           double rate_hz, bool verbose = true);
+  ~CORAVis() = default;
 
 private:
-  std::unique_ptr<mrg::Visualizer> viz;
+  std::atomic<bool> alive{true}; // Shared between threads, will be false if
+                                 // either thread terminates
 
   static Eigen::Matrix4d getPose(const Problem &problem,
                                  const Matrix &solution_matrix,
@@ -27,10 +30,13 @@ private:
   static Eigen::Vector3d getPoint(const Problem &problem,
                                   const Matrix &solution_matrix,
                                   const Symbol &point_sym);
-  void renderLoop();
-  void dataPlaybackLoop(const Problem &problem,
-                        std::vector<CoraTntResult> results, double rate_hz);
-  void visualize(const Problem &problem, const CoraTntResult &result);
+
+  void dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
+                        const Problem &problem,
+                        std::vector<CoraTntResult> results, double rate_hz,
+                        bool verbose);
+
+  void renderLoop(const std::shared_ptr<mrg::Visualizer> &viz);
 };
 
 } // namespace CORA
