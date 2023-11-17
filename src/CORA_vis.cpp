@@ -27,8 +27,8 @@ void CORAVis::run(const Problem &problem, std::vector<CoraTntResult> results,
   params.landtype = mrg::LandmarkDrawType::kCross;
   params.f = 600.0f; // focal length in px
   params.rangetype = mrg::RangeDrawType::kLine;
-  params.range_color = std::make_tuple(0.0f, 0.71f, 0.16f);  // Medium green
-  params.landmark_color = std::make_tuple(0.0f, 0.0f, 0.0f); // Black
+  params.range_color = {0.0f, 0.71f, 0.16f};  // Medium green
+  params.landmark_color = {0.0f, 0.0f, 0.0f}; // Black
 
   auto viz = std::make_shared<mrg::Visualizer>(params);
   auto render_thread = std::thread(&CORAVis::renderLoop, this, viz);
