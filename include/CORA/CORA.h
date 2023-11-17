@@ -11,14 +11,18 @@
 #include <CORA/CORA_types.h>
 #include <CORA/pyfg_text_parser.h>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace CORA {
 
 using CoraTntResult = Optimization::Riemannian::TNTResult<Matrix, Scalar>;
+using CoraResult = std::pair<CoraTntResult, std::vector<Matrix>>;
 
-CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
-                        int max_relaxation_rank = 20, bool verbose = false);
-inline CoraTntResult solveCORA(std::string filepath) {
+CoraResult solveCORA(Problem &problem, const Matrix &x0,
+                     int max_relaxation_rank = 20, bool verbose = false,
+                     bool log_iterates = false);
+inline CoraResult solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
   Matrix x0 = Matrix();
   throw std::runtime_error(

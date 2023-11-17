@@ -53,7 +53,7 @@ CoraTntResult testScenario(std::string data_subdir) {
                    problem.getDataMatrixSize(), 2, X_gt.rows(), X_gt.cols());
 
   CoraTntResult res;
-  res = solveCORA(problem, x0);
+  res = solveCORA(problem, x0).first;
 
   // some print output for debugging
   // std::cout << "Testing with Random initialization" << std::endl;

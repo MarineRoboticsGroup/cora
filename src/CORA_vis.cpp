@@ -4,6 +4,7 @@
 
 #include "CORA/CORA_vis.h"
 #include "CORA/CORA_problem.h"
+#include <ncurses.h>
 #include <thread> // NOLINT [build/c++11]
 #include <utility>
 namespace CORA {
@@ -11,6 +12,18 @@ namespace CORA {
 CORAVis::CORAVis() {}
 
 using TNTStatus = Optimization::Riemannian::TNTStatus;
+
+std::vector<Matrix>
+projectAndAlignIterates(const Problem &problem,
+                        const std::vector<Matrix> &iterates) {
+  std::vector<Matrix> aligned_iterates;
+  for (const auto &iterate : iterates) {
+    auto aligned_sol_matrix = problem.alignEstimateToOrigin(projectSolution(
+        problem, iterate)); // project and align the solution to the origin
+    aligned_iterates.push_back(aligned_sol_matrix);
+  }
+  return aligned_iterates;
+}
 
 /**
  * @brief Start both the rendering thread and the data provider thread
@@ -20,7 +33,7 @@ using TNTStatus = Optimization::Riemannian::TNTStatus;
  * @param rate_hz Rate at which the results will be rendered
  */
 
-void CORAVis::run(const Problem &problem, std::vector<CoraTntResult> results,
+void CORAVis::run(const Problem &problem, std::vector<Matrix> iterates,
                   double rate_hz, bool verbose) {
   mrg::VisualizerParams params;
   params.frustum_scale = 0.3; // size of frustum in m
@@ -33,61 +46,58 @@ void CORAVis::run(const Problem &problem, std::vector<CoraTntResult> results,
   auto viz = std::make_shared<mrg::Visualizer>(params);
   auto render_thread = std::thread(&CORAVis::renderLoop, this, viz);
   dataPlaybackLoop(std::shared_ptr<mrg::Visualizer>(viz), problem,
-                   std::move(results), rate_hz, verbose);
+                   projectAndAlignIterates(problem, iterates), rate_hz,
+                   verbose);
   render_thread.join();
 }
 
 void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
                                const Problem &problem,
-                               std::vector<CoraTntResult> results,
-                               double rate_hz, bool verbose) {
-  auto result_idx{0};
-  while (alive) {
-    auto result = results.at(result_idx);
-    auto status = result.status;
-    auto aligned_sol_matrix = problem.alignEstimateToOrigin(result.x);
+                               std::vector<Matrix> iterates, double rate_hz,
+                               bool verbose) {
+  initscr();
+  cbreak();
+  noecho();
+  nodelay(stdscr, TRUE);
+  keypad(stdscr, TRUE);
 
-    if (verbose) {
-      std::cout << "Result index: " << result_idx << std::endl;
-      switch (status) {
-      case TNTStatus::Gradient:
-        std::cout << "Solution terminated due to gradient" << std::endl;
+  auto soln_idx{0};
+
+  // Iterate through all poses and draw using TonioViz
+  // set it up so only drawing <=100 poses total (skip the right number of
+  // poses)
+  int num_poses = problem.numPoses();
+  int num_poses_to_skip = static_cast<int>(num_poses / 650);
+  int num_ranges = problem.numRangeMeasurements();
+  int num_ranges_to_skip = static_cast<int>(num_ranges / 500);
+  while (alive) {
+    while (soln_idx >= static_cast<int>(iterates.size())) {
+      // soln_idx = 0;
+      // break;
+      // if receive keypress "o", reset soln_idx to 0
+      auto c = getch();
+      if (c == 'o') {
+        soln_idx = 0;
         break;
-      case TNTStatus::IterationLimit:
-        std::cout << "Solution terminated due to iteration limit" << std::endl;
-        break;
-      case TNTStatus::ElapsedTime:
-        std::cout << "Solution terminated due to elapsed time" << std::endl;
-        break;
-      case TNTStatus::PreconditionedGradient:
-        std::cout << "Solution terminated due to preconditioned gradient"
-                  << std::endl;
-        break;
-      case TNTStatus::RelativeDecrease:
-        std::cout << "Solution terminated due to relative decrease"
-                  << std::endl;
-        break;
-      case TNTStatus::Stepsize:
-        std::cout << "Solution terminated due to step size" << std::endl;
-        break;
-      case TNTStatus::TrustRegion:
-        std::cout << "Solution terminated due to trust region" << std::endl;
-        break;
-      case TNTStatus::UserFunction:
-        std::cout << "Solution terminated due to user function" << std::endl;
-        break;
-      default:
-        std::cout << "Solution terminated due to unknown reason" << std::endl;
-        break;
+      } else {
+        // pause for 10 ms
+        std::this_thread::sleep_for(std::chrono::duration<double>(0.01));
       }
     }
+
+    auto soln = iterates.at(soln_idx);
+    auto aligned_sol_matrix = problem.alignEstimateToOrigin(soln);
 
     auto pose_sym_to_idx = problem.getPoseSymbolMap();
     auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
     auto range_measurements = problem.getRangeMeasurements();
-    // Iterate through all poses and draw using TonioViz
     viz->Clear();
+
+    int pose_idx = 0;
     for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
+      if (pose_idx % num_poses_to_skip != 0) {
+        continue;
+      }
       auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
       viz->AddVizPose(pose, 0.5, 4.0, static_cast<int>(pose_sym.chr()));
     }
@@ -96,7 +106,12 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
       viz->AddVizLandmark(getPoint(problem, aligned_sol_matrix, landmark_sym));
     }
 
+    int range_measurement_idx = -1;
     for (const auto &range_measurement : range_measurements) {
+      range_measurement_idx++;
+      if (range_measurement_idx % num_ranges_to_skip != 0) {
+        continue;
+      }
       auto p1 =
           getPoint(problem, aligned_sol_matrix, range_measurement.first_id);
       auto p2 =
@@ -113,10 +128,7 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     }
     std::this_thread::sleep_for(std::chrono::duration<double>(1 / rate_hz));
 
-    result_idx++;
-    if (result_idx >= static_cast<int>(results.size())) {
-      result_idx = 0;
-    }
+    soln_idx++;
   }
   alive = false;
 }

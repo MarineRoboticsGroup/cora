@@ -16,8 +16,8 @@ namespace CORA {
 class CORAVis {
 public:
   CORAVis();
-  void run(const Problem &problem, std::vector<CoraTntResult> results,
-           double rate_hz, bool verbose = true);
+  void run(const Problem &problem, std::vector<Matrix> iterates, double rate_hz,
+           bool verbose = true);
   ~CORAVis() = default;
 
 private:
@@ -32,9 +32,8 @@ private:
                                   const Symbol &point_sym);
 
   void dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
-                        const Problem &problem,
-                        std::vector<CoraTntResult> results, double rate_hz,
-                        bool verbose);
+                        const Problem &problem, std::vector<Matrix> iterates,
+                        double rate_hz, bool verbose);
 
   void renderLoop(const std::shared_ptr<mrg::Visualizer> &viz);
 };
