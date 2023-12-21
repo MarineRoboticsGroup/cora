@@ -94,13 +94,14 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     viz->Clear();
 
     int pose_idx = 0;
+    std::vector<mrg::VizPose> viz_poses = {};
     for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
       if (pose_idx % num_poses_to_skip != 0) {
         continue;
       }
-      auto pose = getPose(problem, aligned_sol_matrix, pose_sym);
-      viz->AddVizPose(pose, 0.5, 4.0, static_cast<int>(pose_sym.chr()));
+      viz_poses.emplace_back(getPose(problem, aligned_sol_matrix, pose_sym));
     }
+    viz->AddVizPoses(viz_poses);
 
     for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
       viz->AddVizLandmark(getPoint(problem, aligned_sol_matrix, landmark_sym));
@@ -138,9 +139,9 @@ void CORAVis::renderLoop(const std::shared_ptr<mrg::Visualizer> &viz) {
   alive = false;
 }
 
-Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
-                                 const Matrix &solution_matrix,
-                                 const Symbol &pose_sym) {
+mrg::VizPose CORAVis::getPose(const Problem &problem,
+                              const Matrix &solution_matrix,
+                              const Symbol &pose_sym) {
   auto dim = problem.dim();
   auto rotation_idx = problem.getRotationIdx(pose_sym);
   auto rotation = solution_matrix.block(rotation_idx * dim, 0, dim, dim);
@@ -154,7 +155,7 @@ Eigen::Matrix4d CORAVis::getPose(const Problem &problem,
   // actually R^T
   pose_matrix.block(0, 0, dim, dim) = rotation.transpose();
   pose_matrix.block(0, 3, dim, 1) = translation.transpose();
-  return pose_matrix;
+  return std::make_tuple(pose_matrix, 0.5, 4.0);
 }
 
 Eigen::Vector3d CORAVis::getPoint(const Problem &problem,

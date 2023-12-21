@@ -24,9 +24,9 @@ private:
   std::atomic<bool> alive{true}; // Shared between threads, will be false if
                                  // either thread terminates
 
-  static Eigen::Matrix4d getPose(const Problem &problem,
-                                 const Matrix &solution_matrix,
-                                 const Symbol &pose_sym);
+  static mrg::VizPose getPose(const Problem &problem,
+                              const Matrix &solution_matrix,
+                              const Symbol &pose_sym);
   static Eigen::Vector3d getPoint(const Problem &problem,
                                   const Matrix &solution_matrix,
                                   const Symbol &point_sym);
