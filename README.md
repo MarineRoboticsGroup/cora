@@ -72,10 +72,10 @@ Performance Tools
 sudo apt-get install libgoogle-perftools-dev google-perftools graphviz
 ```
 
-## Standing on the Shoulders of Giants
+## With some help from our friends
 
-This implementation borrows from the structure of the
-[SE-Sync C++ implementation](https://github.com/david-m-rosen/SE-Sync).
+This implementation relies heavily on the highly performant [optimization
+library](https://github.com/david-m-rosen/SE-Sync) by David M. Rosen!
 
 
 ## Contributors
@@ -96,3 +96,9 @@ If you use this code in your research, please cite the following paper:
   year={2023}
 }
 ```
+
+## Troubleshooting
+
+### `error while loading shared libraries: libpango_windowing.so: cannot open shared object file: No such file or directory`
+
+run `sudo ldconfig`
