@@ -40,8 +40,8 @@ void CORAVis::run(const Problem &problem, std::vector<Matrix> iterates,
   params.landtype = mrg::LandmarkDrawType::kCross;
   params.f = 600.0f; // focal length in px
   params.rangetype = mrg::RangeDrawType::kLine;
-  params.range_color = std::make_tuple(0.0f, 0.71f, 0.16f);  // Medium green
-  params.landmark_color = std::make_tuple(0.0f, 0.0f, 0.0f); // Black
+  params.range_color = {0.0f, 0.71f, 0.16f};  // Medium green
+  params.landmark_color = {0.0f, 0.0f, 0.0f}; // Black
 
   auto viz = std::make_shared<mrg::Visualizer>(params);
   auto render_thread = std::thread(&CORAVis::renderLoop, this, viz);
@@ -55,13 +55,12 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
                                const Problem &problem,
                                std::vector<Matrix> iterates, double rate_hz,
                                bool verbose) {
-  initscr();
-  cbreak();
-  noecho();
-  nodelay(stdscr, TRUE);
-  keypad(stdscr, TRUE);
-
   auto soln_idx{0};
+  int curr_loop_cnt = 0;
+  int max_num_loops = 3;
+
+  // we will use double buffering to render the poses and landmarks
+  // so that we don't have to clear the screen every time
 
   // Iterate through all poses and draw using TonioViz
   // set it up so only drawing <=100 poses total (skip the right number of
@@ -72,16 +71,13 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
   int num_ranges_to_skip = static_cast<int>(num_ranges / 500);
   while (alive) {
     while (soln_idx >= static_cast<int>(iterates.size())) {
-      // soln_idx = 0;
-      // break;
-      // if receive keypress "o", reset soln_idx to 0
-      auto c = getch();
-      if (c == 'o') {
-        soln_idx = 0;
+      // pause for 2 seconds and then restart
+      std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
+      soln_idx = 0;
+      curr_loop_cnt++;
+      if (curr_loop_cnt >= max_num_loops) {
+        alive = false;
         break;
-      } else {
-        // pause for 10 ms
-        std::this_thread::sleep_for(std::chrono::duration<double>(0.01));
       }
     }
 

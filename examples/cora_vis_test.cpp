@@ -8,9 +8,9 @@
 
 int main() {
   CORA::Problem problem = CORA::parsePyfgTextToProblem(
-      // "./bin/example_data/factor_graph_small.pyfg");
-      // "/home/alan/range-only-slam-mission-control/cora-experiments/data/plaza/plaza2/factor_graph.pyfg");
-      "./bin/example_data/factor_graph.pyfg");
+      "./bin/example_data/factor_graph_small.pyfg");
+  // "/home/alan/range-only-slam-mission-control/cora-experiments/data/plaza/plaza2/factor_graph.pyfg");
+  // "./bin/example_data/factor_graph.pyfg");
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
