@@ -87,12 +87,13 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     auto pose_sym_to_idx = problem.getPoseSymbolMap();
     auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
     auto range_measurements = problem.getRangeMeasurements();
+    // Ready false
+    viz->setReadyToRender(false);
     viz->Clear();
 
-    int pose_idx = 0;
     std::vector<mrg::VizPose> viz_poses = {};
     for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
-      if (pose_idx % num_poses_to_skip != 0) {
+      if (num_poses_to_skip > 0 && pose_idx % num_poses_to_skip != 0) {
         continue;
       }
       viz_poses.emplace_back(getPose(problem, aligned_sol_matrix, pose_sym));
@@ -106,7 +107,8 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     int range_measurement_idx = -1;
     for (const auto &range_measurement : range_measurements) {
       range_measurement_idx++;
-      if (range_measurement_idx % num_ranges_to_skip != 0) {
+      if (num_ranges_to_skip > 0 &&
+          range_measurement_idx % num_ranges_to_skip != 0) {
         continue;
       }
       auto p1 =
@@ -123,6 +125,10 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
       mrg::Range range{p1(0), p1(1), range_measurement.r, p2(0), p2(1)};
       viz->AddRangeMeasurement(range);
     }
+
+    // Ready true
+    viz->setReadyToRender(true);
+
     std::this_thread::sleep_for(std::chrono::duration<double>(1 / rate_hz));
 
     soln_idx++;
