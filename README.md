@@ -75,7 +75,7 @@ sudo apt-get install libgoogle-perftools-dev google-perftools graphviz
 ## With some help from our friends
 
 This implementation relies heavily on the highly performant [optimization
-library](https://github.com/david-m-rosen/SE-Sync) by David M. Rosen!
+library](https://github.com/david-m-rosen/Optimization) by David M. Rosen!
 
 
 ## Contributors
