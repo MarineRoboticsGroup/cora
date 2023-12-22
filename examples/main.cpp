@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
   problem.updateProblemData();
 
 #ifdef GPERFTOOLS
-  ProfilerStart("SE-Sync.prof");
+  ProfilerStart("cora.prof");
 #endif
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
