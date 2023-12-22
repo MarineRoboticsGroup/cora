@@ -1,8 +1,10 @@
-# CORA++
+# Certifiably Correct Range-Aided SLAM (CORA)
 
-This is an efficient C++ implementation of the certifiably correct range-aided
-SLAM algorithm (CORA). Please see the [paper](https://arxiv.org/abs/2302.11614)
-for more details.
+This is the official repository for the paper ["Certifiably Correct Range-Aided SLAM"](https://arxiv.org/abs/2302.11614) by
+[Alan Papalia](https://alanpapalia.github.io), Andrew Fishberg, Brendan O'Neill, [Jonathan P. How](https://www.mit.edu/~jhow/),
+[David M. Rosen](https://david-m-rosen.github.io/) and [John J. Leonard](https://meche.mit.edu/people/faculty/JLEONARD@MIT.EDU).
+
+If you prefer to work in MATLAB, you can look at our (deprecated) implementation in [cora-matlab](https://github.com/MarineRoboticsGroup/cora-matlab).
 
 ## Building
 
