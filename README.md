@@ -24,7 +24,7 @@ make -j
 
 ## Usage
 
-*TODO*: write up usage after we have a working version.
+For now look in our `examples/` directory for how to use this library.
 
 ## Contributing
 
@@ -99,6 +99,6 @@ If you use this code in your research, please cite the following paper:
 
 ## Troubleshooting
 
-### `error while loading shared libraries: libpango_windowing.so: cannot open shared object file: No such file or directory`
+**Error** `error while loading shared libraries: libpango_windowing.so: cannot open shared object file: No such file or directory`
 
-run `sudo ldconfig`
+**Solution**: run `sudo ldconfig`
