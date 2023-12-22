@@ -4,24 +4,28 @@
 #include <CORA/CORA.h>
 #include <CORA/CORA_vis.h>
 
-#include <string>
 #include <thread> // NOLINT [build/c++11]
 
 int main() {
-  CORA::Problem problem =
-      CORA::parsePyfgTextToProblem("./bin/factor_graph_small.pyfg");
+  CORA::Problem problem = CORA::parsePyfgTextToProblem(
+      "./bin/example_data/factor_graph_small.pyfg");
+  // "/home/alan/range-only-slam-mission-control/cora-experiments/data/plaza/plaza2/factor_graph.pyfg");
+  // "./bin/example_data/factor_graph.pyfg");
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
 
-  CORA::CoraTntResult res;
-  res = solveCORA(problem, x0);
+  int max_rank = 10;
+  bool verbose = true;
+  bool log_iterates = true;
+  CORA::CoraResult res;
+  res = solveCORA(problem, x0, max_rank, verbose, log_iterates);
 
   std::cout << "Testing with Random initialization" << std::endl;
   // Visualize the result
   CORA::CORAVis viz{};
-  viz.visualize(problem, res);
-  std::this_thread::sleep_for(std::chrono::duration<double>(1));
-
+  double viz_hz = 10.0;
+  // double viz_hz = 2.0;
+  viz.run(problem, {res.second}, viz_hz, true);
   return 0;
 }

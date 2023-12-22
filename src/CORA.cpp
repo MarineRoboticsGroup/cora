@@ -23,8 +23,18 @@ CORA::Scalar thresholdVal(CORA::Scalar val, CORA::Scalar lower_bound,
 
 namespace CORA {
 
-CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
-                        int max_relaxation_rank, bool verbose) {
+CoraResult solveCORA(Problem &problem, const Matrix &x0,
+                     int max_relaxation_rank, bool verbose, bool log_iterates) {
+
+  // if log_iterates is true, throw a warning that will be
+  // slower than usual
+  if (log_iterates) {
+    std::cout
+        << "WARNING: Logging iterates will slow down the optimization "
+           "process.  This is intended for debugging and viz purposes only."
+        << std::endl;
+  }
+
   // objective function
   Optimization::Objective<Matrix, Scalar, Matrix> f =
       [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
@@ -81,6 +91,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   params.max_computation_time = 30;
   params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-4;
+  params.log_iterates = log_iterates;
 
   // certification parameters
   const Scalar MIN_CERT_ETA = 1e-6;
@@ -105,6 +116,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
   CoraTntResult result;
   Matrix X = x0;
   CertResults cert_results;
+  std::vector<Matrix> iterates = std::vector<Matrix>();
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
     // solve the problem
     printIfVerbose(verbose, "\nSolving problem at rank " +
@@ -113,6 +125,11 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
     printIfVerbose(verbose, "Obtained solution with objective value: " +
                                 std::to_string(result.f));
+    if (log_iterates) {
+      for (Matrix iterate : result.iterates) {
+        iterates.push_back(iterate);
+      }
+    }
 
     // check if the solution is certified
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
@@ -166,7 +183,7 @@ CoraTntResult solveCORA(Problem &problem, const Matrix &x0,
                      " with eta: " + std::to_string(eta) +
                      " and theta: " + std::to_string(cert_results.theta));
 
-  return result;
+  return std::make_pair(result, iterates);
 }
 
 Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
