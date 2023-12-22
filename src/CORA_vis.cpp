@@ -4,7 +4,6 @@
 
 #include "CORA/CORA_vis.h"
 #include "CORA/CORA_problem.h"
-#include <ncurses.h>
 #include <thread> // NOLINT [build/c++11]
 #include <utility>
 namespace CORA {
@@ -69,18 +68,7 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
   int num_poses_to_skip = static_cast<int>(num_poses / 650);
   int num_ranges = problem.numRangeMeasurements();
   int num_ranges_to_skip = static_cast<int>(num_ranges / 500);
-  while (alive) {
-    while (soln_idx >= static_cast<int>(iterates.size())) {
-      // pause for 2 seconds and then restart
-      std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
-      soln_idx = 0;
-      curr_loop_cnt++;
-      if (curr_loop_cnt >= max_num_loops) {
-        alive = false;
-        break;
-      }
-    }
-
+  while (alive && curr_loop_cnt < max_num_loops) {
     auto soln = iterates.at(soln_idx);
     auto aligned_sol_matrix = problem.alignEstimateToOrigin(soln);
 
@@ -132,6 +120,13 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     std::this_thread::sleep_for(std::chrono::duration<double>(1 / rate_hz));
 
     soln_idx++;
+
+    if (soln_idx >= static_cast<int>(iterates.size())) {
+      // pause for 2 seconds and then restart
+      std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
+      soln_idx = 0;
+      curr_loop_cnt++;
+    }
   }
   alive = false;
 }
