@@ -6,9 +6,12 @@ This is the official repository for the paper ["Certifiably Correct Range-Aided 
 
 If you prefer to work in MATLAB, you can look at our (deprecated) implementation in [cora-matlab](https://github.com/MarineRoboticsGroup/cora-matlab).
 
-<p align="center">
-  <img src="/media/plaza2.gif" width="600" />
-</p>
+## Quick Demo
+
+Here you can see CORA solving the Plaza 2 data set from a random initialization! You can recreate this with our
+example in `examples/cora_vis_tests.cpp` by uncommenting `line 12` and switching the filepath to `"./bin/example_data/factor_graph.pyfg");`
+
+![Plaza 2](https://github.com/MarineRoboticsGroup/cora/assets/17442843/1a0ad0b0-a554-4248-9b92-f52815d1cd34)
 
 ## Building
 
