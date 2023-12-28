@@ -52,7 +52,7 @@ terminal commands should get you up and running with visualization.
 # install Pangolin
 git clone git@github.com:stevenlovegrove/Pangolin.git
 cd Pangolin
-git checkout aff6883 # this is the most recent commit that worked for everything
+git checkout d484494 # this is the most recent commit that worked for everything
 mkdir build
 cd build
 cmake ..
