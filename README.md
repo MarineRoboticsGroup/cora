@@ -6,6 +6,10 @@ This is the official repository for the paper ["Certifiably Correct Range-Aided 
 
 If you prefer to work in MATLAB, you can look at our (deprecated) implementation in [cora-matlab](https://github.com/MarineRoboticsGroup/cora-matlab).
 
+<p align="center">
+  <img src="/media/plaza2.gif" width="600" />
+</p>
+
 ## Building
 
 Install dependencies
