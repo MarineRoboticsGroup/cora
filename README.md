@@ -52,7 +52,7 @@ terminal commands should get you up and running with visualization.
 # install Pangolin
 git clone git@github.com:stevenlovegrove/Pangolin.git
 cd Pangolin
-git checkout dd801d2 # this is Tag 0.6 - was most recent tag we were able to build
+git checkout aff6883 # this is the most recent commit that worked for everything
 mkdir build
 cd build
 cmake ..
@@ -76,7 +76,7 @@ sudo apt-get install libgoogle-perftools-dev google-perftools graphviz
 
 ## With some help from our friends
 
-This implementation relies heavily on the highly performant [optimization
+This implementation relies heavily on this highly performant [optimization
 library](https://github.com/david-m-rosen/Optimization) by David M. Rosen!
 
 
