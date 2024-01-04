@@ -625,6 +625,16 @@ int Problem::getDataMatrixSize() const {
   }
 }
 
+std::vector<Symbol> Problem::getPoseSymbols(unsigned char chr) const {
+  std::vector<Symbol> pose_symbols;
+  for (const auto &[pose_sym, pose_idx] : pose_symbol_idxs_) {
+    if (pose_sym.chr() == chr) {
+      pose_symbols.push_back(pose_sym);
+    }
+  }
+  return pose_symbols;
+}
+
 Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
   auto rotation_search_it = pose_symbol_idxs_.find(pose_symbol);
   if (rotation_search_it != pose_symbol_idxs_.end()) {

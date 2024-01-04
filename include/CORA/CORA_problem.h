@@ -209,6 +209,8 @@ public:
   addRelativePoseMeasurement(const RelativePoseMeasurement &rel_pose_measure);
   void addPosePrior(const PosePrior &pose_prior);
   void addLandmarkPrior(const LandmarkPrior &landmark_prior);
+  inline int getNumPosePriors() const { return pose_priors_.size(); }
+  inline int getNumLandmarkPriors() const { return landmark_priors_.size(); }
 
   // Indexing helpers
   Index getRotationIdx(const Symbol &pose_symbol) const;
@@ -224,6 +226,9 @@ public:
     }
     return data_submatrices_;
   }
+
+  // get pose symbols that start with a given character
+  std::vector<Symbol> getPoseSymbols(unsigned char chr) const;
 
   // Get copies of pose and landmark symbol maps
   std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }

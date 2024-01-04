@@ -51,7 +51,7 @@ enum PyFGType {
  * @param filename Path to the PyFG file
  * @return CORA::Problem The parsed problem
  */
-CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
+Problem parsePyfgTextToProblem(const std::string &filename) {
   // Note: This currently ignores all groundtruth measurements embedded
   // in the file
   CORA::Problem problem(2, 2);

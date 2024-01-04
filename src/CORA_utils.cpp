@@ -3,6 +3,9 @@
 #include <Eigen/CholmodSupport>
 #include <Eigen/Geometry>
 
+#include <fstream>
+#include <iostream>
+
 #include "ILDL/ILDL.h"
 #include "Optimization/LinearAlgebra/LOBPCG.h"
 
@@ -192,6 +195,96 @@ Matrix projectToSOd(const Matrix &M) {
     Uprime.col(Uprime.cols() - 1) *= -1;
     return Uprime * svd.matrixV().transpose();
   }
+}
+
+Matrix getTranslation(const Symbol &sym, const Problem &problem,
+                      const Matrix &soln) {
+  checkMatrixShape("getTranslation", problem.getDataMatrixSize(), problem.dim(),
+                   soln.rows(), soln.cols());
+  Index offset = problem.rotAndRangeMatrixSize();
+  return soln.row(offset + problem.getTranslationIdx(sym));
+}
+
+Matrix getRotation(const Symbol &sym, const Problem &problem,
+                   const Matrix &soln) {
+  checkMatrixShape("getRotation", problem.getDataMatrixSize(), problem.dim(),
+                   soln.rows(), soln.cols());
+
+  // need the dim x dim rotation matrix
+  Index start_idx = problem.getRotationIdx(sym);
+  Matrix rot =
+      soln.block(start_idx * problem.dim(), 0, problem.dim(), problem.dim());
+  // check that the rotation matrix is valid
+  if (std::abs(rot.determinant() - 1) > 1e-6) {
+    throw std::runtime_error("Rotation matrix determinant is: " +
+                             std::to_string(rot.determinant()) + " not 1");
+  }
+  if ((rot * rot.transpose() - Matrix::Identity(problem.dim(), problem.dim()))
+          .norm() > 1e-6) {
+    throw std::runtime_error("Rotation matrix is not orthogonal");
+  }
+
+  return rot;
+}
+
+void saveSolnToTum(const std::vector<Symbol> pose_symbols,
+                   const Problem &problem, const Matrix &soln,
+                   const std::string &fpath) {
+  // we do not currently support Implicit formulation
+  if (problem.getFormulation() == Formulation::Implicit) {
+    throw std::runtime_error(
+        "saveSolnToTum does not currently support Implicit formulation");
+  }
+
+  checkMatrixShape("saveSolnToTum", problem.getDataMatrixSize(), problem.dim(),
+                   soln.rows(), soln.cols());
+
+  // open fpath for writing
+  std::ofstream output_file(fpath);
+  if (!output_file.is_open()) {
+    throw std::runtime_error("Could not open file " + fpath);
+  }
+
+  // print warning that we are not using timestamps
+  std::cout << "Warning: timestamps are not being used in saveSolnToTum"
+            << std::endl;
+
+  // iterate over all the symbols and find the rotation and translation indices
+  for (size_t time = 0; time < pose_symbols.size(); time++) {
+    //  write the poses to the file in the format:
+    //  timestamp x y z qx qy qz qw
+    Matrix tran = getTranslation(pose_symbols[time], problem, soln);
+    Matrix rot = getRotation(pose_symbols[time], problem, soln);
+
+    // get xyz from tran
+    Scalar x = tran(0);
+    Scalar y = tran(1);
+    Scalar z;
+    if (problem.dim() == 2) {
+      z = 0;
+    } else {
+      z = tran(2);
+    }
+
+    // get quaternion from rot
+    Eigen::Matrix3d rot_padded = Eigen::Matrix3d::Identity();
+    rot_padded.block(0, 0, problem.dim(), problem.dim()) = rot;
+    Eigen::Quaternion<Scalar> quat(rot_padded);
+    Scalar qw = quat.w();
+    Scalar qx = quat.x();
+    Scalar qy = quat.y();
+    Scalar qz = quat.z();
+
+    // write the line to the file
+    output_file << time << " " << x << " " << y << " " << z << " " << qx << " "
+                << qy << " " << qz << " " << qw << std::endl;
+  }
+
+  // close the file
+  output_file.close();
+
+  // print that we saved the poses
+  std::cout << "Saved robot poses to " << fpath << std::endl;
 }
 
 } // namespace CORA
