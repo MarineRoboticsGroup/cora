@@ -9,8 +9,11 @@
 #include <set>
 #include <vector>
 
-std::vector<std::vector<CORA::Symbol>>
-getRobotPoseChains(const CORA::Problem &problem) {
+using PoseChain = std::vector<CORA::Symbol>;
+using PoseChains = std::vector<PoseChain>;
+using RPM = CORA::RelativePoseMeasurement;
+
+PoseChains getRobotPoseChains(const CORA::Problem &problem) {
   // get all of the unique pose characters
   std::set<unsigned char> seen_pose_chars;
   for (auto const &all_pose_symbols : problem.getPoseSymbolMap()) {
@@ -24,16 +27,132 @@ getRobotPoseChains(const CORA::Problem &problem) {
   std::sort(unique_pose_chars.begin(), unique_pose_chars.end());
 
   // for each unique pose character, get the pose symbols (sorted)
-  std::vector<std::vector<CORA::Symbol>> robot_pose_chains;
+  PoseChains robot_pose_chains;
   for (auto const &pose_char : unique_pose_chars) {
-    std::vector<CORA::Symbol> robot_pose_chain =
-        problem.getPoseSymbols(pose_char);
+    PoseChain robot_pose_chain = problem.getPoseSymbols(pose_char);
     std::sort(robot_pose_chain.begin(), robot_pose_chain.end());
     robot_pose_chains.push_back(robot_pose_chain);
   }
 
   // return the robot pose chains
   return robot_pose_chains;
+}
+
+std::vector<std::vector<RPM>> getOdomChains(const CORA::Problem &problem) {
+  // get the relevant problem data
+  PoseChains pose_chains = getRobotPoseChains(problem);
+  std::vector<unsigned char> pose_chain_chars = {};
+  for (auto const &pose_chain : pose_chains) {
+    pose_chain_chars.push_back(pose_chain[0].chr());
+  }
+
+  // init the odom chains
+  std::vector<std::vector<RPM>> odom_chains = {};
+  for (auto const &pose_chain : pose_chains) {
+    std::vector<RPM> odom_chain = {};
+    odom_chains.push_back(odom_chain);
+  }
+
+  // iterate over the RPMs and add any odometry measurements to
+  // the corresponding odom chain
+  for (const RPM &measure : problem.getRPMs()) {
+    // is odom if the first and second pose symbols have the same starting
+    // character and adjacent indices
+    if (measure.first_id.chr() == measure.second_id.chr() &&
+        measure.first_id.index() + 1 == measure.second_id.index()) {
+      // get the pose chain index
+      auto it = std::find(pose_chain_chars.begin(), pose_chain_chars.end(),
+                          measure.first_id.chr());
+      size_t pose_chain_index = std::distance(pose_chain_chars.begin(), it);
+
+      // get the odom chain index
+      size_t odom_chain_index = measure.first_id.index();
+
+      // add the odom measurement to the odom chain
+      odom_chains[pose_chain_index].push_back(measure);
+    }
+  }
+
+  // make sure that the odom chains are of the correct size (pose chain size -
+  // 1)
+  for (size_t pose_chain_index = 0; pose_chain_index < pose_chains.size();
+       pose_chain_index++) {
+    PoseChain pose_chain = pose_chains[pose_chain_index];
+    std::vector<RPM> odom_chain = odom_chains[pose_chain_index];
+
+    if (odom_chain.size() != pose_chain.size() - 1) {
+      throw std::runtime_error(
+          "Expected odom chain size to be pose chain size - 1");
+      // "Expected odom chain size to be pose chain size " +
+      // "- 1. The pose chain size is " + std::to_string(pose_chain.size()) +
+      // " and the odom chain size is " + std::to_string(odom_chain.size()));
+    }
+  }
+
+  // sort the odom chains by the first pose symbol index
+  for (size_t pose_chain_index = 0; pose_chain_index < pose_chains.size();
+       pose_chain_index++) {
+    PoseChain pose_chain = pose_chains[pose_chain_index];
+    std::vector<RPM> odom_chain = odom_chains[pose_chain_index];
+
+    std::sort(odom_chain.begin(), odom_chain.end(),
+              [](const RPM &a, const RPM &b) {
+                return a.first_id.index() < b.first_id.index();
+              });
+  }
+
+  // return the odom chains
+  return odom_chains;
+}
+
+CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
+  CORA::Matrix x0 = problem.getRandomInitialGuess();
+
+  int dim = problem.dim();
+  CORA::Matrix start_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
+
+  /** SET THE POSE VARIABLES  **/
+
+  // iterate over the odom chains
+  for (const std::vector<RPM> &odom_chain : getOdomChains(problem)) {
+    CORA::Matrix cur_pose = start_pose;
+    Index cur_rot_start = problem.getRotationIdx(odom_chain[0].first_id) * dim;
+    Index cur_tran_start = problem.getTranslationIdx(odom_chain[0].first_id);
+
+    // set the first rotation and translation
+    x0.block(cur_rot_start, 0, dim, dim) =
+        cur_pose.block(0, 0, dim, dim).transpose();
+    x0.row(cur_tran_start) = cur_pose.block(0, dim, dim, 1).transpose();
+
+    // iterate over the odometry measurements
+    for (const RPM &measure : odom_chain) {
+      // update the current pose
+      CORA::Matrix measure_as_matrix = measure.getHomogeneousMatrix();
+      cur_pose = cur_pose * measure_as_matrix;
+
+      // update the indices
+      cur_rot_start = problem.getRotationIdx(measure.second_id) * dim;
+      cur_tran_start = problem.getTranslationIdx(measure.second_id);
+
+      // set the rotation and translation
+      x0.block(cur_rot_start, 0, dim, dim) = cur_pose.block(0, 0, dim, dim);
+      x0.row(cur_tran_start) = cur_pose.block(0, dim, dim, 1).transpose();
+    }
+  }
+
+  /** SET THE SPHERE VARIABLES **/
+  for (const auto &measure : problem.getRangeMeasurements()) {
+    CORA::SymbolPair pair = measure.getSymbolPair();
+    Index range_start_idx = problem.getRangeIdx(pair);
+    Index first_trans_idx = problem.getTranslationIdx(pair.first);
+    Index second_trans_idx = problem.getTranslationIdx(pair.second);
+    x0.row(range_start_idx) =
+        x0.row(second_trans_idx) - x0.row(first_trans_idx);
+    x0.row(range_start_idx) =
+        x0.row(range_start_idx) / x0.row(range_start_idx).norm();
+  }
+
+  return x0;
 }
 
 void saveSolutions(const CORA::Problem &problem,
@@ -63,8 +182,7 @@ void saveSolutions(const CORA::Problem &problem,
   std::string save_path = save_dir_path + "/cora_";
 
   // get the different robot pose chains
-  std::vector<std::vector<CORA::Symbol>> robot_pose_chains =
-      getRobotPoseChains(problem);
+  PoseChains robot_pose_chains = getRobotPoseChains(problem);
 
   // if tiers.pyfg, then we have four robots
   if (pyfg_fpath == "data/tiers.pyfg" && robot_pose_chains.size() != 4) {
@@ -75,7 +193,7 @@ void saveSolutions(const CORA::Problem &problem,
   for (size_t robot_index = 0; robot_index < robot_pose_chains.size();
        robot_index++) {
     // get the robot pose chain
-    std::vector<CORA::Symbol> robot_pose_chain = robot_pose_chains[robot_index];
+    PoseChain robot_pose_chain = robot_pose_chains[robot_index];
 
     // save the estimated poses for this robot
     std::string robot_save_path =
@@ -90,14 +208,16 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
   problem.updateProblemData();
 
-  CORA::Matrix x0 = problem.getRandomInitialGuess();
+  // CORA::Matrix x0 = problem.getRandomInitialGuess();
+  CORA::Matrix x0 = getOdomInitialization(problem);
   int max_rank = 10;
 
   // start timer
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  CORA::CoraResult soln = CORA::solveCORA(problem, x0, max_rank);
+  bool verbose = true;
+  CORA::CoraResult soln = CORA::solveCORA(problem, x0, max_rank, verbose);
 
   // end timer
   auto end = std::chrono::high_resolution_clock::now();
@@ -112,8 +232,12 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 
 int main(int argc, char **argv) {
   std::vector<std::string> files = {
-      "data/marine_two_robots.pyfg", "data/plaza1.pyfg", "data/plaza2.pyfg",
-      "data/single_drone.pyfg", "data/tiers.pyfg"};
+      // "data/marine_two_robots.pyfg",
+      // "data/plaza1.pyfg",
+      // "data/plaza2.pyfg",
+      "data/single_drone.pyfg",
+      // "data/tiers.pyfg"
+  };
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);
