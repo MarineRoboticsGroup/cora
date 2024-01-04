@@ -32,13 +32,15 @@ set(ENABLE_VECTORIZATION ON CACHE BOOL "Enable vectorized instruction sets (SIMD
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
-set(ENABLE_VISUALIZATION ON CACHE BOOL "Enable visualization module.")
+set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+# Run the experiments from the paper
+set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples
 set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
 set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings.")
 # Build tests using Catch2
-set (BUILD_TESTS ON CACHE BOOL "Build Catch2 tests.")
+set (BUILD_TESTS OFF CACHE BOOL "Build Catch2 tests.")
 
 # Add the .cmake files that ship with Eigen3 to the CMake module path (useful for finding other stuff)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE STRING "The CMake module path used for this project")
