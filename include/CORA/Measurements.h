@@ -87,6 +87,14 @@ struct RelativePoseMeasurement : PairMeasurement {
     }
   }
 
+  Matrix getHomogeneousMatrix() const {
+    int d = R.rows();
+    Matrix H = Matrix::Identity(d + 1, d + 1);
+    H.block(0, 0, d, d) = R;
+    H.block(0, d, d, 1) = t;
+    return H;
+  }
+
   /**
    * @brief Compute the translational (scalar) precision of the measurement
    * from the covariance matrix.

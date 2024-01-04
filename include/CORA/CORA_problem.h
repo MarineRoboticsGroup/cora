@@ -240,6 +240,11 @@ public:
     return range_measurements_;
   }
 
+  // Get copy of relative pose measurements
+  inline std::vector<RelativePoseMeasurement> getRPMs() const {
+    return rel_pose_measurements_;
+  }
+
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
