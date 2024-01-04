@@ -86,3 +86,17 @@ As Dave's library is known to be easier to integrate, has a LOBPCG solver, and i
 likely more performant, we will use that library for now. If we find that we need
 more functionality, we can always switch to ROPTLIB later and update this documentation
 accordingly.
+
+## Compiler Optimizations
+
+We have explored the following compiler flags and their impact on performance:
+
+- `-O2`
+- `-O3`
+- `-march=native`
+- `-ffast-math`
+- `-fno-math-errno`
+- `-funsafe-math-optimizations`
+
+in the end we found that `-O3` made the most significant difference in performance, with
+the other flags having a negligible impact.

@@ -231,13 +231,11 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 }
 
 int main(int argc, char **argv) {
-  std::vector<std::string> files = {
-      // "data/marine_two_robots.pyfg",
-      // "data/plaza1.pyfg",
-      // "data/plaza2.pyfg",
-      "data/single_drone.pyfg",
-      // "data/tiers.pyfg"
-  };
+  std::vector<std::string> files = {// "data/marine_two_robots.pyfg",
+                                    // "data/plaza1.pyfg",
+                                    // "data/plaza2.pyfg",
+                                    // "data/single_drone.pyfg",
+                                    "data/tiers.pyfg"};
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);

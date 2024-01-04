@@ -17,7 +17,6 @@ else()
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    # Add the -O3 optimization flag
     add_compile_options(-O3)
 endif()
 
@@ -79,8 +78,10 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 # Testing
+if(${BUILD_TESTS})
 set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
 add_subdirectory(${CATCH2_DIR})
+endif()
 
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
@@ -99,6 +100,8 @@ set(TONIOVIZ_DIR ${LIBS_DIR}/tonioviz/ CACHE PATH "Path to top-level directory o
 add_subdirectory(${TONIOVIZ_DIR})
 get_property(TONIOVIZ_INCLUDE_DIRS TARGET tonioviz PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 endif ()
+
+
 
 # BUILD CORA LIBRARY
 

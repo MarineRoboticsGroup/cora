@@ -23,9 +23,8 @@ CORA::Scalar thresholdVal(CORA::Scalar val, CORA::Scalar lower_bound,
 
 namespace CORA {
 
-CoraResult solveCORA(Problem &problem, const Matrix &x0,
+CoraResult solveCORA(const Problem &problem, const Matrix &x0,
                      int max_relaxation_rank, bool verbose, bool log_iterates) {
-
   // if log_iterates is true, throw a warning that will be
   // slower than usual
   if (log_iterates) {
@@ -82,8 +81,8 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
   Optimization::Riemannian::TNTParams<Scalar> params;
   params.max_TPCG_iterations = 150;
   params.max_iterations = 300;
-  params.preconditioned_gradient_tolerance = 1e-3;
-  params.gradient_tolerance = 1e-3;
+  params.preconditioned_gradient_tolerance = 1e-2;
+  params.gradient_tolerance = 1e-2;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-3;
   params.verbose = false;
@@ -227,7 +226,7 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
   // triggering the gradient norm tolerance stopping condition (according to the
   // local second-order model), or at least 2^4 times the minimum admissible
   // steplength,
-  Scalar alpha_min = 1e-6; // Minimum stepsize
+  Scalar alpha_min = 1e-8; // Minimum stepsize
   Scalar alpha =
       std::max(16 * alpha_min, 100 * gradient_tolerance / fabs(theta));
 
