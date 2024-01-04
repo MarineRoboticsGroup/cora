@@ -32,5 +32,5 @@ message(STATUS "Building main cora_example command-line executable in directory 
 
 ## Copy example PyFG files to build directory
 foreach(PYFG_FILE ${EXAMPLE_PYFG_FILES})
-    configure_file(${PYFG_FILE} ${EXECUTABLE_OUTPUT_PATH}/example_data/${PYFG_FILE} COPYONLY)
+    configure_file(${PYFG_FILE} ${EXECUTABLE_OUTPUT_PATH}/${PYFG_FILE} COPYONLY)
 endforeach()

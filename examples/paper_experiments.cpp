@@ -41,15 +41,15 @@ void saveSolutions(const CORA::Problem &problem,
                    const std::string &pyfg_fpath) {
   /**
    * @brief for each robot, save the solution to a .tum file e.g.
-   * ./data/plaza2.pyfg -> /tmp/plaza2/cora_0.tum
+   * data/plaza2.pyfg -> /tmp/plaza2/cora_0.tum
    * or
-   * ./data/marine_two_robots.pyfg -> /tmp/marine_two_robots/cora_0.tum,
+   * data/marine_two_robots.pyfg -> /tmp/marine_two_robots/cora_0.tum,
    * /tmp/marine_two_robots/cora_1.tum
    *
    */
 
-  // strip the .pyfg extension and the ./data/ prefix
-  size_t data_length = std::string("./data/").length();
+  // strip the .pyfg extension and the data/ prefix
+  size_t data_length = std::string("data/").length();
   size_t pyfg_index = pyfg_fpath.find(".pyfg");
   std::string save_dir_name =
       pyfg_fpath.substr(data_length, pyfg_index - data_length);
@@ -67,7 +67,7 @@ void saveSolutions(const CORA::Problem &problem,
       getRobotPoseChains(problem);
 
   // if tiers.pyfg, then we have four robots
-  if (pyfg_fpath == "./data/tiers.pyfg" && robot_pose_chains.size() != 4) {
+  if (pyfg_fpath == "data/tiers.pyfg" && robot_pose_chains.size() != 4) {
     throw std::runtime_error("Expected 4 robots in tiers.pyfg");
   }
 
@@ -87,7 +87,7 @@ void saveSolutions(const CORA::Problem &problem,
 CORA::Matrix solveProblem(std::string pyfg_fpath) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
-  CORA::Problem problem = CORA::parsePyfgTextToProblem(pyfg_fpath);
+  CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
@@ -112,8 +112,8 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 
 int main(int argc, char **argv) {
   std::vector<std::string> files = {
-      "./data/marine_two_robots.pyfg", "./data/plaza1.pyfg",
-      "./data/plaza2.pyfg", "./data/single_drone.pyfg", "./data/tiers.pyfg"};
+      "data/marine_two_robots.pyfg", "data/plaza1.pyfg", "data/plaza2.pyfg",
+      "data/single_drone.pyfg", "data/tiers.pyfg"};
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);
