@@ -38,6 +38,64 @@ enum PyFGType {
   RANGE_MEASURE_TYPE,
 };
 
+int getDimFromPyfgFirstLine(const std::string &filename) {
+  // Check if the file exists and we can read it
+  std::ifstream in_file(filename);
+  if (!in_file.good()) {
+    throw std::runtime_error("Could not open file " + filename);
+  }
+
+  const std::map<std::string, PyFGType> PyFGStringToType{
+      {"VERTEX_SE2", POSE_TYPE_2D},
+      {"VERTEX_SE3:QUAT", POSE_TYPE_3D},
+      {"VERTEX_SE2:PRIOR", POSE_PRIOR_2D},
+      {"VERTEX_SE3:QUAT:PRIOR", POSE_PRIOR_3D},
+      {"VERTEX_XY", LANDMARK_TYPE_2D},
+      {"VERTEX_XYZ", LANDMARK_TYPE_3D},
+      {"VERTEX_XY:PRIOR", LANDMARK_PRIOR_2D},
+      {"VERTEX_XYZ:PRIOR", LANDMARK_PRIOR_3D},
+      {"EDGE_SE2", REL_POSE_POSE_TYPE_2D},
+      {"EDGE_SE3:QUAT", REL_POSE_POSE_TYPE_3D},
+      {"EDGE_SE2_XY", REL_POSE_LANDMARK_TYPE_2D},
+      {"EDGE_SE3_XYZ", REL_POSE_LANDMARK_TYPE_3D},
+      {"EDGE_RANGE", RANGE_MEASURE_TYPE}};
+
+  // get just the first line and close the file
+  std::string line;
+  std::getline(in_file, line);
+  in_file.close();
+
+  // Get the item type with the first word
+  std::istringstream iss(line);
+  std::string item_type;
+
+  double timestamp;
+  // A bunch of placeholder strings to be used for populating different types
+  std::string sym1, sym2;
+
+  if (!(iss >> item_type)) {
+    throw std::runtime_error("Could not read item type from line " + line);
+  }
+
+  if (PyFGStringToType.find(item_type) == PyFGStringToType.end()) {
+    throw std::runtime_error("Unknown item type " + item_type);
+  }
+
+  switch (PyFGStringToType.find(item_type)->second) {
+  case POSE_TYPE_2D:
+    return 2;
+  case POSE_TYPE_3D:
+    return 3;
+  case LANDMARK_TYPE_2D:
+    return 2;
+  case LANDMARK_TYPE_3D:
+    return 3;
+  default:
+    throw std::runtime_error("Could not determine dimension from first line " +
+                             line);
+  }
+}
+
 /**
  * @brief Parses a text file written in the PyFG format and returns a
  * CORA::Problem
@@ -54,7 +112,9 @@ enum PyFGType {
 Problem parsePyfgTextToProblem(const std::string &filename) {
   // Note: This currently ignores all groundtruth measurements embedded
   // in the file
-  CORA::Problem problem(2, 2);
+  int dim = getDimFromPyfgFirstLine(filename);
+  int relaxation_rank = dim + 3;
+  CORA::Problem problem(dim, relaxation_rank);
 
   const std::map<std::string, PyFGType> PyFGStringToType{
       {"VERTEX_SE2", POSE_TYPE_2D},
