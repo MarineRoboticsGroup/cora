@@ -119,7 +119,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     std::chrono::high_resolution_clock::time_point unprecon_time =
         std::chrono::high_resolution_clock::now();
 
-    double unprecon_iter_frac = .05;
+    double unprecon_iter_frac = .01;
     std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
         Mop, std::optional<SymmetricLinOp>(), std::optional<SymmetricLinOp>(),
         X0, 1, static_cast<size_t>(unprecon_iter_frac * max_iters), num_iters,
