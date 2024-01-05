@@ -38,7 +38,7 @@ PoseChains getRobotPoseChains(const CORA::Problem &problem) {
   return robot_pose_chains;
 }
 
-CORA::Matrix getRandomStartPose(const int dim){
+CORA::Matrix getRandomStartPose(const int dim) {
   CORA::Matrix rot_rand = CORA::Matrix::Random(dim, dim);
 
   // make sure that the rotation matrix is orthogonal by taking the QR
@@ -54,8 +54,8 @@ CORA::Matrix getRandomStartPose(const int dim){
     rot = rot * neg_identity;
   }
 
-  // get a random translation between -20 and 20
-  CORA::Matrix tran = CORA::Matrix::Random(dim, 1) * 20;
+  // get a random translation
+  CORA::Matrix tran = CORA::Matrix::Random(dim, 1) * 10;
 
   CORA::Matrix start_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
   start_pose.block(0, 0, dim, dim) = rot;
@@ -132,7 +132,9 @@ std::vector<std::vector<RPM>> getOdomChains(const CORA::Problem &problem) {
 }
 
 CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
-  CORA::Matrix x0 = problem.getRandomInitialGuess();
+  CORA::Matrix x0 = CORA::Matrix::Zero(problem.getDataMatrixSize(),
+                                       problem.getRelaxationRank());
+  // x0 = problem.getRandomInitialGuess();
 
   int dim = problem.dim();
   /** SET THE POSE VARIABLES  **/
@@ -146,7 +148,8 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
     // set the first rotation and translation
     x0.block(cur_rot_start, 0, dim, dim) =
         cur_pose.block(0, 0, dim, dim).transpose();
-    x0.row(cur_tran_start) = cur_pose.block(0, dim, dim, 1).transpose();
+    x0.block(cur_tran_start, 0, 1, dim) =
+        cur_pose.block(0, dim, dim, 1).transpose();
 
     // iterate over the odometry measurements
     for (const RPM &measure : odom_chain) {
@@ -159,8 +162,10 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
       cur_tran_start = problem.getTranslationIdx(measure.second_id);
 
       // set the rotation and translation
-      x0.block(cur_rot_start, 0, dim, dim) = cur_pose.block(0, 0, dim, dim);
-      x0.row(cur_tran_start) = cur_pose.block(0, dim, dim, 1).transpose();
+      x0.block(cur_rot_start, 0, dim, dim) =
+          cur_pose.block(0, 0, dim, dim).transpose();
+      x0.block(cur_tran_start, 0, 1, dim) =
+          cur_pose.block(0, dim, dim, 1).transpose();
     }
   }
 
@@ -184,6 +189,33 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
           x0.row(range_start_idx) / x0.row(range_start_idx).norm();
     }
   }
+
+  // rotate the solution so that it is generically dense
+  CORA::Matrix rot = CORA::Matrix::Random(problem.getRelaxationRank(),
+                                          problem.getRelaxationRank());
+  // orthogonalize the rotation matrix
+  rot = rot.householderQr().householderQ();
+
+  // if the determinant is negative, then multiply by identity
+  // matrix with -1 in the last row
+  if (rot.determinant() < 0) {
+    CORA::Matrix reflector = CORA::Matrix::Identity(
+        problem.getRelaxationRank(), problem.getRelaxationRank());
+    reflector(problem.getRelaxationRank() - 1,
+              problem.getRelaxationRank() - 1) = -1;
+    rot = rot * reflector;
+  }
+
+  // the determinant should be 1
+  if (std::abs(rot.determinant() - 1) > 1e-6) {
+    throw std::runtime_error("Expected determinant to be 1");
+  }
+
+  // rotate the solution
+  x0 = x0 * rot;
+
+  // add small noise to the solution
+  x0 = x0 + 1e-8 * CORA::Matrix::Random(x0.rows(), x0.cols());
 
   return x0;
 }
@@ -249,7 +281,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  bool verbose = true;
+  bool verbose = false;
   CORA::CoraResult soln = CORA::solveCORA(problem, x0, max_rank, verbose);
 
   // end timer
@@ -264,13 +296,10 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 }
 
 int main(int argc, char **argv) {
-  std::vector<std::string> files = {
-      "data/marine_two_robots.pyfg",
-      "data/plaza1.pyfg",
-      "data/plaza2.pyfg",
-      "data/single_drone.pyfg",
-      "data/tiers.pyfg"
-  };
+  std::vector<std::string> files = {// "data/marine_two_robots.pyfg",
+                                    "data/plaza1.pyfg", "data/plaza2.pyfg",
+                                    "data/single_drone.pyfg",
+                                    "data/tiers.pyfg"};
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);

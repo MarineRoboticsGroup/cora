@@ -113,8 +113,10 @@ Problem parsePyfgTextToProblem(const std::string &filename) {
   // Note: This currently ignores all groundtruth measurements embedded
   // in the file
   int dim = getDimFromPyfgFirstLine(filename);
-  int relaxation_rank = dim + 3;
-  CORA::Problem problem(dim, relaxation_rank);
+  int relaxation_rank = dim + 0;
+  CORA::Formulation formulation = CORA::Formulation::Explicit;
+  CORA::Preconditioner preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  CORA::Problem problem(dim, relaxation_rank, formulation, preconditioner);
 
   const std::map<std::string, PyFGType> PyFGStringToType{
       {"VERTEX_SE2", POSE_TYPE_2D},
