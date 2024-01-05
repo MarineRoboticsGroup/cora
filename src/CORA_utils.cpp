@@ -37,9 +37,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
   /// Set various options for the factorization
 
-  // time the various components of verification
-  auto chol_time = std::chrono::high_resolution_clock::now();
-
   // Bail out early if non-positive-semidefiniteness is detected
   MChol.cholmod().quick_return_if_not_posdef = 1;
 
@@ -52,12 +49,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
   // Test whether the Cholesky decomposition succeeded
   bool PSD = (MChol.info() == Eigen::Success);
-
-  // stop the timer
-  auto chol_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> chol_time_elapsed = chol_end - chol_time;
-  std::cout << "Cholesky factorization took: " << chol_time_elapsed.count()
-            << " seconds" << std::endl;
 
   if (!PSD) {
     /// If control reaches here, then lambda_min(S) < -eta, so we must compute
@@ -115,10 +106,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
     /// Run preconditioned LOBPCG, using at most 15% of the total allocated
     /// iterations
-
-    std::chrono::high_resolution_clock::time_point unprecon_time =
-        std::chrono::high_resolution_clock::now();
-
     double unprecon_iter_frac = .01;
     std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
         Mop, std::optional<SymmetricLinOp>(), std::optional<SymmetricLinOp>(),
@@ -127,13 +114,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
         std::optional<
             Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
             stopfun));
-
-    std::chrono::high_resolution_clock::time_point unprecon_end =
-        std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> unprecon_time_elapsed =
-        unprecon_end - unprecon_time;
-    std::cout << "Unpreconditioned LOBPCG took: "
-              << unprecon_time_elapsed.count() << " seconds" << std::endl;
 
     // Extract eigenvector estimate
     x = X.col(0);
@@ -174,9 +154,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
       /// Run preconditioned LOBPCG using the remaining alloted LOBPCG
       /// iterations
-      std::chrono::high_resolution_clock::time_point precon_time =
-          std::chrono::high_resolution_clock::now();
-
       std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
           Mop, std::optional<SymmetricLinOp>(),
           std::optional<SymmetricLinOp>(T), X0, 1,
@@ -185,13 +162,6 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
           std::optional<
               Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
               stopfun));
-
-      std::chrono::high_resolution_clock::time_point precon_end =
-          std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> precon_time_elapsed =
-          precon_end - precon_time;
-      std::cout << "Preconditioned LOBPCG took: " << precon_time_elapsed.count()
-                << " seconds" << std::endl;
 
       // Extract eigenvector estimate
       x = X.col(0);

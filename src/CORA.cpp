@@ -110,10 +110,6 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
   // no custom instrumentation function for now
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
-  std::chrono::time_point<std::chrono::high_resolution_clock> opt_time;
-  std::chrono::time_point<std::chrono::high_resolution_clock> cert_time;
-  std::chrono::time_point<std::chrono::high_resolution_clock> saddle_time;
-
   CoraTntResult result;
   Matrix X = x0;
   CertResults cert_results;
@@ -145,15 +141,8 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
       eigvec_bootstrap = cert_results.all_eigvecs;
     }
 
-    // time the certification
-    cert_time = std::chrono::high_resolution_clock::now();
-
     cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
                                             eigvec_bootstrap);
-    std::chrono::duration<double> cert_duration =
-        std::chrono::high_resolution_clock::now() - cert_time;
-    std::cout << "Certification took " << cert_duration.count() << " seconds"
-              << std::endl;
 
     printIfVerbose(
         verbose,
