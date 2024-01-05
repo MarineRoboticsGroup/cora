@@ -38,6 +38,32 @@ PoseChains getRobotPoseChains(const CORA::Problem &problem) {
   return robot_pose_chains;
 }
 
+CORA::Matrix getRandomStartPose(const int dim){
+  CORA::Matrix rot_rand = CORA::Matrix::Random(dim, dim);
+
+  // make sure that the rotation matrix is orthogonal by taking the QR
+  // decomposition
+  Eigen::HouseholderQR<CORA::Matrix> qr(rot_rand);
+  CORA::Matrix rot = qr.householderQ();
+
+  // if the determinant is negative, multiply by an identity matrix
+  // with the last element negated
+  if (rot.determinant() < 0) {
+    CORA::Matrix neg_identity = CORA::Matrix::Identity(dim, dim);
+    neg_identity(dim - 1, dim - 1) = -1;
+    rot = rot * neg_identity;
+  }
+
+  // get a random translation between -20 and 20
+  CORA::Matrix tran = CORA::Matrix::Random(dim, 1) * 20;
+
+  CORA::Matrix start_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
+  start_pose.block(0, 0, dim, dim) = rot;
+  start_pose.block(0, dim, dim, 1) = tran;
+
+  return start_pose;
+}
+
 std::vector<std::vector<RPM>> getOdomChains(const CORA::Problem &problem) {
   // get the relevant problem data
   PoseChains pose_chains = getRobotPoseChains(problem);
@@ -109,13 +135,11 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
   CORA::Matrix x0 = problem.getRandomInitialGuess();
 
   int dim = problem.dim();
-  CORA::Matrix start_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
-
   /** SET THE POSE VARIABLES  **/
 
   // iterate over the odom chains
   for (const std::vector<RPM> &odom_chain : getOdomChains(problem)) {
-    CORA::Matrix cur_pose = start_pose;
+    CORA::Matrix cur_pose = getRandomStartPose(dim);
     Index cur_rot_start = problem.getRotationIdx(odom_chain[0].first_id) * dim;
     Index cur_tran_start = problem.getTranslationIdx(odom_chain[0].first_id);
 
@@ -148,8 +172,17 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
     Index second_trans_idx = problem.getTranslationIdx(pair.second);
     x0.row(range_start_idx) =
         x0.row(second_trans_idx) - x0.row(first_trans_idx);
-    x0.row(range_start_idx) =
-        x0.row(range_start_idx) / x0.row(range_start_idx).norm();
+
+    // if the row is near zero, set it to a random unit vector
+    // otherwise, normalize it
+    if (x0.row(range_start_idx).norm() < 1e-6) {
+      x0.row(range_start_idx) = CORA::Matrix::Random(1, dim);
+      x0.row(range_start_idx) =
+          x0.row(range_start_idx) / x0.row(range_start_idx).norm();
+    } else {
+      x0.row(range_start_idx) =
+          x0.row(range_start_idx) / x0.row(range_start_idx).norm();
+    }
   }
 
   return x0;
@@ -232,11 +265,11 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 
 int main(int argc, char **argv) {
   std::vector<std::string> files = {
-      // "data/marine_two_robots.pyfg",
-      // "data/plaza1.pyfg",
-      // "data/plaza2.pyfg",
+      "data/marine_two_robots.pyfg",
+      "data/plaza1.pyfg",
+      "data/plaza2.pyfg",
       "data/single_drone.pyfg",
-      // "data/tiers.pyfg"
+      "data/tiers.pyfg"
   };
 
   for (auto file : files) {
