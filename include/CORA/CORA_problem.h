@@ -328,7 +328,7 @@ public:
    */
   CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
                                const Matrix &eigvec_bootstrap,
-                               size_t max_LOBPCG_iters = 1000,
+                               size_t max_LOBPCG_iters = 500,
                                Scalar max_fill_factor = 3,
                                Scalar drop_tol = 1e-3) const;
 
