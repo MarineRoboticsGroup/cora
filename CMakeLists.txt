@@ -79,8 +79,10 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 # Testing
+if(${BUILD_TESTS})
 set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
 add_subdirectory(${CATCH2_DIR})
+endif()
 
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
