@@ -32,7 +32,7 @@ set(ENABLE_VECTORIZATION ON CACHE BOOL "Enable vectorized instruction sets (SIMD
 # Enable OMP parallelization
 set(ENABLE_OPENMP OFF CACHE BOOL "Enable OMP parallelization? [enabled by default]")
 # Enable code profiling using gperftools
-set(ENABLE_PROFILING ON CACHE BOOL "Enable code profiling using gperftools")
+set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
 set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
 # Run the experiments from the paper
