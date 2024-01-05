@@ -4,6 +4,8 @@
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
 
+#include <gperftools/profiler.h>
+
 void printIfVerbose(bool verbose, std::string msg) {
   if (verbose) {
     std::cout << msg << std::endl;
@@ -25,7 +27,6 @@ namespace CORA {
 
 CoraResult solveCORA(Problem &problem, const Matrix &x0,
                      int max_relaxation_rank, bool verbose, bool log_iterates) {
-
   // if log_iterates is true, throw a warning that will be
   // slower than usual
   if (log_iterates) {
@@ -80,7 +81,7 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
 
   // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
-  params.max_TPCG_iterations = 150;
+  params.max_TPCG_iterations = 250;
   params.max_iterations = 300;
   params.preconditioned_gradient_tolerance = 1e-3;
   params.gradient_tolerance = 1e-3;
@@ -116,8 +117,12 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
   CoraTntResult result;
   Matrix X = x0;
   CertResults cert_results;
+  Matrix eigvec_bootstrap;
   std::vector<Matrix> iterates = std::vector<Matrix>();
+  bool first_loop = true;
+  int loop_cnt = 0;
   while (problem.getRelaxationRank() <= max_relaxation_rank) {
+    loop_cnt++;
     // solve the problem
     printIfVerbose(verbose, "\nSolving problem at rank " +
                                 std::to_string(problem.getRelaxationRank()));
@@ -133,7 +138,23 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
 
     // check if the solution is certified
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
-    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
+    if (first_loop) {
+      eigvec_bootstrap = result.x;
+    } else {
+      // eigvec_bootstrap = result.x;
+      eigvec_bootstrap = cert_results.all_eigvecs;
+    }
+
+    // time the certification
+    cert_time = std::chrono::high_resolution_clock::now();
+
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
+                                            eigvec_bootstrap);
+    std::chrono::duration<double> cert_duration =
+        std::chrono::high_resolution_clock::now() - cert_time;
+    std::cout << "Certification took " << cert_duration.count() << " seconds"
+              << std::endl;
+
     printIfVerbose(
         verbose,
         "Result is certified: " + std::to_string(cert_results.is_certified) +
@@ -173,7 +194,8 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
 
     // let's check if the solution is certified
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
-    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
+                                            eigvec_bootstrap);
   }
 
   // print out whether or not the solution is certified

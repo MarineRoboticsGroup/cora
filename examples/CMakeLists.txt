@@ -9,14 +9,18 @@ if(${ENABLE_VISUALIZATION})
 endif()
 
 if(${ENABLE_PROFILING})
-target_compile_definitions(cora_example PRIVATE GPERFTOOLS)
-target_link_libraries(cora_example profiler)
+  target_compile_definitions(cora_example PRIVATE GPERFTOOLS)
+  target_link_libraries(cora_example profiler)
 endif()
 
 if(${PERFORM_EXPERIMENTS})
-message(STATUS "Building paper_experiments executable")
-add_executable(paper_experiments paper_experiments.cpp)
-target_link_libraries(paper_experiments CORA)
+  message(STATUS "Building paper_experiments executable")
+  add_executable(paper_experiments paper_experiments.cpp)
+  target_link_libraries(paper_experiments CORA)
+  if(${ENABLE_PROFILING})
+    target_compile_definitions(paper_experiments PRIVATE GPERFTOOLS)
+    target_link_libraries(paper_experiments profiler)
+  endif()
 endif()
 
 set(EXAMPLE_PYFG_FILES

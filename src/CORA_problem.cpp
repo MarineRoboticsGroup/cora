@@ -11,6 +11,7 @@
 
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_utils.h>
+#include <Optimization/LinearAlgebra/LOBPCG.h>
 
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
@@ -339,10 +340,62 @@ void Problem::updatePreconditioner() {
   } else if (preconditioner_ == Preconditioner::RegularizedCholesky) {
     // add a small value to the diagonal of the data matrix to ensure that it is
     // positive definite
+
+    /// Next, we must estimate the spectral norm of D in order to determine
+    /// the value of the regularization constant lambda_reg necessary to
+    /// guarantee that the upper bound for the desired condition number of the
+    /// preconditioner P is achieved
+
+    // Here we use the fact that D >= 0, so that
+    // ||D||_2 = lambda_max(D) = - lambda_min(-D)
+
+    CORA::SparseMatrix D = data_matrix_;
+    Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix> neg_D_op =
+        [&D](const Matrix &X) -> Matrix { return -(D * X); };
+    // SymmetricLinOp Mop = [&M](const Matrix &X) -> Matrix { return M * X; };
+
+    // Estimate the algebraically-smallest eigenvalue of -D using LOBPCG
+
+    size_t num_iters;
+    size_t nc;
+    Vector theta;
+    Matrix X;
+    std::tie(theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
+        neg_D_op,
+        std::optional<
+            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+            std::nullopt),
+        std::optional<
+            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+            std::nullopt),
+        data_matrix_.rows(), 4, 1, 100, num_iters, nc, 1e-2);
+
+    // Extract estimated norm of M
+    Scalar Dnorm = -theta(0);
+
+    // load a scalar from an environment variable
+    Scalar reg_Chol_precon_max_cond_ = 1e6;
+    char *env_var = std::getenv("CORA_REG_CHOLESKY_MAX_COND");
+    if (env_var != NULL) {
+      reg_Chol_precon_max_cond_ = std::stod(env_var);
+      std::cout << "Loaded CORA_REG_CHOLESKY_MAX_COND from environment "
+                   "variable: "
+                << reg_Chol_precon_max_cond_ << std::endl;
+    } else {
+      std::cout << "Using default value for CORA_REG_CHOLESKY_MAX_COND: "
+                << reg_Chol_precon_max_cond_ << std::endl;
+    }
+
+    // Compute the required value of the regularization parameter lambda_reg
+    Scalar lambda_reg = Dnorm / (reg_Chol_precon_max_cond_ - 1);
+    std::cout << "Regularized Cholesky preconditioner: lambda_reg = "
+              << lambda_reg << std::endl;
+
     SparseMatrix epsilonPosDefUpdate =
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
     epsilonPosDefUpdate.setIdentity();
-    epsilonPosDefUpdate *= 1e-2;
+    epsilonPosDefUpdate *= lambda_reg;
+
     VectorXi block_sizes(1);
     block_sizes(0) = data_matrix_.rows();
     preconditioner_matrices_.block_chol_factor_ptrs_ =
@@ -700,6 +753,7 @@ Matrix Problem::getRandomInitialGuess() const {
 }
 
 CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
+                                      const Matrix &eigvec_bootstrap,
                                       size_t max_LOBPCG_iters,
                                       Scalar max_fill_factor,
                                       Scalar drop_tol) const {
@@ -723,7 +777,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
         "equal to the number of columns of Y");
   }
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
-  init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
+  init_eigvec_guess.block(0, 0, S.rows(), eigvec_bootstrap.cols()) =
+      eigvec_bootstrap;
   CertResults results = fast_verification(
       S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
 

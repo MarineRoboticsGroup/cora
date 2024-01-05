@@ -248,6 +248,10 @@ public:
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
+  // the most recent minimum eigenvectors computed by LOBPCG for certification
+  CertResults last_cert_results_;
+  bool last_cert_results_valid_ = false;
+
   void updateProblemData();
   SparseMatrix getDataMatrix();
 
@@ -323,6 +327,7 @@ public:
    * @return CertResults
    */
   CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
+                               const Matrix &eigvec_bootstrap,
                                size_t max_LOBPCG_iters = 1000,
                                Scalar max_fill_factor = 3,
                                Scalar drop_tol = 1e-3) const;

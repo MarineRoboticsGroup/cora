@@ -21,6 +21,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   size_t num_iters = 0;
   Scalar theta = 0;
   Vector x = Vector::Zero(S.rows());
+  Matrix X; // Matrix to hold eigenvector estimates for S
 
   unsigned int n = S.rows();
 
@@ -36,6 +37,9 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
   /// Set various options for the factorization
 
+  // time the various components of verification
+  auto chol_time = std::chrono::high_resolution_clock::now();
+
   // Bail out early if non-positive-semidefiniteness is detected
   MChol.cholmod().quick_return_if_not_posdef = 1;
 
@@ -48,6 +52,12 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
   // Test whether the Cholesky decomposition succeeded
   bool PSD = (MChol.info() == Eigen::Success);
+
+  // stop the timer
+  auto chol_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> chol_time_elapsed = chol_end - chol_time;
+  std::cout << "Cholesky factorization took: " << chol_time_elapsed.count()
+            << " seconds" << std::endl;
 
   if (!PSD) {
     /// If control reaches here, then lambda_min(S) < -eta, so we must compute
@@ -64,12 +74,12 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
       results.is_certified = PSD;
       results.theta = theta;
       results.x = x;
+      results.all_eigvecs = x;
       results.num_iters = num_iters;
       return results;
     }
 
     Vector Theta; // Vector to hold Ritz values of S
-    Matrix X;     // Matrix to hold eigenvector estimates for S
     size_t num_converged;
 
     /// Set up matrix-vector multiplication operator with regularized
@@ -106,6 +116,9 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     /// Run preconditioned LOBPCG, using at most 15% of the total allocated
     /// iterations
 
+    std::chrono::high_resolution_clock::time_point unprecon_time =
+        std::chrono::high_resolution_clock::now();
+
     double unprecon_iter_frac = .15;
     std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
         Mop, std::optional<SymmetricLinOp>(), std::optional<SymmetricLinOp>(),
@@ -114,6 +127,13 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
         std::optional<
             Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
             stopfun));
+
+    std::chrono::high_resolution_clock::time_point unprecon_end =
+        std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> unprecon_time_elapsed =
+        unprecon_end - unprecon_time;
+    std::cout << "Unpreconditioned LOBPCG took: "
+              << unprecon_time_elapsed.count() << " seconds" << std::endl;
 
     // Extract eigenvector estimate
     x = X.col(0);
@@ -154,6 +174,9 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
       /// Run preconditioned LOBPCG using the remaining alloted LOBPCG
       /// iterations
+      std::chrono::high_resolution_clock::time_point precon_time =
+          std::chrono::high_resolution_clock::now();
+
       std::tie(Theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
           Mop, std::optional<SymmetricLinOp>(),
           std::optional<SymmetricLinOp>(T), X0, 1,
@@ -162,6 +185,13 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
           std::optional<
               Optimization::LinearAlgebra::LOBPCGUserFunction<Vector, Matrix>>(
               stopfun));
+
+      std::chrono::high_resolution_clock::time_point precon_end =
+          std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> precon_time_elapsed =
+          precon_end - precon_time;
+      std::cout << "Preconditioned LOBPCG took: " << precon_time_elapsed.count()
+                << " seconds" << std::endl;
 
       // Extract eigenvector estimate
       x = X.col(0);
@@ -177,6 +207,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   results.is_certified = PSD;
   results.theta = theta;
   results.x = x;
+  results.all_eigvecs = X;
   results.num_iters = num_iters;
   return results;
 }
@@ -246,8 +277,8 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
   }
 
   // print warning that we are not using timestamps
-  std::cout << "Warning: timestamps are not being used in saveSolnToTum"
-            << std::endl;
+  // std::cout << "Warning: timestamps are not being used in saveSolnToTum"
+  //           << std::endl;
 
   // iterate over all the symbols and find the rotation and translation indices
   for (size_t time = 0; time < pose_symbols.size(); time++) {
@@ -284,7 +315,7 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
   output_file.close();
 
   // print that we saved the poses
-  std::cout << "Saved robot poses to " << fpath << std::endl;
+  // std::cout << "Saved robot poses to " << fpath << std::endl;
 }
 
 } // namespace CORA

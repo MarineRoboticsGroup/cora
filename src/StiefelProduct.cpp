@@ -39,13 +39,15 @@ Matrix StiefelProduct::SymBlockDiagProduct(const Matrix &A, const Matrix &BT,
                                            const Matrix &C) const {
   // Preallocate result matrix
   Matrix R(p_, k_ * n_);
+  Matrix P(k_, k_);
+  Matrix S(k_, k_);
 
   for (auto i = 0; i < n_; ++i) {
     auto start_col = static_cast<Index>(i * k_);
     // Compute block product Bi' * Ci
-    Matrix P = BT.block(start_col, 0, k_, p_) * C.block(0, start_col, p_, k_);
+    P = BT.block(start_col, 0, k_, p_) * C.block(0, start_col, p_, k_);
     // Symmetrize this block
-    Matrix S = .5 * (P + P.transpose());
+    S = .5 * (P + P.transpose());
     // Compute Ai * S and set corresponding block of R
     R.block(0, start_col, p_, k_) = A.block(0, start_col, p_, k_) * S;
   }
