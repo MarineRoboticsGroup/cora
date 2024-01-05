@@ -169,18 +169,47 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
     }
   }
 
+  /** RANDOMIZE THE LANDMARK VARIABLES **/
+  for (const auto &landmark_pair : problem.getLandmarkSymbolMap()) {
+    CORA::Symbol symbol = landmark_pair.first;
+    Index landmark_start_idx = problem.getTranslationIdx(symbol);
+    x0.row(landmark_start_idx) = CORA::Matrix::Random(1, x0.cols());
+  }
+
   /** SET THE SPHERE VARIABLES **/
   for (const auto &measure : problem.getRangeMeasurements()) {
     CORA::SymbolPair pair = measure.getSymbolPair();
     Index range_start_idx = problem.getRangeIdx(pair);
     Index first_trans_idx = problem.getTranslationIdx(pair.first);
     Index second_trans_idx = problem.getTranslationIdx(pair.second);
-    x0.row(range_start_idx) =
-        x0.row(second_trans_idx) - x0.row(first_trans_idx);
+
+    CORA::Matrix diff = x0.row(second_trans_idx) - x0.row(first_trans_idx);
+
+    bool dist_very_off =
+        diff.norm() / measure.r < 0.1 || diff.norm() / measure.r > 10;
+    bool second_idx_is_landmark =
+        pair.second.chr() == 'l' || pair.second.chr() == 'L';
+    // if (dist_very_off && second_idx_is_landmark) {
+    //   std::cout << "Range measure indicates that the landmark is too close or "
+    //                "too far apart! Measured dist: "
+    //             << measure.r << "Initialized dist: " << diff.norm()
+    //             << std::endl;
+
+    //   // pick a random unit vector and offset the landmark in that direction
+    //   // CORA::Matrix random_unit_vector = CORA::Matrix::Random(1, x0.cols());
+    //   // random_unit_vector = random_unit_vector / random_unit_vector.norm();
+    //   // x0.row(range_start_idx) = random_unit_vector;
+    //   // x0.row(second_trans_idx) =
+    //   //     x0.row(first_trans_idx) + random_unit_vector * measure.r;
+    // } else {
+    // }
+    // x0.row(range_start_idx) = diff / diff.norm();
 
     // if the row is near zero, set it to a random unit vector
     // otherwise, normalize it
-    if (x0.row(range_start_idx).norm() < 1e-6) {
+    if (x0.row(range_start_idx).norm() < 1) {
+      std::cout << "Setting range to random unit vector! Measured dist: "
+                << measure.r << std::endl;
       x0.row(range_start_idx) = CORA::Matrix::Random(1, dim);
       x0.row(range_start_idx) =
           x0.row(range_start_idx) / x0.row(range_start_idx).norm();
@@ -215,7 +244,7 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem) {
   x0 = x0 * rot;
 
   // add small noise to the solution
-  x0 = x0 + 1e-8 * CORA::Matrix::Random(x0.rows(), x0.cols());
+  // x0 = x0 + 1e-8 * CORA::Matrix::Random(x0.rows(), x0.cols());
 
   return x0;
 }
