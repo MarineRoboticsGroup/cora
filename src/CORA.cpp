@@ -4,8 +4,6 @@
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
 
-#include <gperftools/profiler.h>
-
 void printIfVerbose(bool verbose, std::string msg) {
   if (verbose) {
     std::cout << msg << std::endl;
