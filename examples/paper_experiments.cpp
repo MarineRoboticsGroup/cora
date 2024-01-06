@@ -68,37 +68,6 @@ CORA::Matrix getRandomStartPose(const int dim) {
   return start_pose;
 }
 
-CORA::Matrix getMostSimilarPoints(const std::vector<CORA::Matrix> &pts1,
-                                  const std::vector<CORA::Matrix> &pts2,
-                                  const std::vector<CORA::Matrix> &pts3) {
-  CORA::Matrix nearest_pt;
-  double dist = std::numeric_limits<double>::max();
-  std::vector<std::pair<CORA::Matrix, CORA::Matrix>> pairs = {};
-  for (const auto &pt1 : pts1) {
-    for (const auto &pt2 : pts2) {
-      for (const auto &pt3 : pts3) {
-        pairs.push_back({pt1, pt2});
-        pairs.push_back({pt1, pt3});
-        pairs.push_back({pt2, pt3});
-      }
-    }
-  }
-
-  // iterate over pairs and find the pair with the smallest distance
-  for (const auto &pair : pairs) {
-    auto curr_dist = (pair.first - pair.second).norm();
-    if (curr_dist < dist) {
-      nearest_pt = (pair.first + pair.second) / 2;
-      dist = curr_dist;
-    }
-  }
-
-  std::cout << "Nearest point: " << nearest_pt << " with dist: " << dist
-            << std::endl;
-
-  return nearest_pt;
-}
-
 std::vector<CORA::Matrix> getCircleIntersect(CORA::Scalar x1, CORA::Scalar y1,
                                              CORA::Scalar r1, CORA::Scalar x2,
                                              CORA::Scalar y2, CORA::Scalar r2) {
@@ -113,9 +82,28 @@ std::vector<CORA::Matrix> getCircleIntersect(CORA::Scalar x1, CORA::Scalar y1,
     return {pt1};
   }
 
-  // check if the circles are too close together
+  // check if one circle is inside the other, if so get the center of the
+  // smaller circle and the vector from the larger circle to the smaller circle
   if (d < std::abs(r1 - r2)) {
-    throw std::runtime_error("Circles are too close together");
+    CORA::Matrix pt1(1, 2);
+    pt1 << x1, y1;
+    CORA::Matrix pt2(1, 2);
+    pt2 << x2, y2;
+
+    // swap the variables so that r1 is the smaller circle
+    if (r1 > r2) {
+      std::swap(r1, r2);
+      std::swap(pt1, pt2);
+    }
+
+    auto offset_dir = (pt1 - pt2) / (pt1 - pt2).norm();
+    auto smallest_dist = r2 - d - r1;
+
+    auto nearest_pt = pt1 + offset_dir * (r1 + smallest_dist / 2);
+
+    return {nearest_pt};
+
+    // throw std::runtime_error("Circles are too close together");
   }
 
   // check if the circles are the same
@@ -145,7 +133,8 @@ std::vector<CORA::Matrix> getCircleIntersect(CORA::Scalar x1, CORA::Scalar y1,
   pt1 << x4, y4;
   CORA::Matrix pt2(1, 2);
   pt2 << x5, y5;
-  return {pt1, pt2};
+  auto int_pts = {pt1, pt2};
+  return int_pts;
 }
 
 CORA::Matrix init2dLandmark(const CORA::Symbol &landmark_symbol,
@@ -163,79 +152,29 @@ CORA::Matrix init2dLandmark(const CORA::Symbol &landmark_symbol,
                      }),
       range_measurements.end());
 
-  // we will take the translations from:
-  // 1. the first range measurement
-  // 2. the translation furthest from the first range measurement
-  // 3. a random translation that is at least 25% of the distance between the
-  // first and second translations
-  CORA::Matrix first_trans, far_trans, rand_trans;
+  // find the measurement with the smallest range
+  auto min_measure = std::min_element(
+      range_measurements.begin(), range_measurements.end(),
+      [](const CORA::RangeMeasurement &a, const CORA::RangeMeasurement &b) {
+        return a.r < b.r;
+      });
 
-  // get the first range measurement
-  CORA::RangeMeasurement first_measure = range_measurements[0];
-  CORA::RangeMeasurement far_measure = range_measurements[0];
-  CORA::RangeMeasurement rand_measure = range_measurements[0];
-  first_trans = x0.row(problem.getTranslationIdx(first_measure.first_id));
-  range_measurements.erase(range_measurements.begin());
+  // find the measurement with the largest range
+  auto max_measure = std::max_element(
+      range_measurements.begin(), range_measurements.end(),
+      [](const CORA::RangeMeasurement &a, const CORA::RangeMeasurement &b) {
+        return a.r < b.r;
+      });
 
-  // get the translation furthest from the first translation
-  double max_dist = 0;
-  for (const auto &measure : range_measurements) {
-    auto curr_trans = x0.row(problem.getTranslationIdx(measure.first_id));
-    double dist = (curr_trans - first_trans).norm();
-    if (dist > max_dist) {
-      far_trans = curr_trans;
-      far_measure = measure;
-      max_dist = dist;
-    }
-  }
+  // get the intersection of the circles defined by the min and max
+  auto min_trans = x0.row(problem.getTranslationIdx(min_measure->first_id));
+  auto max_trans = x0.row(problem.getTranslationIdx(max_measure->first_id));
+  auto most_diff_intersects =
+      getCircleIntersect(min_trans(0, 0), min_trans(0, 1), min_measure->r,
+                         max_trans(0, 0), max_trans(0, 1), max_measure->r);
 
-  // get a random translation that is at least 25% of the distance between the
-  // first and second translations
-  double rand_trans_threshold = max_dist * 0.25;
-  bool found_rand_trans = false;
-  for (const auto &measure : range_measurements) {
-    auto curr_trans = x0.row(problem.getTranslationIdx(measure.first_id));
-    double first_dist = (curr_trans - first_trans).norm();
-    double far_dist = (curr_trans - far_trans).norm();
-    if (first_dist > rand_trans_threshold && far_dist > rand_trans_threshold) {
-      rand_trans = curr_trans;
-      rand_measure = measure;
-      found_rand_trans = true;
-      break;
-    }
-  }
-
-  // if we did not find a random translation, then just pick a random one
-  if (!found_rand_trans) {
-    int rand_idx = rand() % range_measurements.size();
-    rand_measure = range_measurements[rand_idx];
-    rand_trans = x0.row(problem.getTranslationIdx(rand_measure.first_id));
-  }
-
-  // there are circles defined by each translation/range measurement pair.
-  // the translation defines the center and measure.r defines the radius.
-  // we will find the intersection of these circles to get the landmark
-  // position
-  auto ft_x = first_trans(0, 0);
-  auto ft_y = first_trans(0, 1);
-  auto first_far_intersect =
-      getCircleIntersect(first_trans(0, 0), first_trans(0, 1), first_measure.r,
-                         far_trans(0, 0), far_trans(0, 1), far_measure.r);
-  auto first_rand_intersect =
-      getCircleIntersect(first_trans(0, 0), first_trans(0, 1), first_measure.r,
-                         rand_trans(0, 0), rand_trans(0, 1), rand_measure.r);
-  auto far_rand_intersect =
-      getCircleIntersect(far_trans(0, 0), far_trans(0, 1), far_measure.r,
-                         rand_trans(0, 0), rand_trans(0, 1), rand_measure.r);
-
-  // iterate over all the different pairs between the three intersections
-  // and pick the two points that are closest together
-  auto best_pt = getMostSimilarPoints(first_far_intersect, first_rand_intersect,
-                                      far_rand_intersect);
-
-  std::cout << "Initializing landmark " << landmark_symbol << " to " << best_pt
-            << std::endl;
-  return best_pt;
+  // arbitrarily return the first intersection
+  return most_diff_intersects[0];
 }
 
 CORA::Matrix getGtLandmarkPosition(const CORA::Symbol &landmark_symbol,
@@ -464,10 +403,9 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
   for (const auto &landmark_pair : problem.getLandmarkSymbolMap()) {
     CORA::Symbol symbol = landmark_pair.first;
     Index landmark_start_idx = problem.getTranslationIdx(symbol);
-    // x0.row(landmark_start_idx) = CORA::Matrix::Random(1, x0.cols());
-    x0.block(landmark_start_idx, 0, 1, dim) =
-        init2dLandmark(symbol, x0, problem);
-    // getGtLandmarkPosition(symbol, problem, pyfg_path);
+    // x0.block(landmark_start_idx, 0, 1, dim) =
+    //     init2dLandmark(symbol, x0, problem);
+    x0.block(landmark_start_idx, 0, 1, dim) = CORA::Matrix::Random(1, dim) * 10;
   }
 
   /** SET THE SPHERE VARIABLES **/
@@ -478,45 +416,14 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
     Index second_trans_idx = problem.getTranslationIdx(pair.second);
 
     CORA::Matrix diff = x0.row(second_trans_idx) - x0.row(first_trans_idx);
-    x0.row(range_start_idx) = diff / diff.norm();
 
-    bool dist_very_off =
-        diff.norm() / measure.r < 0.1 || diff.norm() / measure.r > 10;
-    bool second_idx_is_landmark =
-        pair.second.chr() == 'l' || pair.second.chr() == 'L';
-    if (dist_very_off && second_idx_is_landmark) {
-      // std::cout << "Range measure indicates that the landmark is too close
-      // or
-      // "
-      //              "too far apart! Measured dist: "
-      //           << measure.r << "Initialized dist: " << diff.norm()
-      //           << std::endl;
-    }
-
-    //   // pick a random unit vector and offset the landmark in that
-    //   direction
-    //   // CORA::Matrix random_unit_vector = CORA::Matrix::Random(1,
-    //   x0.cols());
-    //   // random_unit_vector = random_unit_vector /
-    //   random_unit_vector.norm();
-    //   // x0.row(range_start_idx) = random_unit_vector;
-    //   // x0.row(second_trans_idx) =
-    //   //     x0.row(first_trans_idx) + random_unit_vector * measure.r;
-    // } else {
-    // }
-    // x0.row(range_start_idx) = diff / diff.norm();
-
-    // if the row is near zero, set it to a random unit vector
-    // otherwise, normalize it
-    if (false && x0.row(range_start_idx).norm() < 1e-5) {
-      std::cout << "Setting range to random unit vector! Measured dist: "
-                << measure.r << std::endl;
+    if (diff.norm() < 1e-5) {
+      // set x0.row(range_start_idx) to a random unit vector
       x0.row(range_start_idx) = CORA::Matrix::Random(1, dim);
       x0.row(range_start_idx) =
           x0.row(range_start_idx) / x0.row(range_start_idx).norm();
     } else {
-      x0.row(range_start_idx) =
-          x0.row(range_start_idx) / x0.row(range_start_idx).norm();
+      x0.row(range_start_idx) = diff / diff.norm();
     }
   }
 
@@ -543,9 +450,6 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
 
   // rotate the solution
   x0 = x0 * rot;
-
-  // add small noise to the solution
-  // x0 = x0 + 1e-8 * CORA::Matrix::Random(x0.rows(), x0.cols());
 
   return x0;
 }
@@ -615,7 +519,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  bool verbose = true;
+  bool verbose = false;
   bool log_iterates = false;
   CORA::CoraResult soln =
       CORA::solveCORA(problem, x0, max_rank, verbose, log_iterates);
@@ -636,10 +540,23 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 }
 
 int main(int argc, char **argv) {
-  std::vector<std::string> files = {// "data/marine_two_robots.pyfg",
-                                    "data/plaza1.pyfg", "data/plaza2.pyfg",
-                                    "data/single_drone.pyfg",
-                                    "data/tiers.pyfg"};
+  std::vector<std::string> files = {
+      // "data/marine_two_robots.pyfg",
+      // "data/plaza1.pyfg", "data/plaza2.pyfg",
+      "data/single_drone.pyfg",
+      "data/tiers.pyfg"}; // TIERS faster w/ random init
+
+  // Solving data/plaza1.pyfg
+  // CORA took 10.5612 seconds
+
+  // Solving data/plaza2.pyfg
+  // CORA took 2.70548 seconds
+
+  // Solving data/single_drone.pyfg
+  // CORA took 2.26446 seconds
+
+  // Solving data/tiers.pyfg
+  // CORA took 14.8041 seconds
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);

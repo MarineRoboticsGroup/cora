@@ -381,15 +381,10 @@ void Problem::updatePreconditioner() {
       std::cout << "Loaded CORA_REG_CHOLESKY_MAX_COND from environment "
                    "variable: "
                 << reg_Chol_precon_max_cond_ << std::endl;
-    } else {
-      std::cout << "Using default value for CORA_REG_CHOLESKY_MAX_COND: "
-                << reg_Chol_precon_max_cond_ << std::endl;
-    }
+    } 
 
     // Compute the required value of the regularization parameter lambda_reg
     Scalar lambda_reg = Dnorm / (reg_Chol_precon_max_cond_ - 1);
-    std::cout << "Regularized Cholesky preconditioner: lambda_reg = "
-              << lambda_reg << std::endl;
 
     SparseMatrix epsilonPosDefUpdate =
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
