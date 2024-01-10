@@ -17,7 +17,7 @@ class CORAVis {
 public:
   CORAVis();
   void run(const Problem &problem, std::vector<Matrix> iterates, double rate_hz,
-           bool verbose = true);
+           bool verbose = false);
   ~CORAVis() = default;
 
 private:

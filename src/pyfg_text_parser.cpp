@@ -270,9 +270,36 @@ Problem parsePyfgTextToProblem(const std::string &filename) {
       break;
 
     case REL_POSE_LANDMARK_TYPE_2D:
+      if (iss >> timestamp >> sym1 >> sym2) {
+        auto xy = readVector(iss, 2);
+        auto cov = readSymmetric(iss, 2);
+        Symbol sym_a(sym1);
+        Symbol sym_b(sym2);
+        RelativePoseLandmarkMeasurement rel_pose_landmark{sym_a, sym_b, xy,
+                                                          cov};
+        problem.addRelativePoseLandmarkMeasurement(rel_pose_landmark);
+      } else {
+        throw std::runtime_error(
+            "Could not read relative pose-landmark measurement from line " +
+            line);
+      }
+      break;
+
     case REL_POSE_LANDMARK_TYPE_3D:
-      throw std::runtime_error("Relative pose-landmark measurements not "
-                               "supported yet");
+      if (iss >> timestamp >> sym1 >> sym2) {
+        auto xyz = readVector(iss, 3);
+        auto cov = readSymmetric(iss, 3);
+        Symbol sym_a(sym1);
+        Symbol sym_b(sym2);
+        RelativePoseLandmarkMeasurement rel_pose_landmark{sym_a, sym_b, xyz,
+                                                          cov};
+        problem.addRelativePoseLandmarkMeasurement(rel_pose_landmark);
+      } else {
+        throw std::runtime_error(
+            "Could not read relative pose-landmark measurement from line " +
+            line);
+      }
+      break;
 
     case RANGE_MEASURE_TYPE:
       if (iss >> timestamp >> sym1 >> sym2) {
@@ -364,6 +391,8 @@ Matrix readSymmetric(std::istringstream &iss, int dim) {
         cov(i, j) = val;
         cov(j, i) = val;
       } else {
+        std::cout << "Attempted to parse covariance matrix. i:" << i
+                  << " j:" << j << " val:" << val << std::endl;
         throw std::runtime_error("Could not read covariance matrix");
       }
     }

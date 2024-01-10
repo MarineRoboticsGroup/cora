@@ -107,6 +107,31 @@ struct RelativePoseMeasurement : PairMeasurement {
   }
 };
 
+struct RelativePoseLandmarkMeasurement : PairMeasurement {
+  /** Translational measurement */
+  Vector t;
+
+  /** Covariance Matrix in order of: translation, rotation */
+  Matrix cov;
+
+  RelativePoseLandmarkMeasurement(const Symbol &first_id,
+                                  const Symbol &second_id, Vector t_measurement,
+                                  Matrix cov)
+      : PairMeasurement(first_id, second_id),
+        t(std::move(t_measurement)),
+        cov(std::move(cov)) {}
+
+  /**
+   * @brief Compute the translational (scalar) precision of the measurement
+   *
+   * @return Scalar - the translational precision
+   */
+  Scalar getTransPrecision() const {
+    size_t dim = t.size();
+    return static_cast<double>(dim) / (cov.block(0, 0, dim, dim).trace());
+  }
+};
+
 struct RangeMeasurement : PairMeasurement {
   /** Range measurement */
   Scalar r;

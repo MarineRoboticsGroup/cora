@@ -85,6 +85,9 @@ private:
   // the relative pose measurements that are used to construct the problem
   std::vector<RelativePoseMeasurement> rel_pose_pose_measurements_;
 
+  // the pose-landmark measurements that are used to construct the problem
+  std::vector<RelativePoseLandmarkMeasurement> rel_pose_landmark_measurements_;
+
   // the pose priors that are used to construct the problem
   std::vector<PosePrior> pose_priors_;
 
@@ -207,6 +210,8 @@ public:
   void addRangeMeasurement(const RangeMeasurement &range_measurement);
   void
   addRelativePoseMeasurement(const RelativePoseMeasurement &rel_pose_measure);
+  void addRelativePoseLandmarkMeasurement(
+      const RelativePoseLandmarkMeasurement &rel_pose_landmark_measure);
   void addPosePrior(const PosePrior &pose_prior);
   void addLandmarkPrior(const LandmarkPrior &landmark_prior);
   inline int getNumPosePriors() const { return pose_priors_.size(); }
@@ -263,8 +268,11 @@ public:
   inline int numPoses() const {
     return static_cast<int>(pose_symbol_idxs_.size());
   }
-  inline int numPoseMeasurements() const {
+  inline int numPosePoseMeasurements() const {
     return static_cast<int>(rel_pose_pose_measurements_.size());
+  }
+  inline int numPoseLandmarkMeasurements() const {
+    return static_cast<int>(rel_pose_landmark_measurements_.size());
   }
   inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());

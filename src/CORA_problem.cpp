@@ -52,6 +52,19 @@ void Problem::addRelativePoseMeasurement(
   problem_data_up_to_date_ = false;
 }
 
+void Problem::addRelativePoseLandmarkMeasurement(
+    const RelativePoseLandmarkMeasurement &rel_pose_landmark_measure) {
+  if (std::find(rel_pose_landmark_measurements_.begin(),
+                rel_pose_landmark_measurements_.end(),
+                rel_pose_landmark_measure) !=
+      rel_pose_landmark_measurements_.end()) {
+    throw std::invalid_argument(
+        "Relative pose landmark measurement already exists");
+  }
+  rel_pose_landmark_measurements_.push_back(rel_pose_landmark_measure);
+  problem_data_up_to_date_ = false;
+}
+
 void Problem::addPosePrior(const PosePrior &pose_prior) {
   if (std::find(pose_priors_.begin(), pose_priors_.end(), pose_prior) !=
       pose_priors_.end()) {
@@ -106,13 +119,20 @@ void Problem::fillRangeSubmatrices() {
 
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
-  auto num_pose_measurements = numPoseMeasurements();
+  auto num_pose_pose_measurements = numPosePoseMeasurements();
+  data_submatrices_.rel_pose_rotation_precision_matrix =
+      SparseMatrix(num_pose_pose_measurements, num_pose_pose_measurements);
+
+  auto num_pose_landmark_measurements = numPoseLandmarkMeasurements();
   auto num_translations = numTranslationalStates();
+  auto num_pose_measurements =
+      num_pose_pose_measurements + num_pose_landmark_measurements;
 
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
   auto translation_offset = rotAndRangeMatrixSize();
+
   // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_incidence_matrix =
       SparseMatrix(num_pose_measurements, num_translations);
@@ -120,11 +140,9 @@ void Problem::fillRelPoseSubmatrices() {
       SparseMatrix(num_pose_measurements, numPosesDim());
   data_submatrices_.rel_pose_translation_precision_matrix =
       SparseMatrix(num_pose_measurements, num_pose_measurements);
-  data_submatrices_.rel_pose_rotation_precision_matrix =
-      SparseMatrix(num_pose_measurements, num_pose_measurements);
 
   // for diagonal matrices, get the diagonal vector and set the values
-  for (int measure_idx = 0; measure_idx < num_pose_measurements;
+  for (int measure_idx = 0; measure_idx < num_pose_pose_measurements;
        measure_idx++) {
     RelativePoseMeasurement rpm = rel_pose_pose_measurements_[measure_idx];
 
@@ -147,6 +165,30 @@ void Problem::fillRelPoseSubmatrices() {
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
     }
   }
+
+  for (int measure_idx = num_pose_pose_measurements;
+       measure_idx < num_pose_measurements; measure_idx++) {
+    int pose_landmark_idx = measure_idx - num_pose_pose_measurements;
+    RelativePoseLandmarkMeasurement rplm =
+        rel_pose_landmark_measurements_[pose_landmark_idx];
+
+    // fill in precision matrices
+    data_submatrices_.rel_pose_translation_precision_matrix.insert(
+        measure_idx, measure_idx) = rplm.getTransPrecision();
+
+    // fill in incidence matrix
+    Index id1 = getTranslationIdx(rplm.first_id) - translation_offset;
+    Index id2 = getTranslationIdx(rplm.second_id) - translation_offset;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
+
+    // fill in translation data matrix where the id1-th (1 x dim_) block is
+    // -rpm.t and all other blocks are 0
+    for (int k = 0; k < dim_; k++) {
+      data_submatrices_.rel_pose_translation_data_matrix.insert(
+          measure_idx, id1 * dim_ + k) = -rplm.t(k);
+    }
+  }
 }
 
 void Problem::fillRotConnLaplacian() {
@@ -159,7 +201,7 @@ void Problem::fillRotConnLaplacian() {
   size_t measurement_stride = 2 * (d + d * d);
 
   std::vector<Eigen::Triplet<Scalar>> triplets;
-  triplets.reserve(measurement_stride * numPoseMeasurements());
+  triplets.reserve(measurement_stride * numPosePoseMeasurements());
 
   size_t i, j;
   for (const RelativePoseMeasurement &measurement :
@@ -258,7 +300,7 @@ void Problem::printProblem() const {
   }
 
   // print out all of the relative pose measurements
-  if (numPoseMeasurements() > 0) {
+  if (numPosePoseMeasurements() > 0) {
     std::cout << "\nRelative pose measurements:" << std::endl;
     for (auto rel_pose_measurement : rel_pose_pose_measurements_) {
       std::cout << rel_pose_measurement.first_id.string() << " -> "
@@ -270,6 +312,19 @@ void Problem::printProblem() const {
     std::cout << std::endl;
   } else {
     std::cout << "No relative pose measurements" << std::endl;
+  }
+
+  // print out all of the relative pose landmark measurements
+  if (numPoseLandmarkMeasurements() > 0) {
+    std::cout << "\nRelative pose landmark measurements:" << std::endl;
+    for (auto rplm : rel_pose_landmark_measurements_) {
+      std::cout << rplm.first_id.string() << " -> " << rplm.second_id.string()
+                << std::endl;
+      std::cout << "Trans: " << rplm.t.transpose() << std::endl;
+      std::cout << "Cov:\n" << rplm.cov << std::endl;
+    }
+  } else {
+    std::cout << "No relative pose landmark measurements" << std::endl;
   }
 
   // print out all of the pose priors
