@@ -547,18 +547,57 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   return aligned_soln;
 }
 
+std::vector<std::string> getRangeOnlyMrclamFiles() {
+  std::string base_dir = "data/mrclam/range_only/";
+  std::vector<std::string> filenames = {
+      "mrclam2.pyfg",  "mrclam3a.pyfg", "mrclam3b.pyfg",
+      "mrclam4.pyfg",  "mrclam5a.pyfg", "mrclam5b.pyfg",
+      "mrclam5c.pyfg", "mrclam6.pyfg",  "mrclam7.pyfg",
+  };
+
+  std::vector<std::string> full_paths = {};
+  for (auto filename : filenames) {
+    full_paths.push_back(base_dir + filename);
+  }
+}
+
+std::vector<std::string> getRangeAndRpmMrclamFiles() {
+  std::string base_dir = "data/mrclam/range_and_rpm/";
+  std::vector<std::string> filenames = {
+      "mrclam2.pyfg",  "mrclam3a.pyfg", "mrclam3b.pyfg",
+      "mrclam4.pyfg",  "mrclam5a.pyfg", "mrclam5b.pyfg",
+      "mrclam5c.pyfg", "mrclam6.pyfg",  "mrclam7.pyfg",
+  };
+
+  std::vector<std::string> full_paths = {};
+  for (auto filename : filenames) {
+    full_paths.push_back(base_dir + filename);
+  }
+}
+
 int main(int argc, char **argv) {
-  std::vector<std::string> files = {
+  std::vector<std::string> original_exp_files = {
       // "data/marine_two_robots.pyfg",
       // "data/plaza1.pyfg", "data/plaza2.pyfg",
-      "data/mrclam/mrclam2.pyfg",  "data/mrclam/mrclam3a.pyfg",
-      "data/mrclam/mrclam3b.pyfg", "data/mrclam/mrclam4.pyfg",
-      "data/mrclam/mrclam5a.pyfg", "data/mrclam/mrclam5b.pyfg",
-      "data/mrclam/mrclam5c.pyfg", "data/mrclam/mrclam6.pyfg",
-      "data/mrclam/mrclam7.pyfg",
       // "data/single_drone.pyfg",
       // "data/tiers.pyfg"
   }; // TIERS faster w/ random init
+  auto mrclam_range_only_files = getRangeOnlyMrclamFiles();
+  auto mrclam_range_and_rpm_files = getRangeAndRpmMrclamFiles();
+
+  std::vector<std::string> files = {};
+
+  // original experiments
+  // files.insert(files.end(), original_exp_files.begin(),
+  //              original_exp_files.end());
+
+  // mrclam range only experiments
+  files.insert(files.end(), mrclam_range_only_files.begin(),
+               mrclam_range_only_files.end());
+
+  // mrclam range and rpm experiments
+  files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
+               mrclam_range_and_rpm_files.end());
 
   // Solving data/plaza1.pyfg
   // CORA took 10.5612 seconds
@@ -588,13 +627,13 @@ int main(int argc, char **argv) {
   // CORA took 6.0914 seconds
 
   // Solving data/mrclam/mrclam5b.pyfg
-  // CORA took 104.933 seconds
+  // CORA took 104.589 seconds
 
   // Solving data/mrclam/mrclam5c.pyfg
-  // CORA took 133.615 seconds
+  // CORA took 103.16 seconds
 
   // Solving data/mrclam/mrclam6.pyfg
-  // CORA took 103.35 seconds
+  // CORA took 88.672 seconds
 
   // Solving data/mrclam/mrclam7.pyfg
   // CORA took 99.3024 seconds
