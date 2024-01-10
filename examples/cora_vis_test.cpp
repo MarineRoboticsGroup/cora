@@ -15,7 +15,7 @@ int main() {
   CORA::Matrix x0 = problem.getRandomInitialGuess();
 
   int max_rank = 10;
-  bool verbose = true;
+  bool verbose = false;
   bool log_iterates = true;
   CORA::CoraResult res;
   res = solveCORA(problem, x0, max_rank, verbose, log_iterates);

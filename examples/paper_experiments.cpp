@@ -5,6 +5,8 @@
 #include <CORA/Symbol.h>
 #include <CORA/pyfg_text_parser.h>
 
+#include <CORA/CORA_vis.h>
+
 #include <filesystem>
 #include <set>
 #include <vector>
@@ -473,9 +475,10 @@ void saveSolutions(const CORA::Problem &problem,
       pyfg_fpath.substr(data_length, pyfg_index - data_length);
   std::string save_dir_path = "/tmp/" + save_dir_name;
 
-  // create the directory if it does not exist
+  // create the directory if it does not exist. Make sure to recursively create
+  // the parent directories
   if (!std::filesystem::exists(save_dir_path)) {
-    std::filesystem::create_directory(save_dir_path);
+    std::filesystem::create_directories(save_dir_path);
   }
 
   std::string save_path = save_dir_path + "/cora_";
@@ -505,10 +508,11 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
   CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
+  problem.setRank(problem.dim() + 1);
   problem.updateProblemData();
 
-  // CORA::Matrix x0 = problem.getRandomInitialGuess();
-  CORA::Matrix x0 = getOdomInitialization(problem, pyfg_fpath);
+  CORA::Matrix x0 = problem.getRandomInitialGuess();
+  // CORA::Matrix x0 = getOdomInitialization(problem, pyfg_fpath);
   int max_rank = 10;
 
 #ifdef GPERFTOOLS
@@ -519,7 +523,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  bool verbose = false;
+  bool verbose = true;
   bool log_iterates = false;
   CORA::CoraResult soln =
       CORA::solveCORA(problem, x0, max_rank, verbose, log_iterates);
@@ -533,6 +537,10 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   ProfilerStop();
 #endif
 
+  // CORA::CORAVis viz{};
+  // double viz_hz = 10.0;
+  // viz.run(problem, {soln.second}, viz_hz, true);
+
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
 
@@ -543,8 +551,14 @@ int main(int argc, char **argv) {
   std::vector<std::string> files = {
       // "data/marine_two_robots.pyfg",
       // "data/plaza1.pyfg", "data/plaza2.pyfg",
-      "data/single_drone.pyfg",
-      "data/tiers.pyfg"}; // TIERS faster w/ random init
+      "data/mrclam/mrclam2.pyfg",  "data/mrclam/mrclam3a.pyfg",
+      "data/mrclam/mrclam3b.pyfg", "data/mrclam/mrclam4.pyfg",
+      "data/mrclam/mrclam5a.pyfg", "data/mrclam/mrclam5b.pyfg",
+      "data/mrclam/mrclam5c.pyfg", "data/mrclam/mrclam6.pyfg",
+      "data/mrclam/mrclam7.pyfg",
+      // "data/single_drone.pyfg",
+      // "data/tiers.pyfg"
+  }; // TIERS faster w/ random init
 
   // Solving data/plaza1.pyfg
   // CORA took 10.5612 seconds
@@ -557,6 +571,33 @@ int main(int argc, char **argv) {
 
   // Solving data/tiers.pyfg
   // CORA took 14.8041 seconds
+
+  // Solving data/mrclam/mrclam2.pyfg
+  // CORA took 255.757 seconds
+
+  // Solving data/mrclam/mrclam3a.pyfg
+  // CORA took 122.735 seconds
+
+  // Solving data/mrclam/mrclam3b.pyfg
+  // CORA took 31.3762 seconds
+
+  // Solving data/mrclam/mrclam4.pyfg
+  // CORA took 232.449 seconds
+
+  // Solving data/mrclam/mrclam5a.pyfg
+  // CORA took 6.0914 seconds
+
+  // Solving data/mrclam/mrclam5b.pyfg
+  // CORA took 104.933 seconds
+
+  // Solving data/mrclam/mrclam5c.pyfg
+  // CORA took 133.615 seconds
+
+  // Solving data/mrclam/mrclam6.pyfg
+  // CORA took 103.35 seconds
+
+  // Solving data/mrclam/mrclam7.pyfg
+  // CORA took 99.3024 seconds
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);
