@@ -23,8 +23,9 @@ CORA::Scalar thresholdVal(CORA::Scalar val, CORA::Scalar lower_bound,
 
 namespace CORA {
 
-CoraResult solveCORA(Problem &problem, const Matrix &x0,
-                     int max_relaxation_rank, bool verbose, bool log_iterates) {
+CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
+                     const Matrix &x0, int max_relaxation_rank, bool verbose,
+                     bool log_iterates) {
   // if log_iterates is true, throw a warning that will be
   // slower than usual
   if (log_iterates) {
@@ -87,7 +88,7 @@ CoraResult solveCORA(Problem &problem, const Matrix &x0,
   params.Delta_tolerance = 1e-3;
   params.verbose = false;
   params.precision = 2;
-  params.max_computation_time = 30;
+  params.max_computation_time = 50;
   params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-4;
   params.log_iterates = log_iterates;

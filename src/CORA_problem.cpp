@@ -43,11 +43,12 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
 
 void Problem::addRelativePoseMeasurement(
     const RelativePoseMeasurement &rel_pose_measure) {
-  if (std::find(rel_pose_measurements_.begin(), rel_pose_measurements_.end(),
-                rel_pose_measure) != rel_pose_measurements_.end()) {
+  if (std::find(rel_pose_pose_measurements_.begin(),
+                rel_pose_pose_measurements_.end(),
+                rel_pose_measure) != rel_pose_pose_measurements_.end()) {
     throw std::invalid_argument("Relative pose measurement already exists");
   }
-  rel_pose_measurements_.push_back(rel_pose_measure);
+  rel_pose_pose_measurements_.push_back(rel_pose_measure);
   problem_data_up_to_date_ = false;
 }
 
@@ -125,7 +126,7 @@ void Problem::fillRelPoseSubmatrices() {
   // for diagonal matrices, get the diagonal vector and set the values
   for (int measure_idx = 0; measure_idx < num_pose_measurements;
        measure_idx++) {
-    RelativePoseMeasurement rpm = rel_pose_measurements_[measure_idx];
+    RelativePoseMeasurement rpm = rel_pose_pose_measurements_[measure_idx];
 
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
@@ -161,7 +162,8 @@ void Problem::fillRotConnLaplacian() {
   triplets.reserve(measurement_stride * numPoseMeasurements());
 
   size_t i, j;
-  for (const RelativePoseMeasurement &measurement : rel_pose_measurements_) {
+  for (const RelativePoseMeasurement &measurement :
+       rel_pose_pose_measurements_) {
     i = getRotationIdx(measurement.first_id);
     j = getRotationIdx(measurement.second_id);
 
@@ -258,7 +260,7 @@ void Problem::printProblem() const {
   // print out all of the relative pose measurements
   if (numPoseMeasurements() > 0) {
     std::cout << "\nRelative pose measurements:" << std::endl;
-    for (auto rel_pose_measurement : rel_pose_measurements_) {
+    for (auto rel_pose_measurement : rel_pose_pose_measurements_) {
       std::cout << rel_pose_measurement.first_id.string() << " -> "
                 << rel_pose_measurement.second_id.string() << std::endl;
       std::cout << "Rot:\n" << rel_pose_measurement.R << std::endl;
@@ -381,7 +383,7 @@ void Problem::updatePreconditioner() {
       std::cout << "Loaded CORA_REG_CHOLESKY_MAX_COND from environment "
                    "variable: "
                 << reg_Chol_precon_max_cond_ << std::endl;
-    } 
+    }
 
     // Compute the required value of the regularization parameter lambda_reg
     Scalar lambda_reg = Dnorm / (reg_Chol_precon_max_cond_ - 1);

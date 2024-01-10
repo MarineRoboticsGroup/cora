@@ -83,7 +83,7 @@ private:
   std::vector<RangeMeasurement> range_measurements_;
 
   // the relative pose measurements that are used to construct the problem
-  std::vector<RelativePoseMeasurement> rel_pose_measurements_;
+  std::vector<RelativePoseMeasurement> rel_pose_pose_measurements_;
 
   // the pose priors that are used to construct the problem
   std::vector<PosePrior> pose_priors_;
@@ -242,7 +242,7 @@ public:
 
   // Get copy of relative pose measurements
   inline std::vector<RelativePoseMeasurement> getRPMs() const {
-    return rel_pose_measurements_;
+    return rel_pose_pose_measurements_;
   }
 
   // the data matrix that is used to construct the problem
@@ -264,7 +264,7 @@ public:
     return static_cast<int>(pose_symbol_idxs_.size());
   }
   inline int numPoseMeasurements() const {
-    return static_cast<int>(rel_pose_measurements_.size());
+    return static_cast<int>(rel_pose_pose_measurements_.size());
   }
   inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());

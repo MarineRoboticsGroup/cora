@@ -141,7 +141,7 @@ struct LandmarkPrior : Measurement {
       : Measurement(id), p(std::move(p)), cov(std::move(cov)) {}
 };
 
-typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_measurements_t;
+typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_pose_measurements_t;
 typedef std::vector<CORA::RangeMeasurement> range_measurements_t;
 typedef std::vector<CORA::PosePrior> pose_priors_t;
 typedef std::vector<CORA::LandmarkPrior> landmark_priors_t;
