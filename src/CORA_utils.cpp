@@ -202,8 +202,7 @@ Matrix getTranslation(const Symbol &sym, const Problem &problem,
                       const Matrix &soln) {
   checkMatrixShape("getTranslation", problem.getDataMatrixSize(), problem.dim(),
                    soln.rows(), soln.cols());
-  Index offset = problem.rotAndRangeMatrixSize();
-  return soln.row(offset + problem.getTranslationIdx(sym));
+  return soln.row(problem.getTranslationIdx(sym));
 }
 
 Matrix getRotation(const Symbol &sym, const Problem &problem,
@@ -256,6 +255,9 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
     //  timestamp x y z qx qy qz qw
     Matrix tran = getTranslation(pose_symbols[time], problem, soln);
     Matrix rot = getRotation(pose_symbols[time], problem, soln);
+
+    std::cout << "pose symbol " << pose_symbols[time] << std::endl;
+    std::cout << "tran " << time << ": " << tran << std::endl;
 
     // get xyz from tran
     Scalar x = tran(0);
