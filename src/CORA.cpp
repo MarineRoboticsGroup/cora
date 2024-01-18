@@ -180,6 +180,12 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     printIfVerbose(verbose, "Obtained solution with objective value: " +
                                 std::to_string(result.f));
 
+    if (log_iterates) {
+      for (Matrix iterate : result.iterates) {
+        iterates.push_back(iterate);
+      }
+    }
+
     // let's check if the solution is certified
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
     cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,

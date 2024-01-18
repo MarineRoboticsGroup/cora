@@ -54,6 +54,13 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
                                const Problem &problem,
                                std::vector<Matrix> iterates, double rate_hz,
                                bool verbose) {
+  if (iterates.empty()) {
+    throw std::runtime_error("iterates is empty");
+  }
+  if (rate_hz <= 0) {
+    throw std::runtime_error("rate_hz must be > 0");
+  }
+
   auto soln_idx{0};
   int curr_loop_cnt = 0;
   int max_num_loops = 3;
@@ -65,9 +72,11 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
   // set it up so only drawing <=100 poses total (skip the right number of
   // poses)
   int num_poses = problem.numPoses();
-  int num_poses_to_skip = static_cast<int>(num_poses / 650);
+  int num_poses_to_show = 1000;
+  int num_poses_to_skip = static_cast<int>(num_poses / num_poses_to_show);
   int num_ranges = problem.numRangeMeasurements();
-  int num_ranges_to_skip = static_cast<int>(num_ranges / 500);
+  int num_ranges_to_show = 2000;
+  int num_ranges_to_skip = static_cast<int>(num_ranges / num_ranges_to_show);
   while (alive && curr_loop_cnt < max_num_loops) {
     auto soln = iterates.at(soln_idx);
     auto aligned_sol_matrix = problem.alignEstimateToOrigin(soln);
