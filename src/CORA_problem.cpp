@@ -409,7 +409,6 @@ void Problem::updatePreconditioner() {
     CORA::SparseMatrix D = data_matrix_;
     Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix> neg_D_op =
         [&D](const Matrix &X) -> Matrix { return -(D * X); };
-    // SymmetricLinOp Mop = [&M](const Matrix &X) -> Matrix { return M * X; };
 
     // Estimate the algebraically-smallest eigenvalue of -D using LOBPCG
 
@@ -453,6 +452,9 @@ void Problem::updatePreconditioner() {
     preconditioner_matrices_.block_chol_factor_ptrs_ =
         getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
                                       block_sizes);
+  } else if (preconditioner_ == Preconditioner::Jacobi) {
+    preconditioner_matrices_.jacobi_preconditioner_ =
+        data_matrix_.diagonal().cwiseInverse().asDiagonal();
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -670,6 +672,8 @@ Matrix Problem::precondition(const Matrix &V) const {
       preconditioner_ == Preconditioner::RegularizedCholesky) {
     res =
         blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
+  } else if (preconditioner_ == Preconditioner::Jacobi) {
+    res = preconditioner_matrices_.jacobi_preconditioner_ * V;
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");

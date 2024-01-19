@@ -256,9 +256,6 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
     Matrix tran = getTranslation(pose_symbols[time], problem, soln);
     Matrix rot = getRotation(pose_symbols[time], problem, soln);
 
-    std::cout << "pose symbol " << pose_symbols[time] << std::endl;
-    std::cout << "tran " << time << ": " << tran << std::endl;
-
     // get xyz from tran
     Scalar x = tran(0);
     Scalar y = tran(1);

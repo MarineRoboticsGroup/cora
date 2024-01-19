@@ -302,6 +302,9 @@ public:
     relaxation_rank_ = r;
     manifolds_.setRank(r);
   }
+  void setPreconditioner(Preconditioner preconditioner) {
+    preconditioner_ = preconditioner;
+  }
 
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
