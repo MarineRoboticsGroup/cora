@@ -5,8 +5,6 @@
 #include <CORA/Symbol.h>
 #include <CORA/pyfg_text_parser.h>
 
-#include <CORA/CORA_vis.h>
-
 #include <filesystem>
 #include <set>
 #include <vector>
@@ -552,10 +550,6 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
-
-  CORA::CORAVis viz{};
-  double viz_hz = 10.0;
-  viz.run(problem, {soln.second}, viz_hz, true);
 
   return aligned_soln;
 }
