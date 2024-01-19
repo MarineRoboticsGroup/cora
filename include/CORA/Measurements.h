@@ -87,9 +87,42 @@ struct RelativePoseMeasurement : PairMeasurement {
     }
   }
 
+  Matrix getHomogeneousMatrix() const {
+    int d = R.rows();
+    Matrix H = Matrix::Identity(d + 1, d + 1);
+    H.block(0, 0, d, d) = R;
+    H.block(0, d, d, 1) = t;
+    return H;
+  }
+
   /**
    * @brief Compute the translational (scalar) precision of the measurement
    * from the covariance matrix.
+   *
+   * @return Scalar - the translational precision
+   */
+  Scalar getTransPrecision() const {
+    size_t dim = t.size();
+    return static_cast<double>(dim) / (cov.block(0, 0, dim, dim).trace());
+  }
+};
+
+struct RelativePoseLandmarkMeasurement : PairMeasurement {
+  /** Translational measurement */
+  Vector t;
+
+  /** Covariance Matrix in order of: translation, rotation */
+  Matrix cov;
+
+  RelativePoseLandmarkMeasurement(const Symbol &first_id,
+                                  const Symbol &second_id, Vector t_measurement,
+                                  Matrix cov)
+      : PairMeasurement(first_id, second_id),
+        t(std::move(t_measurement)),
+        cov(std::move(cov)) {}
+
+  /**
+   * @brief Compute the translational (scalar) precision of the measurement
    *
    * @return Scalar - the translational precision
    */
@@ -133,7 +166,7 @@ struct LandmarkPrior : Measurement {
       : Measurement(id), p(std::move(p)), cov(std::move(cov)) {}
 };
 
-typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_measurements_t;
+typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_pose_measurements_t;
 typedef std::vector<CORA::RangeMeasurement> range_measurements_t;
 typedef std::vector<CORA::PosePrior> pose_priors_t;
 typedef std::vector<CORA::LandmarkPrior> landmark_priors_t;

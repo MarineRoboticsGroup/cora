@@ -29,10 +29,14 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin CACHE PATH "Output directory 
 # BUILD CONFIGURATIONS
 # Enable faster instruction sets (SIMD/AVX)
 set(ENABLE_VECTORIZATION ON CACHE BOOL "Enable vectorized instruction sets (SIMD/AVX)? [enabled by default]")
+# Enable OMP parallelization
+set(ENABLE_OPENMP OFF CACHE BOOL "Enable OMP parallelization? [enabled by default]")
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
-set(ENABLE_VISUALIZATION ON CACHE BOOL "Enable visualization module.")
+set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+# Run the experiments from the paper
+set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples
 set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
@@ -52,6 +56,14 @@ endif()
 if(${ENABLE_VECTORIZATION})
 message(STATUS "Enabling SIMD/AVX instruction sets")
 add_definitions(-march=native)
+endif()
+
+if(${ENABLE_OPENMP})
+message(STATUS "Enabling OMP parallelization")
+find_package(OpenMP)
+if(OPENMP_FOUND)
+message(STATUS "Found OpenMP library: ${OPENMP_INCLUDES}")
+endif()
 endif()
 
 if(${ENABLE_PROFILING})
@@ -77,8 +89,10 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 # Testing
+if(${BUILD_TESTS})
 set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
 add_subdirectory(${CATCH2_DIR})
+endif()
 
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
@@ -148,6 +162,12 @@ endif()
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC ILDL ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
+
+if(OPENMP_FOUND)
+# Add additional compilation flags to enable OpenMP support
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS ${OpenMP_CXX_FLAGS})
+set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS "-fopenmp")
+endif()
 
 if (${ENABLE_VISUALIZATION})
     target_include_directories(${PROJECT_NAME} PUBLIC ${TONIOVIZ_INCLUDE_DIRS})

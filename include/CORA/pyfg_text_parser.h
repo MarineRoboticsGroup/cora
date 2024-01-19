@@ -13,6 +13,7 @@
 
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_types.h>
+#include <CORA/Symbol.h>
 
 #include <fstream>
 #include <iostream>
@@ -27,6 +28,6 @@ namespace CORA {
  * @param filename the name of the file to parse
  * @return CORA::Problem the parsed problem
  */
-CORA::Problem parsePyfgTextToProblem(const std::string &filename);
+Problem parsePyfgTextToProblem(const std::string &filename);
 
 } // namespace CORA

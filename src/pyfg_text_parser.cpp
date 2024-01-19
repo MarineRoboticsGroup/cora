@@ -38,6 +38,64 @@ enum PyFGType {
   RANGE_MEASURE_TYPE,
 };
 
+int getDimFromPyfgFirstLine(const std::string &filename) {
+  // Check if the file exists and we can read it
+  std::ifstream in_file(filename);
+  if (!in_file.good()) {
+    throw std::runtime_error("Could not open file " + filename);
+  }
+
+  const std::map<std::string, PyFGType> PyFGStringToType{
+      {"VERTEX_SE2", POSE_TYPE_2D},
+      {"VERTEX_SE3:QUAT", POSE_TYPE_3D},
+      {"VERTEX_SE2:PRIOR", POSE_PRIOR_2D},
+      {"VERTEX_SE3:QUAT:PRIOR", POSE_PRIOR_3D},
+      {"VERTEX_XY", LANDMARK_TYPE_2D},
+      {"VERTEX_XYZ", LANDMARK_TYPE_3D},
+      {"VERTEX_XY:PRIOR", LANDMARK_PRIOR_2D},
+      {"VERTEX_XYZ:PRIOR", LANDMARK_PRIOR_3D},
+      {"EDGE_SE2", REL_POSE_POSE_TYPE_2D},
+      {"EDGE_SE3:QUAT", REL_POSE_POSE_TYPE_3D},
+      {"EDGE_SE2_XY", REL_POSE_LANDMARK_TYPE_2D},
+      {"EDGE_SE3_XYZ", REL_POSE_LANDMARK_TYPE_3D},
+      {"EDGE_RANGE", RANGE_MEASURE_TYPE}};
+
+  // get just the first line and close the file
+  std::string line;
+  std::getline(in_file, line);
+  in_file.close();
+
+  // Get the item type with the first word
+  std::istringstream iss(line);
+  std::string item_type;
+
+  double timestamp;
+  // A bunch of placeholder strings to be used for populating different types
+  std::string sym1, sym2;
+
+  if (!(iss >> item_type)) {
+    throw std::runtime_error("Could not read item type from line " + line);
+  }
+
+  if (PyFGStringToType.find(item_type) == PyFGStringToType.end()) {
+    throw std::runtime_error("Unknown item type " + item_type);
+  }
+
+  switch (PyFGStringToType.find(item_type)->second) {
+  case POSE_TYPE_2D:
+    return 2;
+  case POSE_TYPE_3D:
+    return 3;
+  case LANDMARK_TYPE_2D:
+    return 2;
+  case LANDMARK_TYPE_3D:
+    return 3;
+  default:
+    throw std::runtime_error("Could not determine dimension from first line " +
+                             line);
+  }
+}
+
 /**
  * @brief Parses a text file written in the PyFG format and returns a
  * CORA::Problem
@@ -51,10 +109,15 @@ enum PyFGType {
  * @param filename Path to the PyFG file
  * @return CORA::Problem The parsed problem
  */
-CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
+Problem parsePyfgTextToProblem(const std::string &filename) {
   // Note: This currently ignores all groundtruth measurements embedded
   // in the file
-  CORA::Problem problem(2, 2);
+  int dim = getDimFromPyfgFirstLine(filename);
+  int relaxation_rank = dim;
+  CORA::Formulation formulation = CORA::Formulation::Explicit;
+  CORA::Preconditioner preconditioner =
+      CORA::Preconditioner::RegularizedCholesky;
+  CORA::Problem problem(dim, relaxation_rank, formulation, preconditioner);
 
   const std::map<std::string, PyFGType> PyFGStringToType{
       {"VERTEX_SE2", POSE_TYPE_2D},
@@ -207,9 +270,36 @@ CORA::Problem parsePyfgTextToProblem(const std::string &filename) {
       break;
 
     case REL_POSE_LANDMARK_TYPE_2D:
+      if (iss >> timestamp >> sym1 >> sym2) {
+        auto xy = readVector(iss, 2);
+        auto cov = readSymmetric(iss, 2);
+        Symbol sym_a(sym1);
+        Symbol sym_b(sym2);
+        RelativePoseLandmarkMeasurement rel_pose_landmark{sym_a, sym_b, xy,
+                                                          cov};
+        problem.addRelativePoseLandmarkMeasurement(rel_pose_landmark);
+      } else {
+        throw std::runtime_error(
+            "Could not read relative pose-landmark measurement from line " +
+            line);
+      }
+      break;
+
     case REL_POSE_LANDMARK_TYPE_3D:
-      throw std::runtime_error("Relative pose-landmark measurements not "
-                               "supported yet");
+      if (iss >> timestamp >> sym1 >> sym2) {
+        auto xyz = readVector(iss, 3);
+        auto cov = readSymmetric(iss, 3);
+        Symbol sym_a(sym1);
+        Symbol sym_b(sym2);
+        RelativePoseLandmarkMeasurement rel_pose_landmark{sym_a, sym_b, xyz,
+                                                          cov};
+        problem.addRelativePoseLandmarkMeasurement(rel_pose_landmark);
+      } else {
+        throw std::runtime_error(
+            "Could not read relative pose-landmark measurement from line " +
+            line);
+      }
+      break;
 
     case RANGE_MEASURE_TYPE:
       if (iss >> timestamp >> sym1 >> sym2) {
@@ -301,6 +391,8 @@ Matrix readSymmetric(std::istringstream &iss, int dim) {
         cov(i, j) = val;
         cov(j, i) = val;
       } else {
+        std::cout << "Attempted to parse covariance matrix. i:" << i
+                  << " j:" << j << " val:" << val << std::endl;
         throw std::runtime_error("Could not read covariance matrix");
       }
     }

@@ -83,7 +83,10 @@ private:
   std::vector<RangeMeasurement> range_measurements_;
 
   // the relative pose measurements that are used to construct the problem
-  std::vector<RelativePoseMeasurement> rel_pose_measurements_;
+  std::vector<RelativePoseMeasurement> rel_pose_pose_measurements_;
+
+  // the pose-landmark measurements that are used to construct the problem
+  std::vector<RelativePoseLandmarkMeasurement> rel_pose_landmark_measurements_;
 
   // the pose priors that are used to construct the problem
   std::vector<PosePrior> pose_priors_;
@@ -207,8 +210,12 @@ public:
   void addRangeMeasurement(const RangeMeasurement &range_measurement);
   void
   addRelativePoseMeasurement(const RelativePoseMeasurement &rel_pose_measure);
+  void addRelativePoseLandmarkMeasurement(
+      const RelativePoseLandmarkMeasurement &rel_pose_landmark_measure);
   void addPosePrior(const PosePrior &pose_prior);
   void addLandmarkPrior(const LandmarkPrior &landmark_prior);
+  inline int getNumPosePriors() const { return pose_priors_.size(); }
+  inline int getNumLandmarkPriors() const { return landmark_priors_.size(); }
 
   // Indexing helpers
   Index getRotationIdx(const Symbol &pose_symbol) const;
@@ -225,6 +232,9 @@ public:
     return data_submatrices_;
   }
 
+  // get pose symbols that start with a given character
+  std::vector<Symbol> getPoseSymbols(unsigned char chr) const;
+
   // Get copies of pose and landmark symbol maps
   std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }
   std::map<Symbol, int> getLandmarkSymbolMap() const {
@@ -235,8 +245,17 @@ public:
     return range_measurements_;
   }
 
+  // Get copy of relative pose measurements
+  inline std::vector<RelativePoseMeasurement> getRPMs() const {
+    return rel_pose_pose_measurements_;
+  }
+
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
+
+  // the most recent minimum eigenvectors computed by LOBPCG for certification
+  CertResults last_cert_results_;
+  bool last_cert_results_valid_ = false;
 
   void updateProblemData();
   SparseMatrix getDataMatrix();
@@ -249,8 +268,11 @@ public:
   inline int numPoses() const {
     return static_cast<int>(pose_symbol_idxs_.size());
   }
-  inline int numPoseMeasurements() const {
-    return static_cast<int>(rel_pose_measurements_.size());
+  inline int numPosePoseMeasurements() const {
+    return static_cast<int>(rel_pose_pose_measurements_.size());
+  }
+  inline int numPoseLandmarkMeasurements() const {
+    return static_cast<int>(rel_pose_landmark_measurements_.size());
   }
   inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());
@@ -279,6 +301,9 @@ public:
   void setRank(int r) {
     relaxation_rank_ = r;
     manifolds_.setRank(r);
+  }
+  void setPreconditioner(Preconditioner preconditioner) {
+    preconditioner_ = preconditioner;
   }
 
   Scalar evaluateObjective(const Matrix &Y) const;
@@ -313,7 +338,8 @@ public:
    * @return CertResults
    */
   CertResults certify_solution(const Matrix &Y, Scalar eta, size_t nx,
-                               size_t max_LOBPCG_iters = 1000,
+                               const Matrix &eigvec_bootstrap,
+                               size_t max_LOBPCG_iters = 500,
                                Scalar max_fill_factor = 3,
                                Scalar drop_tol = 1e-3) const;
 

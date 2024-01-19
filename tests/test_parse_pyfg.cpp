@@ -12,7 +12,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 namespace CORA {
-TEST_CASE("Loading PyFg", "[ParsePyFG::small_ra_slam_problem]") {
+TEST_CASE("Loading PyFg small problem", "[ParsePyFG::small_ra_slam_problem]") {
   std::string data_subdir = "small_ra_slam_problem";
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
@@ -20,7 +20,7 @@ TEST_CASE("Loading PyFg", "[ParsePyFG::small_ra_slam_problem]") {
   REQUIRE(err_msg.empty());
 }
 
-TEST_CASE("Loading PyFg", "[ParsePyFG::single_range]") {
+TEST_CASE("Loading PyFg single range", "[ParsePyFG::single_range]") {
   std::string data_subdir = "single_range";
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);
@@ -28,7 +28,7 @@ TEST_CASE("Loading PyFg", "[ParsePyFG::single_range]") {
   REQUIRE(err_msg.empty());
 }
 
-TEST_CASE("Loading PyFg", "[ParsePyFG::single_rpm]") {
+TEST_CASE("Loading PyFg single rpm", "[ParsePyFG::single_rpm]") {
   std::string data_subdir = "single_rpm";
   std::string pyfg_path = getTestDataFpath(data_subdir, "factor_graph.pyfg");
   Problem problem = parsePyfgTextToProblem(pyfg_path);

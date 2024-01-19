@@ -11,6 +11,7 @@
 
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_utils.h>
+#include <Optimization/LinearAlgebra/LOBPCG.h>
 
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
@@ -42,11 +43,25 @@ void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
 
 void Problem::addRelativePoseMeasurement(
     const RelativePoseMeasurement &rel_pose_measure) {
-  if (std::find(rel_pose_measurements_.begin(), rel_pose_measurements_.end(),
-                rel_pose_measure) != rel_pose_measurements_.end()) {
+  if (std::find(rel_pose_pose_measurements_.begin(),
+                rel_pose_pose_measurements_.end(),
+                rel_pose_measure) != rel_pose_pose_measurements_.end()) {
     throw std::invalid_argument("Relative pose measurement already exists");
   }
-  rel_pose_measurements_.push_back(rel_pose_measure);
+  rel_pose_pose_measurements_.push_back(rel_pose_measure);
+  problem_data_up_to_date_ = false;
+}
+
+void Problem::addRelativePoseLandmarkMeasurement(
+    const RelativePoseLandmarkMeasurement &rel_pose_landmark_measure) {
+  if (std::find(rel_pose_landmark_measurements_.begin(),
+                rel_pose_landmark_measurements_.end(),
+                rel_pose_landmark_measure) !=
+      rel_pose_landmark_measurements_.end()) {
+    throw std::invalid_argument(
+        "Relative pose landmark measurement already exists");
+  }
+  rel_pose_landmark_measurements_.push_back(rel_pose_landmark_measure);
   problem_data_up_to_date_ = false;
 }
 
@@ -104,13 +119,20 @@ void Problem::fillRangeSubmatrices() {
 
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
-  auto num_pose_measurements = numPoseMeasurements();
+  auto num_pose_pose_measurements = numPosePoseMeasurements();
+  data_submatrices_.rel_pose_rotation_precision_matrix =
+      SparseMatrix(num_pose_pose_measurements, num_pose_pose_measurements);
+
+  auto num_pose_landmark_measurements = numPoseLandmarkMeasurements();
   auto num_translations = numTranslationalStates();
+  auto num_pose_measurements =
+      num_pose_pose_measurements + num_pose_landmark_measurements;
 
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
   auto translation_offset = rotAndRangeMatrixSize();
+
   // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_incidence_matrix =
       SparseMatrix(num_pose_measurements, num_translations);
@@ -118,13 +140,11 @@ void Problem::fillRelPoseSubmatrices() {
       SparseMatrix(num_pose_measurements, numPosesDim());
   data_submatrices_.rel_pose_translation_precision_matrix =
       SparseMatrix(num_pose_measurements, num_pose_measurements);
-  data_submatrices_.rel_pose_rotation_precision_matrix =
-      SparseMatrix(num_pose_measurements, num_pose_measurements);
 
   // for diagonal matrices, get the diagonal vector and set the values
-  for (int measure_idx = 0; measure_idx < num_pose_measurements;
+  for (int measure_idx = 0; measure_idx < num_pose_pose_measurements;
        measure_idx++) {
-    RelativePoseMeasurement rpm = rel_pose_measurements_[measure_idx];
+    RelativePoseMeasurement rpm = rel_pose_pose_measurements_[measure_idx];
 
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
@@ -145,6 +165,30 @@ void Problem::fillRelPoseSubmatrices() {
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
     }
   }
+
+  for (int measure_idx = num_pose_pose_measurements;
+       measure_idx < num_pose_measurements; measure_idx++) {
+    int pose_landmark_idx = measure_idx - num_pose_pose_measurements;
+    RelativePoseLandmarkMeasurement rplm =
+        rel_pose_landmark_measurements_[pose_landmark_idx];
+
+    // fill in precision matrices
+    data_submatrices_.rel_pose_translation_precision_matrix.insert(
+        measure_idx, measure_idx) = rplm.getTransPrecision();
+
+    // fill in incidence matrix
+    Index id1 = getTranslationIdx(rplm.first_id) - translation_offset;
+    Index id2 = getTranslationIdx(rplm.second_id) - translation_offset;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
+
+    // fill in translation data matrix where the id1-th (1 x dim_) block is
+    // -rpm.t and all other blocks are 0
+    for (int k = 0; k < dim_; k++) {
+      data_submatrices_.rel_pose_translation_data_matrix.insert(
+          measure_idx, id1 * dim_ + k) = -rplm.t(k);
+    }
+  }
 }
 
 void Problem::fillRotConnLaplacian() {
@@ -157,10 +201,11 @@ void Problem::fillRotConnLaplacian() {
   size_t measurement_stride = 2 * (d + d * d);
 
   std::vector<Eigen::Triplet<Scalar>> triplets;
-  triplets.reserve(measurement_stride * numPoseMeasurements());
+  triplets.reserve(measurement_stride * numPosePoseMeasurements());
 
   size_t i, j;
-  for (const RelativePoseMeasurement &measurement : rel_pose_measurements_) {
+  for (const RelativePoseMeasurement &measurement :
+       rel_pose_pose_measurements_) {
     i = getRotationIdx(measurement.first_id);
     j = getRotationIdx(measurement.second_id);
 
@@ -255,9 +300,9 @@ void Problem::printProblem() const {
   }
 
   // print out all of the relative pose measurements
-  if (numPoseMeasurements() > 0) {
+  if (numPosePoseMeasurements() > 0) {
     std::cout << "\nRelative pose measurements:" << std::endl;
-    for (auto rel_pose_measurement : rel_pose_measurements_) {
+    for (auto rel_pose_measurement : rel_pose_pose_measurements_) {
       std::cout << rel_pose_measurement.first_id.string() << " -> "
                 << rel_pose_measurement.second_id.string() << std::endl;
       std::cout << "Rot:\n" << rel_pose_measurement.R << std::endl;
@@ -267,6 +312,19 @@ void Problem::printProblem() const {
     std::cout << std::endl;
   } else {
     std::cout << "No relative pose measurements" << std::endl;
+  }
+
+  // print out all of the relative pose landmark measurements
+  if (numPoseLandmarkMeasurements() > 0) {
+    std::cout << "\nRelative pose landmark measurements:" << std::endl;
+    for (auto rplm : rel_pose_landmark_measurements_) {
+      std::cout << rplm.first_id.string() << " -> " << rplm.second_id.string()
+                << std::endl;
+      std::cout << "Trans: " << rplm.t.transpose() << std::endl;
+      std::cout << "Cov:\n" << rplm.cov << std::endl;
+    }
+  } else {
+    std::cout << "No relative pose landmark measurements" << std::endl;
   }
 
   // print out all of the pose priors
@@ -339,15 +397,65 @@ void Problem::updatePreconditioner() {
   } else if (preconditioner_ == Preconditioner::RegularizedCholesky) {
     // add a small value to the diagonal of the data matrix to ensure that it is
     // positive definite
+
+    /// Next, we must estimate the spectral norm of D in order to determine
+    /// the value of the regularization constant lambda_reg necessary to
+    /// guarantee that the upper bound for the desired condition number of the
+    /// preconditioner P is achieved
+
+    // Here we use the fact that D >= 0, so that
+    // ||D||_2 = lambda_max(D) = - lambda_min(-D)
+
+    CORA::SparseMatrix D = data_matrix_;
+    Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix> neg_D_op =
+        [&D](const Matrix &X) -> Matrix { return -(D * X); };
+
+    // Estimate the algebraically-smallest eigenvalue of -D using LOBPCG
+
+    size_t num_iters;
+    size_t nc;
+    Vector theta;
+    Matrix X;
+    size_t block_size = std::min(4, static_cast<int>(data_matrix_.rows()));
+    std::tie(theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
+        neg_D_op,
+        std::optional<
+            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+            std::nullopt),
+        std::optional<
+            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+            std::nullopt),
+        data_matrix_.rows(), block_size, 1, 100, num_iters, nc, 1e-2);
+
+    // Extract estimated norm of M
+    Scalar Dnorm = -theta(0);
+
+    // load a scalar from an environment variable
+    Scalar reg_Chol_precon_max_cond_ = 1e6;
+    char *env_var = std::getenv("CORA_REG_CHOLESKY_MAX_COND");
+    if (env_var != NULL) {
+      reg_Chol_precon_max_cond_ = std::stod(env_var);
+      std::cout << "Loaded CORA_REG_CHOLESKY_MAX_COND from environment "
+                   "variable: "
+                << reg_Chol_precon_max_cond_ << std::endl;
+    }
+
+    // Compute the required value of the regularization parameter lambda_reg
+    Scalar lambda_reg = Dnorm / (reg_Chol_precon_max_cond_ - 1);
+
     SparseMatrix epsilonPosDefUpdate =
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
     epsilonPosDefUpdate.setIdentity();
-    epsilonPosDefUpdate *= 1e-2;
+    epsilonPosDefUpdate *= lambda_reg;
+
     VectorXi block_sizes(1);
     block_sizes(0) = data_matrix_.rows();
     preconditioner_matrices_.block_chol_factor_ptrs_ =
         getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
                                       block_sizes);
+  } else if (preconditioner_ == Preconditioner::Jacobi) {
+    preconditioner_matrices_.jacobi_preconditioner_ =
+        data_matrix_.diagonal().cwiseInverse().asDiagonal();
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -565,6 +673,8 @@ Matrix Problem::precondition(const Matrix &V) const {
       preconditioner_ == Preconditioner::RegularizedCholesky) {
     res =
         blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
+  } else if (preconditioner_ == Preconditioner::Jacobi) {
+    res = preconditioner_matrices_.jacobi_preconditioner_ * V;
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -623,6 +733,16 @@ int Problem::getDataMatrixSize() const {
   } else {
     throw std::invalid_argument("Unknown formulation");
   }
+}
+
+std::vector<Symbol> Problem::getPoseSymbols(unsigned char chr) const {
+  std::vector<Symbol> pose_symbols;
+  for (const auto &[pose_sym, pose_idx] : pose_symbol_idxs_) {
+    if (pose_sym.chr() == chr) {
+      pose_symbols.push_back(pose_sym);
+    }
+  }
+  return pose_symbols;
 }
 
 Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
@@ -690,6 +810,7 @@ Matrix Problem::getRandomInitialGuess() const {
 }
 
 CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
+                                      const Matrix &eigvec_bootstrap,
                                       size_t max_LOBPCG_iters,
                                       Scalar max_fill_factor,
                                       Scalar drop_tol) const {
@@ -713,7 +834,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
         "equal to the number of columns of Y");
   }
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
-  init_eigvec_guess.block(0, 0, S.rows(), relaxation_rank_) = Y;
+  init_eigvec_guess.block(0, 0, S.rows(), eigvec_bootstrap.cols()) =
+      eigvec_bootstrap;
   CertResults results = fast_verification(
       S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
 

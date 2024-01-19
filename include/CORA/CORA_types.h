@@ -59,6 +59,7 @@ struct CertResults {
   bool is_certified;
   Scalar theta;
   Vector x;
+  Matrix all_eigvecs;
   size_t num_iters;
 };
 

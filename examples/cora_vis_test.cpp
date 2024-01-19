@@ -7,16 +7,15 @@
 #include <thread> // NOLINT [build/c++11]
 
 int main() {
-  CORA::Problem problem = CORA::parsePyfgTextToProblem(
-      "./bin/example_data/factor_graph_small.pyfg");
-  // "/home/alan/range-only-slam-mission-control/cora-experiments/data/plaza/plaza2/factor_graph.pyfg");
-  // "./bin/example_data/factor_graph.pyfg");
+  CORA::Problem problem =
+      CORA::parsePyfgTextToProblem("./bin/data/factor_graph_small.pyfg");
+  // "./bin/data/plaza2.pyfg");
   problem.updateProblemData();
 
   CORA::Matrix x0 = problem.getRandomInitialGuess();
 
   int max_rank = 10;
-  bool verbose = true;
+  bool verbose = false;
   bool log_iterates = true;
   CORA::CoraResult res;
   res = solveCORA(problem, x0, max_rank, verbose, log_iterates);
