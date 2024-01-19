@@ -416,6 +416,7 @@ void Problem::updatePreconditioner() {
     size_t nc;
     Vector theta;
     Matrix X;
+    size_t block_size = std::min(4, static_cast<int>(data_matrix_.rows()));
     std::tie(theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
         neg_D_op,
         std::optional<
@@ -424,7 +425,7 @@ void Problem::updatePreconditioner() {
         std::optional<
             Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
             std::nullopt),
-        data_matrix_.rows(), 4, 1, 100, num_iters, nc, 1e-2);
+        data_matrix_.rows(), block_size, 1, 100, num_iters, nc, 1e-2);
 
     // Extract estimated norm of M
     Scalar Dnorm = -theta(0);
