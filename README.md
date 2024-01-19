@@ -59,6 +59,7 @@ terminal commands should get you up and running with visualization.
 # install Pangolin
 git clone git@github.com:stevenlovegrove/Pangolin.git
 cd Pangolin
+sudo git submodule update --init
 git checkout d484494 # this is the most recent commit that worked for everything
 mkdir build
 cd build
