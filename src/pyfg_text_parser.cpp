@@ -113,7 +113,7 @@ Problem parsePyfgTextToProblem(const std::string &filename) {
   // Note: This currently ignores all groundtruth measurements embedded
   // in the file
   int dim = getDimFromPyfgFirstLine(filename);
-  int relaxation_rank = dim + 2;
+  int relaxation_rank = dim;
   CORA::Formulation formulation = CORA::Formulation::Explicit;
   CORA::Preconditioner preconditioner =
       CORA::Preconditioner::RegularizedCholesky;
