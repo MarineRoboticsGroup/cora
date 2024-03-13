@@ -82,14 +82,14 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   Optimization::Riemannian::TNTParams<Scalar> params;
   params.max_TPCG_iterations = 250;
   params.max_iterations = 300;
-  params.preconditioned_gradient_tolerance = 1e-3;
+  params.preconditioned_gradient_tolerance = 1e-5;
   params.gradient_tolerance = 1e-3;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-3;
-  params.verbose = false;
+  params.verbose = true;
   params.precision = 2;
   params.max_computation_time = 50;
-  params.relative_decrease_tolerance = 1e-4;
+  params.relative_decrease_tolerance = 1e-7;
   params.stepsize_tolerance = 1e-4;
   params.log_iterates = log_iterates;
 
@@ -149,11 +149,6 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
             " with eta: " + std::to_string(eta) +
             " and theta: " + std::to_string(cert_results.theta));
 
-    // if theta is NaN, then throw an exception
-    if (std::isnan(cert_results.theta)) {
-      throw std::runtime_error("Theta is NaN");
-    }
-
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
       break;
@@ -163,8 +158,18 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     const Scalar SADDLE_GRAD_TOL = 1e-4;
     const Scalar PRECON_SADDLE_GRAD_TOL = 1e-4;
     problem.incrementRank();
-    X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
-                     SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
+
+    // if theta is NaN, then likely LOBPCG failed to converge. Let's saddle
+    // perturb the solution randomly and refine it
+    if (std::isnan(cert_results.theta)) {
+      Matrix X_augmented = Matrix::Zero(X.rows(), X.cols() + 1);
+      X_augmented.leftCols(X.cols()) = X;
+      X_augmented.rightCols<1>() = Vector::Random(X.rows()) / 100;
+      X = X_augmented;
+    } else {
+      X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
+                       SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
+    }
   }
 
   // if X has more columns than 'd' then we want to project it down to the

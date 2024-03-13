@@ -90,6 +90,22 @@ int getDimFromPyfgFirstLine(const std::string &filename) {
     return 2;
   case LANDMARK_TYPE_3D:
     return 3;
+  case POSE_PRIOR_2D:
+    return 2;
+  case POSE_PRIOR_3D:
+    return 3;
+  case LANDMARK_PRIOR_2D:
+    return 2;
+  case LANDMARK_PRIOR_3D:
+    return 3;
+  case REL_POSE_POSE_TYPE_2D:
+    return 2;
+  case REL_POSE_POSE_TYPE_3D:
+    return 3;
+  case REL_POSE_LANDMARK_TYPE_2D:
+    return 2;
+  case REL_POSE_LANDMARK_TYPE_3D:
+    return 3;
   default:
     throw std::runtime_error("Could not determine dimension from first line " +
                              line);

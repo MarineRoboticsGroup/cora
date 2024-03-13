@@ -613,6 +613,8 @@ int main(int argc, char **argv) {
 
   files = {"data/test.pyfg"};
 
+  files = {"factor_graph_low_noise.pyfg"};
+
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(file);
     std::cout << std::endl;

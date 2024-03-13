@@ -849,6 +849,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
     SparseMatrix Lambda = compute_Lambda_from_Lambda_blocks(Lambda_blocks);
     Vector Sx = dataMatrixProduct(results.x) - Lambda * results.x;
     results.theta = results.x.dot(Sx);
+
   }
 
   return results;

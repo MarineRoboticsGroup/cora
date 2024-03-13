@@ -56,7 +56,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
     // if the matrix is sufficiently small (i.e. n <= 100), then we can
     // directly compute the minimum eigenpair
-    if (n <= 100) {
+    if (n <= 500) {
       Eigen::SelfAdjointEigenSolver<Matrix> eigensolver(S);
       theta = eigensolver.eigenvalues()(0);
       x = eigensolver.eigenvectors().col(0);
@@ -121,7 +121,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     // Calculate curvature along x
     theta = x.dot(S * x);
 
-    if (theta >= -eta / 2) {
+    if (theta >= -eta / 2 || std::isnan(theta)) {
       /// STEP 3:  RUN PRECONDITIONED LOBPCG
 
       // We did *not* find a direction of sufficiently negative curvature in the
