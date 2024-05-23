@@ -51,12 +51,19 @@ Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
     num_result_rows += block_chol_factor_ptr->rows();
   }
 
-  // check that the number of rows of the result is the same as the number of
-  // rows of the input vector
-  checkMatrixShape("blockCholeskySolve", num_result_rows, rhs.cols(),
-                   rhs.rows(), rhs.cols());
+  bool rhs_same_num_rows = rhs.rows() == num_result_rows;
+  bool rhs_one_more_row = rhs.rows() == num_result_rows + 1;
 
-  Matrix result(num_result_rows, rhs.cols());
+  // rhs and cholesky factor must have either the same number of rows or one
+  // more row than the cholesky factor
+  if (!rhs_same_num_rows && !rhs_one_more_row) {
+    throw std::invalid_argument(
+        "The number of rows in the right-hand side must be equal to the sum "
+        "of the number of rows in the block Cholesky factors or one more row "
+        "than the sum of the number of rows in the block Cholesky factors.");
+  }
+
+  Matrix result(rhs.rows(), rhs.cols());
   int block_start = 0;
   for (auto &block_chol_factor_ptr : block_chol_factor_ptrs) {
     // perform the solves in a block-wise ordering
@@ -65,6 +72,11 @@ Matrix blockCholeskySolve(const CholFactorPtrVector &block_chol_factor_ptrs,
         block_chol_factor_ptr->solve(
             rhs.block(block_start, 0, block_size, rhs.cols()));
     block_start += block_size;
+  }
+
+  // if rhs has one more row then set the last row of the result to zero
+  if(rhs_one_more_row) {
+    result.bottomRows(1).setZero();
   }
 
   return result;

@@ -610,10 +610,11 @@ std::vector<std::string> getRangeAndRpmMrclamFiles() {
 int main(int argc, char **argv) {
   std::vector<std::string> original_exp_files = {
       // "data/marine_two_robots.pyfg",
-      // "data/plaza1.pyfg",
-       "data/plaza2.pyfg",
-        // "data/single_drone.pyfg",
-      "data/tiers.pyfg"}; // TIERS faster w/ random init
+      "data/plaza1.pyfg",
+      "data/plaza2.pyfg",
+      "data/single_drone.pyfg",
+      "data/tiers.pyfg"
+      }; // TIERS faster w/ random init
 
   auto mrclam_range_only_files = getRangeOnlyMrclamFiles();
   auto mrclam_range_and_rpm_files = getRangeAndRpmMrclamFiles();
@@ -621,35 +622,35 @@ int main(int argc, char **argv) {
   std::vector<std::string> files = {};
 
   // original experiments
-  files.insert(files.end(), original_exp_files.begin(),
-               original_exp_files.end());
+  // files.insert(files.end(), original_exp_files.begin(),
+  //              original_exp_files.end());
 
   // mrclam range only experiments
-  // files.insert(files.end(), mrclam_range_only_files.begin(),
-  //              mrclam_range_only_files.end());
+  files.insert(files.end(), mrclam_range_only_files.begin(),
+               mrclam_range_only_files.end());
 
   // mrclam range and rpm experiments
-  // files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
-  //              mrclam_range_and_rpm_files.end());
+  files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
+               mrclam_range_and_rpm_files.end());
 
   // files = {"data/test.pyfg"};
 
   int init_rank_jump = 1;
-  int max_rank = 20;
+  int max_rank = 7;
   bool verbose = true;
-  bool log_iterates = true;
+  bool log_iterates = false;
 
 
   // set the initialization type
   InitType init_type;
-  // init_type = InitType::Odom;
-  init_type = InitType::Random;
+  init_type = InitType::Odom;
+  // init_type = InitType::Random;
 
   // set the preconditioner
   CORA::Preconditioner preconditioner;
   // preconditioner = CORA::Preconditioner::Jacobi;
-  preconditioner = CORA::Preconditioner::BlockCholesky;
-  // preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  // preconditioner = CORA::Preconditioner::BlockCholesky;
+  preconditioner = CORA::Preconditioner::RegularizedCholesky;
 
   for (auto file : files) {
     CORA::Matrix soln =
