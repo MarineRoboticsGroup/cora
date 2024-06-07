@@ -10,7 +10,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Set the default build type to debug
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
-    # set(CMAKE_BUILD_TYPE Debug)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
     message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
 else()
@@ -52,6 +51,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE STRING "The CMak
 find_package(Eigen3 3.3.7 REQUIRED)
 if(EIGEN3_FOUND)
 message(STATUS "Found Eigen3 library: ${EIGEN3_INCLUDE_DIR}\n")
+endif()
+
+# Find (system) Spectra library
+include(CMakePackageConfigHelpers)
+include(CMakeFindDependencyMacro)
+find_package(Spectra REQUIRED)
+if(SPECTRA_FOUND)
+message(STATUS "Found Spectra library: ${SPECTRA_INCLUDE_DIR}\n")
 endif()
 
 if(${ENABLE_VECTORIZATION})
@@ -124,7 +131,7 @@ set(CORA_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 # The CORA headers and and Eigen 3, SPQR, and Cholmod are all referenced by the
 # header files of the CORA library, hence must be PUBLICLY included (i.e.
 # clients using the CORA headers must also include these headers)
-set(CORA_INCLUDES ${CORA_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIR} ${SPQR_INCLUDES} CACHE INTERNAL "")
+set(CORA_INCLUDES ${CORA_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIR} ${SPQR_INCLUDES} ${SPECTRA_INCLUDE_DIR} CACHE INTERNAL "")
 
 # The CORA header and source files
 set(CORA_HDRS

@@ -1,5 +1,8 @@
 #include <CORA/CORA.h>
 #include <CORA/CORA_utils.h>
+#include <functional>
+
+template <typename... Args>
 
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
@@ -89,14 +92,14 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   params.verbose = false;
   params.precision = 2;
   params.max_computation_time = 50;
-  params.relative_decrease_tolerance = 1e-5;
+  params.relative_decrease_tolerance = 1e-4;
   params.stepsize_tolerance = 1e-5;
   params.log_iterates = log_iterates;
 
   // certification parameters
   const Scalar MIN_CERT_ETA = 1e-4;
   const Scalar MAX_CERT_ETA = 1e-1;
-  const Scalar REL_CERT_ETA = 5e-7;
+  const Scalar REL_CERT_ETA = 2e-5;
   const int LOBPCG_BLOCK_SIZE = 10;
   Scalar eta;
 
@@ -106,7 +109,35 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
           [](const Matrix &Y, const Matrix &V1, const Matrix &V2,
              const Matrix &NablaF_Y) { return (V1.transpose() * V2).trace(); };
 
-  // no custom instrumentation function for now
+  // custom instrumentation function to append to a file
+  // <iteration> <elapsed_time> <fx> <inner_iterations>
+    std::ofstream outfile;
+    outfile.open("output.txt", std::ios_base::app);
+    outfile << "iteration,elapsed_time,fx,inner_iterations" << std::endl;
+    outfile.close();
+
+  // InstrumentationFunction user_function =
+  //     [](size_t i, double t, const Matrix &x, Scalar f, const Matrix &g,
+  //        const Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>
+  //            &HessOp,
+  //        Scalar Delta, size_t num_STPCG_iters, const Matrix &h, Scalar df,
+  //        Scalar rho, bool accepted, Matrix &M) -> bool {
+  //   // Open the file in append mode
+  //   std::ofstream outfile;
+  //   outfile.open("output.txt", std::ios_base::app);
+  //   // Check if the file is open
+  //   if (!outfile.is_open()) {
+  //     std::cerr << "Failed to open the file." << std::endl;
+  //     return false; // Indicate failure to append to the file
+  //   }
+  //   // Append the iteration number, elapsed time, objective value, and number of
+  //   // inner iterations to the file
+  //   outfile << i << "," << t << "," << f << "," << num_STPCG_iters << std::endl;
+  //   // Close the file
+  //   outfile.close();
+  //   return false; // Indicate that the optimization process should not terminate
+  // };
+
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
   CoraTntResult result;
@@ -142,6 +173,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
     cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
                                             eigvec_bootstrap);
+    X = result.x;
 
     printIfVerbose(
         verbose,
@@ -175,6 +207,10 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                                 " and refining.");
     X = projectSolution(problem, X, verbose);
     problem.setRank(problem.dim());
+
+    // set number of iterations to 10
+    params.max_iterations = 10;
+
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
     printIfVerbose(verbose, "Obtained solution with objective value: " +
@@ -337,6 +373,9 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   Matrix Yd = svd.matrixU().leftCols(d) * Sigma_d;
   Vector determinants(n);
 
+  // make a copy of Yd
+  Matrix Yd_copy = Yd;
+
   size_t ng0 = 0; // This will count the number of blocks whose
   // determinants have positive sign
   for (size_t i = 0; i < n; ++i) {
@@ -354,6 +393,9 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
                      "% of the total.");
 
   if (ng0 < n / 2) {
+    std::cout << "WARNING: Less than half of the total number of blocks have "
+                 "the correct sign, so reversing their orientations."
+              << std::endl;
     // Less than half of the total number of blocks have the correct sign, so
     // reverse their orientations
 

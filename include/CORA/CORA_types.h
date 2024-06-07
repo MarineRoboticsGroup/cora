@@ -74,7 +74,7 @@ enum class StiefelRetraction { QR, Polar };
 enum class ObliqueRetraction { Normalize };
 
 /** The preconditioner applied to the inner tCG solver. */
-enum class Preconditioner { None, Jacobi, BlockCholesky, RegularizedCholesky };
+enum class Preconditioner { None, Jacobi, BlockJacobi, BlockCholesky, RegularizedCholesky };
 
 /** The initialization method used for the CORA algorithm. */
 enum class Initialization { Random, Odometry };

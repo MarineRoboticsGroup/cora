@@ -280,7 +280,7 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
 
     // write the line to the file
     output_file << time << " " << x << " " << y << " " << z << " " << qx << " "
-                << qy << " " << qz << " " << qw << std::endl;
+                << qy << " " << -qz << " " << qw << std::endl;
   }
 
   // close the file

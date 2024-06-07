@@ -12,6 +12,15 @@
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_utils.h>
 #include <Optimization/LinearAlgebra/LOBPCG.h>
+#include <fstream>
+
+// include Spectra so that we can use the SymEigsSolver class to compute the
+// largest eigenvalues of the data matrix
+#include <Spectra/MatOp/SparseSymMatProd.h>
+#include <Spectra/SymEigsSolver.h>
+
+// include the Eigen unsupported module so that we can use the loadMarket and
+#include <unsupported/Eigen/SparseExtra>
 
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
@@ -393,11 +402,12 @@ void Problem::updatePreconditioner() {
     epsilonPosDefUpdate *= 1e-3;
     SparseMatrix regularized_data_matrix = data_matrix_ + epsilonPosDefUpdate;
     if (pin_last_translation_) {
+      // subtract 1 from last block size
+      block_sizes(block_sizes.size() - 1) -= 1;
       preconditioner_matrices_.block_chol_factor_ptrs_ =
           getBlockCholeskyFactorization(
-              regularized_data_matrix.block(0, 0,
-                                            regularized_data_matrix.rows() - 1,
-                                            regularized_data_matrix.cols() - 1),
+              data_matrix_.block(0, 0, data_matrix_.rows() - 1,
+                                 data_matrix_.cols() - 1),
               block_sizes);
     } else {
       preconditioner_matrices_.block_chol_factor_ptrs_ =
@@ -421,23 +431,36 @@ void Problem::updatePreconditioner() {
 
     // Estimate the algebraically-smallest eigenvalue of -D using LOBPCG
 
-    size_t num_iters;
-    size_t nc;
-    Vector theta;
-    Matrix X;
-    size_t block_size = std::min(4, static_cast<int>(data_matrix_.rows()));
-    std::tie(theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
-        neg_D_op,
-        std::optional<
-            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
-            std::nullopt),
-        std::optional<
-            Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
-            std::nullopt),
-        data_matrix_.rows(), block_size, 1, 100, num_iters, nc, 1e-2);
+    // size_t num_iters;
+    // size_t nc;
+    // Vector theta;
+    // Matrix X;
+    // size_t block_size = std::min(4, static_cast<int>(data_matrix_.rows()));
+    // std::tie(theta, X) = Optimization::LinearAlgebra::LOBPCG<Vector, Matrix>(
+    //     neg_D_op,
+    //     std::optional<
+    //         Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+    //         std::nullopt),
+    //     std::optional<
+    //         Optimization::LinearAlgebra::SymmetricLinearOperator<Matrix>>(
+    //         std::nullopt),
+    //     data_matrix_.rows(), block_size, 1, 100, num_iters, nc, 1e-2);
 
-    // Extract estimated norm of M
-    Scalar Dnorm = -theta(0);
+    // // Extract estimated norm of M
+    // Scalar Dnorm = -theta(0);
+
+    // also compute Dnorm using the Spectra library (data_matrix_ is column
+    // major)
+    Spectra::SparseSymMatProd<Scalar, Eigen::Upper, Eigen::RowMajor> op(
+        data_matrix_);
+    Spectra::SymEigsSolver<
+        Spectra::SparseSymMatProd<Scalar, Eigen::Upper, Eigen::RowMajor>>
+        eigs(op, 1, 30); // find the largest eigenvalue
+    eigs.init();
+    eigs.compute(Spectra::SortRule::LargestAlge);
+    Scalar Dnorm = eigs.eigenvalues()[0];
+    // std::cout << "Dnorm = " << Dnorm << ", Dnorm_spectra = " << Dnorm_spectra
+    //           << std::endl;
 
     // load a scalar from an environment variable
     Scalar reg_Chol_precon_max_cond_ = 1e6;
@@ -451,6 +474,9 @@ void Problem::updatePreconditioner() {
 
     // Compute the required value of the regularization parameter lambda_reg
     Scalar lambda_reg = Dnorm / (reg_Chol_precon_max_cond_ - 1);
+
+    std::cout << "Regularized Cholesky preconditioner: lambda_reg = "
+              << lambda_reg << std::endl;
 
     SparseMatrix epsilonPosDefUpdate =
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
@@ -478,6 +504,46 @@ void Problem::updatePreconditioner() {
   } else if (preconditioner_ == Preconditioner::Jacobi) {
     preconditioner_matrices_.jacobi_preconditioner_ =
         data_matrix_.diagonal().cwiseInverse().asDiagonal();
+  } else if (preconditioner_ == Preconditioner::BlockJacobi) {
+    // invert the (d x d) diagonal blocks. If the matrix is not neatly
+    // divisible by d, then the last block will be smaller
+    int d = dim_;
+    int num_blocks = data_matrix_.rows() / d;
+
+    // will have to build as rows, cols, values and then setFromTriplets
+    std::vector<Eigen::Triplet<Scalar>> triplets;
+    Matrix diag_inv;
+
+    preconditioner_matrices_.block_jacobi_preconditioner_ =
+        SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
+    for (int i = 0; i < num_blocks; i++) {
+      diag_inv = data_matrix_.block(i * d, i * d, d, d).toDense().inverse();
+      for (int j = 0; j < d; j++) {
+        for (int k = 0; k < d; k++) {
+          triplets.emplace_back(i * d + j, i * d + k, diag_inv(j, k));
+        }
+      }
+    }
+
+    // if the matrix is not neatly divisible by d, then the last block will be
+    // smaller
+    if (data_matrix_.rows() % d != 0) {
+      int last_block_size = data_matrix_.rows() % d;
+      diag_inv = data_matrix_
+                     .block(num_blocks * d, num_blocks * d, last_block_size,
+                            last_block_size)
+                     .toDense()
+                     .inverse();
+      for (int j = 0; j < last_block_size; j++) {
+        for (int k = 0; k < last_block_size; k++) {
+          triplets.emplace_back(num_blocks * d + j, num_blocks * d + k,
+                                diag_inv(j, k));
+        }
+      }
+    }
+    preconditioner_matrices_.block_jacobi_preconditioner_.setFromTriplets(
+        triplets.begin(), triplets.end());
+
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
@@ -697,12 +763,19 @@ Matrix Problem::precondition(const Matrix &V) const {
         blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
   } else if (preconditioner_ == Preconditioner::Jacobi) {
     res = preconditioner_matrices_.jacobi_preconditioner_ * V;
+  } else if (preconditioner_ == Preconditioner::BlockJacobi) {
+    res = preconditioner_matrices_.block_jacobi_preconditioner_ * V;
   } else {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
   }
   checkMatrixShape("Problem::precondition::result", getDataMatrixSize(),
                    relaxation_rank_, res.rows(), res.cols());
+
+  // append to file "precondition.cnt" the word "preconditioned"
+  std::ofstream file("precondition.cnt", std::ios_base::app);
+  file << "preconditioned" << std::endl;
+  file.close();
 
   // check for NaNs in res
   if (res.hasNaN()) {

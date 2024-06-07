@@ -72,6 +72,7 @@ private:
   /** whether to pin the last translation when applying preconditioner */
   const bool pin_last_translation_ = true;
 
+
   /** rank of the relaxation e.g., the latent embedding space of Stiefel
    * manifold */
   int relaxation_rank_;
