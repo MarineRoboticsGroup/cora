@@ -46,9 +46,14 @@ cd examples
 python data_viz.py
 ```
 
-Here is our visualization of the "Single Drone" data set we show in the paper:
+Below is our visualization of the "Single Drone" data set we use in our paper.
+We visualize both the odometry train and the ground truth position of the drone.
+Range measurements are shown with the dashed grey lines between the drone and
+the ground station.
 
-![Single Drone](./media/single_drone_animation.mp4)
+<img src="https://github.com/MarineRoboticsGroup/cora/assets/17442843/41c3eb0e-d6fb-4f1e-95df-8b9e0a1ed6ec" width="600">
+
+https://github.com/MarineRoboticsGroup/cora/assets/17442843/05fdf949-3e23-4f3a-83a3-8eb1e706c2e5
 
 ## Contributing
 
