@@ -35,6 +35,21 @@ make -j
 
 For now look in our `examples/` directory for how to use this library.
 
+If you want to inspect the data we have, you can use the
+[PyFactorGraph library](https://github.com/MarineRoboticsGroup/PyFactorGraph).
+We have set up a small python script `examples/data_viz.py` to help you visualize
+the date, but you will need to install the PyFactorGraph library to use it.
+
+```bash
+pip install git+https://github.com/MarineRoboticsGroup/PyFactorGraph
+cd examples
+python data_viz.py
+```
+
+Here is our visualization of the "Single Drone" data set we show in the paper:
+
+![Single Drone](./media/single_drone_animation.mp4)
+
 ## Contributing
 
 Any contributions should pass all checks in our `.pre-commit-config.yaml` file.
