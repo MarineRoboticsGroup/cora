@@ -391,9 +391,18 @@ void Problem::updatePreconditioner() {
         SparseMatrix(data_matrix_.rows(), data_matrix_.cols());
     epsilonPosDefUpdate.setIdentity();
     epsilonPosDefUpdate *= 1e-3;
-    preconditioner_matrices_.block_chol_factor_ptrs_ =
-        getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
-                                      block_sizes);
+    SparseMatrix regularized_data_matrix = data_matrix_ + epsilonPosDefUpdate;
+    if (pin_last_translation_) {
+      preconditioner_matrices_.block_chol_factor_ptrs_ =
+          getBlockCholeskyFactorization(
+              regularized_data_matrix.block(0, 0,
+                                            regularized_data_matrix.rows() - 1,
+                                            regularized_data_matrix.cols() - 1),
+              block_sizes);
+    } else {
+      preconditioner_matrices_.block_chol_factor_ptrs_ =
+          getBlockCholeskyFactorization(regularized_data_matrix, block_sizes);
+    }
   } else if (preconditioner_ == Preconditioner::RegularizedCholesky) {
     // add a small value to the diagonal of the data matrix to ensure that it is
     // positive definite
@@ -449,10 +458,23 @@ void Problem::updatePreconditioner() {
     epsilonPosDefUpdate *= lambda_reg;
 
     VectorXi block_sizes(1);
-    block_sizes(0) = data_matrix_.rows();
-    preconditioner_matrices_.block_chol_factor_ptrs_ =
-        getBlockCholeskyFactorization(data_matrix_ + epsilonPosDefUpdate,
-                                      block_sizes);
+
+    SparseMatrix regularized_data_matrix = data_matrix_ + epsilonPosDefUpdate;
+
+    if (pin_last_translation_) {
+      block_sizes(0) = data_matrix_.rows() - 1;
+      preconditioner_matrices_.block_chol_factor_ptrs_ =
+          getBlockCholeskyFactorization(
+              regularized_data_matrix.block(0, 0,
+                                            regularized_data_matrix.rows() - 1,
+                                            regularized_data_matrix.cols() - 1),
+              block_sizes);
+    } else {
+      block_sizes(0) = data_matrix_.rows();
+      preconditioner_matrices_.block_chol_factor_ptrs_ =
+          getBlockCholeskyFactorization(regularized_data_matrix, block_sizes);
+    }
+
   } else if (preconditioner_ == Preconditioner::Jacobi) {
     preconditioner_matrices_.jacobi_preconditioner_ =
         data_matrix_.diagonal().cwiseInverse().asDiagonal();
@@ -836,8 +858,18 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   Matrix init_eigvec_guess = Matrix::Random(S.rows(), num_eigvecs);
   init_eigvec_guess.block(0, 0, S.rows(), eigvec_bootstrap.cols()) =
       eigvec_bootstrap;
+
   CertResults results = fast_verification(
       S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
+
+  while (std::isnan(results.theta)) {
+    // this seems to happen when there is a clustering of eigenvalues around
+    // zero, so we double eta and try again. Not perfect, but it works for now!
+    std::cout << "NaN in theta -- result not certified" << std::endl;
+    eta *= 2;
+    results = fast_verification(S, eta, init_eigvec_guess, max_LOBPCG_iters,
+                                max_fill_factor, drop_tol);
+  }
 
   if (!results.is_certified && (formulation_ == Formulation::Implicit)) {
     // Extract the (leading) portion of the tangent vector corresponding to the
@@ -849,6 +881,10 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
     SparseMatrix Lambda = compute_Lambda_from_Lambda_blocks(Lambda_blocks);
     Vector Sx = dataMatrixProduct(results.x) - Lambda * results.x;
     results.theta = results.x.dot(Sx);
+    if (std::isnan(results.theta)) {
+      throw std::runtime_error(
+          "NaN in theta -- result not certified and implicit form");
+    }
   }
 
   return results;

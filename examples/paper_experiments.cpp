@@ -503,28 +503,30 @@ void saveSolutions(const CORA::Problem &problem,
   }
 }
 
-CORA::Matrix solveProblem(std::string pyfg_fpath) {
+enum InitType { Random, Odom };
+
+CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
+                          int max_rank, CORA::Preconditioner preconditioner,
+                          InitType init_type, bool verbose = true,
+                          bool log_iterates = true) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
   CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
 
   // set the rank
-  problem.setRank(problem.dim() + 1);
-
-  // set the preconditioner
-  CORA::Preconditioner preconditioner;
-  preconditioner = CORA::Preconditioner::Jacobi;
-  // preconditioner = CORA::Preconditioner::BlockCholesky;
-  // preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  problem.setRank(problem.dim() + init_rank_jump);
 
   problem.setPreconditioner(preconditioner);
 
   // update the problem data
   problem.updateProblemData();
 
-  CORA::Matrix x0 = problem.getRandomInitialGuess();
-  // CORA::Matrix x0 = getOdomInitialization(problem, pyfg_fpath);
-  int max_rank = 10;
+  CORA::Matrix x0;
+  if (init_type == InitType::Random) {
+    x0 = problem.getRandomInitialGuess();
+  } else if (init_type == InitType::Odom) {
+    x0 = getOdomInitialization(problem, pyfg_fpath);
+  }
 
 #ifdef GPERFTOOLS
   ProfilerStart("cora.prof");
@@ -534,8 +536,6 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  bool verbose = true;
-  bool log_iterates = true;
   CORA::CoraResult soln =
       CORA::solveCORA(problem, x0, max_rank, verbose, log_iterates);
 
@@ -548,6 +548,11 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
   ProfilerStop();
 #endif
 
+  // append the filename (e.g., mrclam7) and the time to "results.txt"
+  std::ofstream results_file("results.txt", std::ios_base::app);
+  results_file << pyfg_fpath << " " << elapsed.count() << std::endl;
+  results_file.close();
+
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
 
@@ -557,14 +562,22 @@ CORA::Matrix solveProblem(std::string pyfg_fpath) {
 std::vector<std::string> getRangeOnlyMrclamFiles() {
   std::string base_dir = "data/mrclam/range_only/";
   std::vector<std::string> filenames = {
-      // "mrclam2.pyfg",
-      "mrclam3a.pyfg", "mrclam3b.pyfg", "mrclam4.pyfg", "mrclam5a.pyfg",
-      "mrclam5b.pyfg", "mrclam5c.pyfg", "mrclam6.pyfg", "mrclam7.pyfg",
+      "mrclam2.pyfg",
+      // "mrclam3a.pyfg", "mrclam3b.pyfg",
+      "mrclam4.pyfg",
+      // "mrclam5a.pyfg", "mrclam5b.pyfg", "mrclam5c.pyfg",
+      "mrclam6.pyfg",
+      "mrclam7.pyfg",
   };
 
+  // for each file, prepend a directory that is everything before the file
+  // extension (.pyfg)
   std::vector<std::string> full_paths = {};
-  for (auto filename : filenames) {
-    full_paths.push_back(base_dir + filename);
+  for (auto file : filenames) {
+    // strip the .pyfg extension
+    size_t pyfg_index = file.find(".pyfg");
+    std::string filename = file.substr(0, pyfg_index);
+    full_paths.push_back(base_dir + filename + "/" + file);
   }
 
   return full_paths;
@@ -573,14 +586,22 @@ std::vector<std::string> getRangeOnlyMrclamFiles() {
 std::vector<std::string> getRangeAndRpmMrclamFiles() {
   std::string base_dir = "data/mrclam/range_and_rpm/";
   std::vector<std::string> filenames = {
-      "mrclam2.pyfg",  "mrclam3a.pyfg", "mrclam3b.pyfg",
-      "mrclam4.pyfg",  "mrclam5a.pyfg", "mrclam5b.pyfg",
-      "mrclam5c.pyfg", "mrclam6.pyfg",  "mrclam7.pyfg",
+      "mrclam2.pyfg",
+      // "mrclam3a.pyfg", "mrclam3b.pyfg",
+      "mrclam4.pyfg",
+      // "mrclam5a.pyfg", "mrclam5b.pyfg", "mrclam5c.pyfg",
+      "mrclam6.pyfg",
+      "mrclam7.pyfg",
   };
 
+  // for each file, prepend a directory that is everything before the file
+  // extension (.pyfg)
   std::vector<std::string> full_paths = {};
-  for (auto filename : filenames) {
-    full_paths.push_back(base_dir + filename);
+  for (auto file : filenames) {
+    // strip the .pyfg extension
+    size_t pyfg_index = file.find(".pyfg");
+    std::string filename = file.substr(0, pyfg_index);
+    full_paths.push_back(base_dir + filename + "/" + file);
   }
 
   return full_paths;
@@ -589,10 +610,11 @@ std::vector<std::string> getRangeAndRpmMrclamFiles() {
 int main(int argc, char **argv) {
   std::vector<std::string> original_exp_files = {
       // "data/marine_two_robots.pyfg",
-      // "data/plaza1.pyfg", "data/plaza2.pyfg",
-      // "data/single_drone.pyfg",
-      // "data/tiers.pyfg"
-  }; // TIERS faster w/ random init
+      "data/plaza1.pyfg",
+      "data/plaza2.pyfg",
+      "data/single_drone.pyfg",
+      "data/tiers.pyfg"
+      }; // TIERS faster w/ random init
 
   auto mrclam_range_only_files = getRangeOnlyMrclamFiles();
   auto mrclam_range_and_rpm_files = getRangeAndRpmMrclamFiles();
@@ -604,17 +626,36 @@ int main(int argc, char **argv) {
   //              original_exp_files.end());
 
   // mrclam range only experiments
-  // files.insert(files.end(), mrclam_range_only_files.begin(),
-  //              mrclam_range_only_files.end());
+  files.insert(files.end(), mrclam_range_only_files.begin(),
+               mrclam_range_only_files.end());
 
   // mrclam range and rpm experiments
   files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
                mrclam_range_and_rpm_files.end());
 
-  files = {"data/test.pyfg"};
+  // files = {"data/test.pyfg"};
+
+  int init_rank_jump = 1;
+  int max_rank = 7;
+  bool verbose = true;
+  bool log_iterates = false;
+
+
+  // set the initialization type
+  InitType init_type;
+  init_type = InitType::Odom;
+  // init_type = InitType::Random;
+
+  // set the preconditioner
+  CORA::Preconditioner preconditioner;
+  // preconditioner = CORA::Preconditioner::Jacobi;
+  // preconditioner = CORA::Preconditioner::BlockCholesky;
+  preconditioner = CORA::Preconditioner::RegularizedCholesky;
 
   for (auto file : files) {
-    CORA::Matrix soln = solveProblem(file);
+    CORA::Matrix soln =
+        solveProblem(file, init_rank_jump, max_rank, preconditioner, init_type,
+                     verbose, log_iterates);
     std::cout << std::endl;
   }
 }

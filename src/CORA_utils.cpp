@@ -17,10 +17,10 @@ using SymmetricLinOp =
 CertResults fast_verification(const SparseMatrix &S, Scalar eta,
                               const Matrix &X0, size_t max_iters,
                               Scalar max_fill_factor, Scalar drop_tol) {
+
   // Don't forget to set this on input!
   size_t num_iters = 0;
   Scalar theta = 0;
-  Vector x = Vector::Zero(S.rows());
   Matrix X; // Matrix to hold eigenvector estimates for S
 
   unsigned int n = S.rows();
@@ -50,7 +50,11 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   // Test whether the Cholesky decomposition succeeded
   bool PSD = (MChol.info() == Eigen::Success);
 
-  if (!PSD) {
+  Vector x;
+
+  if (PSD) {
+    x = Vector::Zero(n);
+  } else {
     /// If control reaches here, then lambda_min(S) < -eta, so we must compute
     /// an approximate minimum eigenpair using LOBPCG
 
@@ -59,13 +63,12 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
     if (n <= 100) {
       Eigen::SelfAdjointEigenSolver<Matrix> eigensolver(S);
       theta = eigensolver.eigenvalues()(0);
-      x = eigensolver.eigenvectors().col(0);
       num_iters = 0;
       CertResults results;
       results.is_certified = PSD;
       results.theta = theta;
-      results.x = x;
-      results.all_eigvecs = x;
+      results.x = eigensolver.eigenvectors().col(0);
+      results.all_eigvecs = eigensolver.eigenvectors();
       results.num_iters = num_iters;
       return results;
     }
@@ -171,7 +174,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
       num_iters += static_cast<size_t>(unprecon_iter_frac * num_iters);
     } // if (!(theta < -eta / 2))
-  }   // if(!PSD)
+  } // if(!PSD)
 
   CertResults results;
   results.is_certified = PSD;

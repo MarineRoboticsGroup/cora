@@ -80,23 +80,23 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
   // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
-  params.max_TPCG_iterations = 250;
-  params.max_iterations = 300;
-  params.preconditioned_gradient_tolerance = 1e-3;
-  params.gradient_tolerance = 1e-3;
+  params.max_TPCG_iterations = 200;
+  params.max_iterations = 200;
+  params.preconditioned_gradient_tolerance = 1e-4;
+  params.gradient_tolerance = 1e-4;
   params.theta = 0.8;
-  params.Delta_tolerance = 1e-3;
+  params.Delta_tolerance = 1e-4;
   params.verbose = false;
   params.precision = 2;
   params.max_computation_time = 50;
-  params.relative_decrease_tolerance = 1e-4;
-  params.stepsize_tolerance = 1e-4;
+  params.relative_decrease_tolerance = 1e-5;
+  params.stepsize_tolerance = 1e-5;
   params.log_iterates = log_iterates;
 
   // certification parameters
-  const Scalar MIN_CERT_ETA = 1e-6;
+  const Scalar MIN_CERT_ETA = 1e-4;
   const Scalar MAX_CERT_ETA = 1e-1;
-  const Scalar REL_CERT_ETA = 1e-6;
+  const Scalar REL_CERT_ETA = 5e-7;
   const int LOBPCG_BLOCK_SIZE = 10;
   Scalar eta;
 
@@ -187,6 +187,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     }
 
     // let's check if the solution is certified
+    std::cout << "Checking certification of refined solution." << std::endl;
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
     cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
                                             eigvec_bootstrap);
@@ -324,6 +325,12 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   DiagonalMatrix::DiagonalVectorType &diagonal = Sigma_d.diagonal();
   for (size_t i = 0; i < d; ++i) {
     diagonal(i) = sigmas(i);
+  }
+
+  // print all singular values
+  printIfVerbose(verbose, "Singular values of Y: ");
+  for (size_t i = 0; i < sigmas.size(); ++i) {
+    printIfVerbose(verbose, std::to_string(sigmas(i)));
   }
 
   // First, construct a rank-d truncated singular value decomposition for Y
