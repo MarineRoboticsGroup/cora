@@ -26,6 +26,19 @@ namespace CORA {
 CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                      const Matrix &x0, int max_relaxation_rank, bool verbose,
                      bool log_iterates) {
+  // check that x0 has the right number of rows
+  if (problem.getFormulation() == Formulation::Explicit) {
+    if (x0.rows() != problem.getDataMatrixSize()) {
+      throw std::runtime_error("Initial guess must have the same number of "
+                               "rows as the dimension of the problem.");
+    }
+  } else {
+    if (x0.rows() != problem.rotAndRangeMatrixSize()) {
+      throw std::runtime_error("Initial guess must have the same number of "
+                               "rows as the dimension of the problem.");
+    }
+  }
+
   // if log_iterates is true, throw a warning that will be
   // slower than usual
   if (log_iterates) {
@@ -80,13 +93,15 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
   // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
+  params.Delta0 = 5;
+  params.alpha2 = 3.0;
   params.max_TPCG_iterations = 200;
-  params.max_iterations = 200;
+  params.max_iterations = 700;
   params.preconditioned_gradient_tolerance = 1e-4;
   params.gradient_tolerance = 1e-4;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-4;
-  params.verbose = false;
+  params.verbose = true;
   params.precision = 2;
   params.max_computation_time = 50;
   params.relative_decrease_tolerance = 1e-5;
@@ -353,7 +368,7 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
                      std::to_string(static_cast<double>(ng0) / n * 100) +
                      "% of the total.");
 
-  if (ng0 < n / 2) {
+  if (n > 0 && ng0 < n / 2) {
     // Less than half of the total number of blocks have the correct sign, so
     // reverse their orientations
 

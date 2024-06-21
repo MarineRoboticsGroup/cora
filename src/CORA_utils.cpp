@@ -17,20 +17,26 @@ using SymmetricLinOp =
 CertResults fast_verification(const SparseMatrix &S, Scalar eta,
                               const Matrix &X0, size_t max_iters,
                               Scalar max_fill_factor, Scalar drop_tol) {
-
   // Don't forget to set this on input!
   size_t num_iters = 0;
   Scalar theta = 0;
-  Matrix X; // Matrix to hold eigenvector estimates for S
 
+  std::cout << "forming X... ";
+  Matrix X; // Matrix to hold eigenvector estimates for S
+  std::cout << "Done." << std::endl;
+
+  std::cout << "forming n... ";
   unsigned int n = S.rows();
+  std::cout << "Done." << std::endl;
 
   /// STEP 1:  Test positive-semidefiniteness of regularized certificate matrix
   /// M := S + eta * Id via direct factorization
 
+  std::cout << "Regularizing matrix... ";
   SparseMatrix Id(n, n);
   Id.setIdentity();
   SparseMatrix M = S + eta * Id;
+  std::cout << "Done." << std::endl;
 
   /// Test positive-semidefiniteness via direct Cholesky factorization
   Eigen::CholmodSupernodalLLT<SparseMatrix> MChol;
@@ -174,7 +180,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
       num_iters += static_cast<size_t>(unprecon_iter_frac * num_iters);
     } // if (!(theta < -eta / 2))
-  } // if(!PSD)
+  }   // if(!PSD)
 
   CertResults results;
   results.is_certified = PSD;

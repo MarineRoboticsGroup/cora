@@ -175,6 +175,8 @@ private:
    */
   void fillDataMatrix();
 
+  void fillImplicitFormulationMatrices();
+
   void updatePreconditioner();
 
   Matrix dataMatrixProduct(const Matrix &Y) const;
@@ -256,6 +258,12 @@ public:
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
+  // the elements that we will use to compute matrix products in the implicit
+  // form
+  SparseMatrix Qmain_;
+  SparseMatrix TransOffDiagRed_;
+  CholFactorPtr LtransCholRed_;
+
   // the most recent minimum eigenvectors computed by LOBPCG for certification
   CertResults last_cert_results_;
   bool last_cert_results_valid_ = false;
@@ -308,6 +316,7 @@ public:
   void setPreconditioner(Preconditioner preconditioner) {
     preconditioner_ = preconditioner;
   }
+  void setFormulation(Formulation formulation) { formulation_ = formulation; }
 
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;

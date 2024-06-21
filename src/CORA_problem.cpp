@@ -368,6 +368,9 @@ void Problem::updateProblemData() {
   fillRelPoseSubmatrices();
   fillDataMatrix();
   updatePreconditioner();
+  if (formulation_ == Formulation::Implicit) {
+    fillImplicitFormulationMatrices();
+  }
   problem_data_up_to_date_ = true;
 }
 
@@ -503,6 +506,8 @@ void Problem::fillDataMatrix() {
           data_submatrices_.rel_pose_translation_precision_matrix *
           data_submatrices_.rel_pose_translation_data_matrix;
 
+  // Q12 is all zeros
+
   // Q13
   // upper-right dn x (n+l) block is: T^T * Omega_t * A_t
   SparseMatrix Q13 =
@@ -536,8 +541,9 @@ void Problem::fillDataMatrix() {
    * located in different parts of the data matrix.
    */
   std::vector<Eigen::Triplet<Scalar>> combined_triplets;
-  combined_triplets.reserve(Q11.nonZeros() + Q13.nonZeros() + Q22.nonZeros() +
-                            Q23.nonZeros() + Q33.nonZeros());
+  combined_triplets.reserve(Q11.nonZeros() + 2 * Q13.nonZeros() +
+                            Q22.nonZeros() + 2 * Q23.nonZeros() +
+                            Q33.nonZeros());
 
   // lambda function to add triplets to the combined triplets vector
   auto addTriplets = [&combined_triplets](const SparseMatrix &matrix,
@@ -569,13 +575,64 @@ void Problem::fillDataMatrix() {
                                combined_triplets.end());
 }
 
+void Problem::fillImplicitFormulationMatrices() {
+  if (formulation_ != Formulation::Implicit) {
+    throw std::invalid_argument("Implicit formulation matrices should only be "
+                                "filled when the problem is in implicit "
+                                "formulation mode");
+  }
+
+  // Qmain_ is the upper-left (dn + r) x (dn + r) block of Q
+  // Qmain_ = [Q11 0; 0 Q22]
+  Qmain_ = data_matrix_.block(0, 0, rotAndRangeMatrixSize(),
+                              rotAndRangeMatrixSize());
+
+  // Translational off-diagonal blocks (reduced by ignoring the last column)
+  // TransOffDiag = [Q13; Q23]
+  // TransOffDiagRed_ = TransOffDiag(:, 1:end-1)
+  TransOffDiagRed_ =
+      data_matrix_.block(0, rotAndRangeMatrixSize(), rotAndRangeMatrixSize(),
+                         numTranslationalStates() - 1);
+
+  // Want to be able to apply the inverse of the bottom-right block of Q (via a
+  // Cholesky solve)
+  // Ltrans = Q33;
+  // LtransCholRed_ = chol(Ltrans(1:end-1, 1:end-1), 'lower');
+  LtransCholRed_ = std::make_shared<CholeskyFactorization>(data_matrix_.block(
+      rotAndRangeMatrixSize(), rotAndRangeMatrixSize(),
+      numTranslationalStates() - 1, numTranslationalStates() - 1));
+}
+
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
   if (formulation_ == Formulation::Explicit) {
-    checkMatrixShape("Problem::dataMatrixProduct::Y", getDataMatrixSize(),
-                     relaxation_rank_, Y.rows(), Y.cols());
+    checkMatrixShape("Problem::dataMatrixProduct::Y::Explicit",
+                     getDataMatrixSize(), relaxation_rank_, Y.rows(), Y.cols());
     return data_matrix_ * Y;
-  } else {
+  } else if (formulation_ == Formulation::Implicit) {
+    // Y should be just the size of rotAndRangeMatrixSize() x relaxation_rank_
+    checkMatrixShape("Problem::dataMatrixProduct::Y::Implicit",
+                     rotAndRangeMatrixSize(), relaxation_rank_, Y.rows(),
+                     Y.cols());
+
+    std::cout << "Computing QY... ";
+    Matrix QY = (Qmain_ * Y);
+    // break down into several steps
+    //  TransOffDiagRed_ *
+    //      (LtransCholRed_->solve(TransOffDiagRed_.transpose() * Y)
+    //           .transpose());
+    std::cout << "P1... ";
+    Matrix P1 = TransOffDiagRed_.transpose() * Y;
+    std::cout << "P2... ";
+    Matrix P2 = LtransCholRed_->solve(P1);
+    std::cout << "P3... ";
+    Matrix P3 = TransOffDiagRed_ * P2;
+    std::cout << "done... " << std::endl;
+
+    return QY - P3;
+
     throw std::invalid_argument("Implicit formulation not implemented");
+  } else {
+    throw std::invalid_argument("Unknown formulation");
   }
 }
 
@@ -693,8 +750,19 @@ Matrix Problem::precondition(const Matrix &V) const {
   Matrix res;
   if (preconditioner_ == Preconditioner::BlockCholesky ||
       preconditioner_ == Preconditioner::RegularizedCholesky) {
-    res =
-        blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_, V);
+    if (formulation_ == Formulation::Explicit) {
+      res = blockCholeskySolve(preconditioner_matrices_.block_chol_factor_ptrs_,
+                               V);
+    } else if (formulation_ == Formulation::Implicit) {
+      Matrix V_lift = Matrix::Zero(getDataMatrixSize(), relaxation_rank_);
+      // the upper block of V_lift is V
+      V_lift.topRows(rotAndRangeMatrixSize()) = V;
+      Matrix res_lift = blockCholeskySolve(
+          preconditioner_matrices_.block_chol_factor_ptrs_, V_lift);
+      res = res_lift.topRows(rotAndRangeMatrixSize());
+    } else {
+      throw std::invalid_argument("Unknown formulation");
+    }
   } else if (preconditioner_ == Preconditioner::Jacobi) {
     res = preconditioner_matrices_.jacobi_preconditioner_ * V;
   } else {
@@ -748,13 +816,7 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
 }
 
 int Problem::getDataMatrixSize() const {
-  if (formulation_ == Formulation::Explicit) {
-    return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();
-  } else if (formulation_ == Formulation::Implicit) {
-    return rotAndRangeMatrixSize();
-  } else {
-    throw std::invalid_argument("Unknown formulation");
-  }
+  return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();
 }
 
 std::vector<Symbol> Problem::getPoseSymbols(unsigned char chr) const {
@@ -859,8 +921,10 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   init_eigvec_guess.block(0, 0, S.rows(), eigvec_bootstrap.cols()) =
       eigvec_bootstrap;
 
+  std::cout << "starting fast verification" << std::endl;
   CertResults results = fast_verification(
       S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
+  std::cout << "finished fast verification" << std::endl;
 
   while (std::isnan(results.theta)) {
     // this seems to happen when there is a clustering of eigenvalues around
