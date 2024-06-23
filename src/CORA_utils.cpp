@@ -21,22 +21,22 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   size_t num_iters = 0;
   Scalar theta = 0;
 
-  std::cout << "forming X... ";
+  // std::cout << "forming X... ";
   Matrix X; // Matrix to hold eigenvector estimates for S
-  std::cout << "Done." << std::endl;
+  // std::cout << "Done." << std::endl;
 
-  std::cout << "forming n... ";
+  // std::cout << "forming n... ";
   unsigned int n = S.rows();
-  std::cout << "Done." << std::endl;
+  // std::cout << "Done." << std::endl;
 
   /// STEP 1:  Test positive-semidefiniteness of regularized certificate matrix
   /// M := S + eta * Id via direct factorization
 
-  std::cout << "Regularizing matrix... ";
+  // std::cout << "Regularizing matrix... ";
   SparseMatrix Id(n, n);
   Id.setIdentity();
   SparseMatrix M = S + eta * Id;
-  std::cout << "Done." << std::endl;
+  // std::cout << "Done." << std::endl;
 
   /// Test positive-semidefiniteness via direct Cholesky factorization
   Eigen::CholmodSupernodalLLT<SparseMatrix> MChol;

@@ -274,6 +274,8 @@ public:
   // the full size of the full (explicit problem) data matrix
   int getDataMatrixSize() const;
 
+  int getExpectedVariableSize() const;
+
   Formulation getFormulation() const { return formulation_; }
   inline int dim() const { return dim_; }
   inline int numPoses() const {

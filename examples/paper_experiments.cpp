@@ -528,6 +528,13 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
     x0 = getOdomInitialization(problem, pyfg_fpath);
   }
 
+  // if we're in implicit mode, then we need to truncate x0
+  // to not have translation variables
+  if (formulation == CORA::Formulation::Implicit) {
+    x0 = x0.block(0, 0, problem.rotAndRangeMatrixSize(),
+                  x0.cols());
+  }
+
 #ifdef GPERFTOOLS
   ProfilerStart("cora.prof");
 #endif

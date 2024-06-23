@@ -604,33 +604,18 @@ void Problem::fillImplicitFormulationMatrices() {
 }
 
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
+  checkMatrixShape("Problem::dataMatrixProduct::Y", getExpectedVariableSize(),
+                   relaxation_rank_, Y.rows(), Y.cols());
   if (formulation_ == Formulation::Explicit) {
-    checkMatrixShape("Problem::dataMatrixProduct::Y::Explicit",
-                     getDataMatrixSize(), relaxation_rank_, Y.rows(), Y.cols());
     return data_matrix_ * Y;
   } else if (formulation_ == Formulation::Implicit) {
-    // Y should be just the size of rotAndRangeMatrixSize() x relaxation_rank_
-    checkMatrixShape("Problem::dataMatrixProduct::Y::Implicit",
-                     rotAndRangeMatrixSize(), relaxation_rank_, Y.rows(),
-                     Y.cols());
 
-    std::cout << "Computing QY... ";
     Matrix QY = (Qmain_ * Y);
-    // break down into several steps
-    //  TransOffDiagRed_ *
-    //      (LtransCholRed_->solve(TransOffDiagRed_.transpose() * Y)
-    //           .transpose());
-    std::cout << "P1... ";
     Matrix P1 = TransOffDiagRed_.transpose() * Y;
-    std::cout << "P2... ";
     Matrix P2 = LtransCholRed_->solve(P1);
-    std::cout << "P3... ";
     Matrix P3 = TransOffDiagRed_ * P2;
-    std::cout << "done... " << std::endl;
 
     return QY - P3;
-
-    throw std::invalid_argument("Implicit formulation not implemented");
   } else {
     throw std::invalid_argument("Unknown formulation");
   }
@@ -668,10 +653,11 @@ Matrix Problem::tangent_space_projection(const Matrix &Y,
   // thus belong to the Euclidean manifold and do not need projection.
 
   // check that Y and Ydot have the correct dimensions
-  checkMatrixShape("Problem::tangent_space_projection::Y", getDataMatrixSize(),
-                   relaxation_rank_, Y.rows(), Y.cols());
+  checkMatrixShape("Problem::tangent_space_projection::Y",
+                   getExpectedVariableSize(), relaxation_rank_, Y.rows(),
+                   Y.cols());
   checkMatrixShape("Problem::tangent_space_projection::Ydot",
-                   getDataMatrixSize(), relaxation_rank_, Ydot.rows(),
+                   getExpectedVariableSize(), relaxation_rank_, Ydot.rows(),
                    Ydot.cols());
 
   Matrix result = Ydot;
@@ -702,12 +688,13 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
                                                   const Matrix &nablaF_Y,
                                                   const Matrix &dotY) const {
   checkMatrixShape("Problem::Riemannian_Hessian_vector_product::Y",
-                   getDataMatrixSize(), relaxation_rank_, Y.rows(), Y.cols());
+                   getExpectedVariableSize(), relaxation_rank_, Y.rows(),
+                   Y.cols());
   checkMatrixShape("Problem::Riemannian_Hessian_vector_product::nablaF_Y",
-                   getDataMatrixSize(), relaxation_rank_, nablaF_Y.rows(),
+                   getExpectedVariableSize(), relaxation_rank_, nablaF_Y.rows(),
                    nablaF_Y.cols());
   checkMatrixShape("Problem::Riemannian_Hessian_vector_product::dotY",
-                   getDataMatrixSize(), relaxation_rank_, dotY.rows(),
+                   getExpectedVariableSize(), relaxation_rank_, dotY.rows(),
                    dotY.cols());
 
   Matrix H_dotY = dataMatrixProduct(dotY);
@@ -745,7 +732,7 @@ Matrix Problem::Riemannian_Hessian_vector_product(const Matrix &Y,
 }
 
 Matrix Problem::precondition(const Matrix &V) const {
-  checkMatrixShape("Problem::precondition::input", getDataMatrixSize(),
+  checkMatrixShape("Problem::precondition::input", getExpectedVariableSize(),
                    relaxation_rank_, V.rows(), V.cols());
   Matrix res;
   if (preconditioner_ == Preconditioner::BlockCholesky ||
@@ -769,7 +756,7 @@ Matrix Problem::precondition(const Matrix &V) const {
     throw std::invalid_argument("The desired preconditioner is not "
                                 "implemented");
   }
-  checkMatrixShape("Problem::precondition::result", getDataMatrixSize(),
+  checkMatrixShape("Problem::precondition::result", getExpectedVariableSize(),
                    relaxation_rank_, res.rows(), res.cols());
 
   // check for NaNs in res
@@ -781,7 +768,7 @@ Matrix Problem::precondition(const Matrix &V) const {
 }
 
 Matrix Problem::projectToManifold(const Matrix &A) const {
-  checkMatrixShape("Problem::projectToManifold", getDataMatrixSize(),
+  checkMatrixShape("Problem::projectToManifold", getExpectedVariableSize(),
                    relaxation_rank_, A.rows(), A.cols());
 
   Matrix result = A;
@@ -817,6 +804,16 @@ Matrix Problem::retract(const Matrix &Y, const Matrix &V) const {
 
 int Problem::getDataMatrixSize() const {
   return (numPoses() * (dim_ + 1)) + numLandmarks() + numRangeMeasurements();
+}
+
+int Problem::getExpectedVariableSize() const {
+  if (formulation_ == Formulation::Explicit) {
+    return getDataMatrixSize();
+  } else if (formulation_ == Formulation::Implicit) {
+    return rotAndRangeMatrixSize();
+  } else {
+    throw std::invalid_argument("Unknown formulation");
+  }
 }
 
 std::vector<Symbol> Problem::getPoseSymbols(unsigned char chr) const {
@@ -889,7 +886,7 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
 Matrix Problem::getRandomInitialGuess() const {
   // assert that the problem data must be up to date
   assert(problem_data_up_to_date_);
-  Matrix x0 = Matrix::Random(getDataMatrixSize(), relaxation_rank_);
+  Matrix x0 = Matrix::Random(getExpectedVariableSize(), relaxation_rank_);
   return projectToManifold(x0);
 }
 
