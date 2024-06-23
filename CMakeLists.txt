@@ -139,7 +139,6 @@ ${CORA_HDR_DIR}/pyfg_text_parser.h
 ${CORA_HDR_DIR}/MatrixManifold.h
 ${CORA_HDR_DIR}/StiefelProduct.h
 ${CORA_HDR_DIR}/ObliqueManifold.h
-${CORA_HDR_DIR}/json.hpp
 )
 
 set(CORA_SRCS

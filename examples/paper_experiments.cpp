@@ -6,8 +6,69 @@
 #include <CORA/pyfg_text_parser.h>
 
 #include <filesystem>
+#include <json.hpp>
 #include <set>
 #include <vector>
+
+using json = nlohmann::json;
+
+enum InitType { Random, Odom };
+
+struct Config {
+  int init_rank_jump;
+  int max_rank;
+  bool verbose;
+  bool log_iterates;
+  CORA::Preconditioner preconditioner;
+  CORA::Formulation formulation;
+  InitType init_type;
+  std::vector<std::string> files;
+};
+
+Config parseConfig(const std::string &filename) {
+  // check if the file exists
+  if (!std::filesystem::exists(filename)) {
+    std::cout << "Looking for file: " << filename << std::endl;
+    throw std::runtime_error("Config file does not exist");
+  }
+
+  std::ifstream file(filename);
+  json j;
+  file >> j;
+
+  Config config;
+  config.init_rank_jump = j["init_rank_jump"];
+  config.max_rank = j["max_rank"];
+  config.verbose = j["verbose"];
+  config.log_iterates = j["log_iterates"];
+
+  std::string preconditioner_str = j["preconditioner"];
+  if (preconditioner_str == "Jacobi") {
+    config.preconditioner = CORA::Preconditioner::Jacobi;
+  } else if (preconditioner_str == "BlockCholesky") {
+    config.preconditioner = CORA::Preconditioner::BlockCholesky;
+  } else if (preconditioner_str == "RegularizedCholesky") {
+    config.preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  }
+
+  std::string formulation_str = j["formulation"];
+  if (formulation_str == "Implicit") {
+    config.formulation = CORA::Formulation::Implicit;
+  } else if (formulation_str == "Explicit") {
+    config.formulation = CORA::Formulation::Explicit;
+  }
+
+  std::string init_type_str = j["init_type"];
+  if (init_type_str == "Odom") {
+    config.init_type = InitType::Odom;
+  } else if (init_type_str == "Random") {
+    config.init_type = InitType::Random;
+  }
+
+  config.files = j["files"].get<std::vector<std::string>>();
+
+  return config;
+}
 
 using PoseChain = std::vector<CORA::Symbol>;
 using PoseChains = std::vector<PoseChain>;
@@ -503,8 +564,6 @@ void saveSolutions(const CORA::Problem &problem,
   }
 }
 
-enum InitType { Random, Odom };
-
 CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
                           int max_rank, CORA::Preconditioner preconditioner,
                           CORA::Formulation formulation, InitType init_type,
@@ -568,30 +627,6 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   return aligned_soln;
 }
 
-std::vector<std::string> getRangeOnlyMrclamFiles() {
-  std::string base_dir = "data/mrclam/range_only/";
-  std::vector<std::string> filenames = {
-      "mrclam2.pyfg",
-      // "mrclam3a.pyfg", "mrclam3b.pyfg",
-      "mrclam4.pyfg",
-      // "mrclam5a.pyfg", "mrclam5b.pyfg", "mrclam5c.pyfg",
-      "mrclam6.pyfg",
-      "mrclam7.pyfg",
-  };
-
-  // for each file, prepend a directory that is everything before the file
-  // extension (.pyfg)
-  std::vector<std::string> full_paths = {};
-  for (auto file : filenames) {
-    // strip the .pyfg extension
-    size_t pyfg_index = file.find(".pyfg");
-    std::string filename = file.substr(0, pyfg_index);
-    full_paths.push_back(base_dir + filename + "/" + file);
-  }
-
-  return full_paths;
-}
-
 std::vector<std::string> getRangeAndRpmMrclamFiles() {
   std::string base_dir = "data/mrclam/range_and_rpm/";
   std::vector<std::string> filenames = {
@@ -622,7 +657,6 @@ int main(int argc, char **argv) {
       "data/plaza1.pyfg", "data/plaza2.pyfg", "data/single_drone.pyfg",
       "data/tiers.pyfg"}; // TIERS faster w/ random init
 
-  auto mrclam_range_only_files = getRangeOnlyMrclamFiles();
   auto mrclam_range_and_rpm_files = getRangeAndRpmMrclamFiles();
 
   std::vector<std::string> files = {};
@@ -631,16 +665,11 @@ int main(int argc, char **argv) {
   // files.insert(files.end(), original_exp_files.begin(),
   //              original_exp_files.end());
 
-  // mrclam range only experiments
-  files.insert(files.end(), mrclam_range_only_files.begin(),
-               mrclam_range_only_files.end());
-
   // mrclam range and rpm experiments
   files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
                mrclam_range_and_rpm_files.end());
 
   files = {"data/test.pyfg"};
-  // files = {"data/factor_graph_small.pyfg"};
 
   // load file from environment variable "CORAFILE"
   if (const char *env_p = std::getenv("CORAFILE")) {
@@ -648,30 +677,13 @@ int main(int argc, char **argv) {
     files = {env_p};
   }
 
-  int init_rank_jump = 2;
-  int max_rank = 20;
-  bool verbose = true;
-  bool log_iterates = false;
-
-  // set the initialization type
-  InitType init_type;
-  init_type = InitType::Odom;
-  // init_type = InitType::Random;
-
-  // set the preconditioner
-  CORA::Preconditioner preconditioner;
-  // preconditioner = CORA::Preconditioner::Jacobi;
-  // preconditioner = CORA::Preconditioner::BlockCholesky;
-  preconditioner = CORA::Preconditioner::RegularizedCholesky;
-
-  CORA::Formulation formulation;
-  formulation = CORA::Formulation::Implicit;
-  // formulation = CORA::Formulation::Explicit;
+  Config config = parseConfig("./bin/config.json");
 
   for (auto file : files) {
     CORA::Matrix soln =
-        solveProblem(file, init_rank_jump, max_rank, preconditioner,
-                     formulation, init_type, verbose, log_iterates);
+        solveProblem(file, config.init_rank_jump, config.max_rank,
+                     config.preconditioner, config.formulation,
+                     config.init_type, config.verbose, config.log_iterates);
     std::cout << std::endl;
   }
 }

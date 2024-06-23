@@ -1,0 +1,10 @@
+{
+  "init_rank_jump": 2,
+  "max_rank": 20,
+  "verbose": false,
+  "log_iterates": false,
+  "preconditioner": "RegularizedCholesky",
+  "formulation": "Implicit",
+  "init_type": "Odom",
+  "files": ["data/test.pyfg"]
+}
