@@ -28,13 +28,13 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                      bool log_iterates) {
   // check that x0 has the right number of rows
   if (problem.getFormulation() == Formulation::Explicit) {
-    // if (x0.rows() != problem.getDataMatrixSize()) {
-    //   throw std::runtime_error("Initial guess must have the same number of "
-    //                            "rows as the dimension of the problem.");
     checkMatrixShape("solveCora::Explicit", problem.getDataMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   } else {
-    checkMatrixShape("solveCora::Simplified", problem.rotAndRangeMatrixSize(),
+    std::cout << "Solving problem in translation implicit mode. Make sure that "
+                 "the initial guess only contains rotation and range "
+                 "variables." << std::endl;
+    checkMatrixShape("solveCora::Implicit", problem.rotAndRangeMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   }
 
