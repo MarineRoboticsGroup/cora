@@ -33,7 +33,8 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   } else {
     std::cout << "Solving problem in translation implicit mode. Make sure that "
                  "the initial guess only contains rotation and range "
-                 "variables." << std::endl;
+                 "variables."
+              << std::endl;
     checkMatrixShape("solveCora::Implicit", problem.rotAndRangeMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   }
@@ -149,8 +150,16 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
     if (first_loop) {
       eigvec_bootstrap = result.x;
+
+      // if we are using the translation implicit formulation, we should solve
+      // for the translation explicit solution (there is an analytical solution
+      // for this)
+      if (problem.getFormulation() == Formulation::Implicit) {
+        eigvec_bootstrap =
+            problem.getTranslationExplicitSolution(eigvec_bootstrap);
+      }
+
     } else {
-      // eigvec_bootstrap = result.x;
       eigvec_bootstrap = cert_results.all_eigvecs;
     }
 
@@ -390,24 +399,14 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
   if (problem.getFormulation() == Formulation::Explicit) {
-    // Yd already includes the translation estimates (Explicit)
-    return Yd;
+    checkMatrixShape("projectSolution::Explicit", problem.getDataMatrixSize(),
+                     problem.dim(), Yd.rows(), Yd.cols());
   } else {
-    // form_ == Simplified:  In this case, we also need to recover the
-    // optimal translations corresponding to the estimated rotational states
-    Matrix X(d, (d + 1) * n);
-
-    // Set rotational states
-    X.block(0, 0, rot_mat_sz, d) = Yd;
-
-    // Recover translational states
-    throw NotImplementedException(
-        "Recovering translational states from rotational states is not yet "
-        "implemented");
-    // X.block(0, 0, d, n) = recover_translations(B1_, B2_, R);
-
-    return X;
+    checkMatrixShape("projectSolution::Implicit",
+                     problem.rotAndRangeMatrixSize(), problem.dim(), Yd.rows(),
+                     Yd.cols());
   }
+  return Yd;
 }
 
 } // namespace CORA

@@ -21,22 +21,22 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
   size_t num_iters = 0;
   Scalar theta = 0;
 
-  // std::cout << "forming X... ";
+  std::cout << "forming X... ";
   Matrix X; // Matrix to hold eigenvector estimates for S
-  // std::cout << "Done." << std::endl;
+  std::cout << "Done." << std::endl;
 
-  // std::cout << "forming n... ";
+  std::cout << "forming n... ";
   unsigned int n = S.rows();
-  // std::cout << "Done." << std::endl;
+  std::cout << "Done." << std::endl;
 
   /// STEP 1:  Test positive-semidefiniteness of regularized certificate matrix
   /// M := S + eta * Id via direct factorization
 
-  // std::cout << "Regularizing matrix... ";
+  std::cout << "Regularizing matrix... ";
   SparseMatrix Id(n, n);
   Id.setIdentity();
   SparseMatrix M = S + eta * Id;
-  // std::cout << "Done." << std::endl;
+  std::cout << "Done." << std::endl;
 
   /// Test positive-semidefiniteness via direct Cholesky factorization
   Eigen::CholmodSupernodalLLT<SparseMatrix> MChol;
@@ -239,12 +239,9 @@ Matrix getRotation(const Symbol &sym, const Problem &problem,
 void saveSolnToTum(const std::vector<Symbol> pose_symbols,
                    const Problem &problem, const Matrix &soln,
                    const std::string &fpath) {
-  // we do not currently support Implicit formulation
-  if (problem.getFormulation() == Formulation::Implicit) {
-    throw std::runtime_error(
-        "saveSolnToTum does not currently support Implicit formulation");
-  }
-
+  // we are assuming that the solution is in translation-explicit form. We have
+  // helper functions to do this: "getTranslationExplicitSolution" and
+  // "alignEstimateToOrigin"
   checkMatrixShape("saveSolnToTum", problem.getDataMatrixSize(), problem.dim(),
                    soln.rows(), soln.cols());
 
@@ -253,10 +250,6 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
   if (!output_file.is_open()) {
     throw std::runtime_error("Could not open file " + fpath);
   }
-
-  // print warning that we are not using timestamps
-  // std::cout << "Warning: timestamps are not being used in saveSolnToTum"
-  //           << std::endl;
 
   // iterate over all the symbols and find the rotation and translation indices
   for (size_t time = 0; time < pose_symbols.size(); time++) {

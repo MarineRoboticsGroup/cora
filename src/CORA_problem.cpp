@@ -609,7 +609,6 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
   if (formulation_ == Formulation::Explicit) {
     return data_matrix_ * Y;
   } else if (formulation_ == Formulation::Implicit) {
-
     Matrix QY = (Qmain_ * Y);
     Matrix P1 = TransOffDiagRed_.transpose() * Y;
     Matrix P2 = LtransCholRed_->solve(P1);
@@ -902,8 +901,7 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   // We compute the certificate matrix corresponding to the *full* (i.e.
   // translation-explicit) form of the problem
-  Lambda_blocks = compute_Lambda_blocks(Y);
-  S = data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+  S = get_certificate_matrix(Y);
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
@@ -1002,11 +1000,7 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
   }
 
   // add additional zeros if we're using the explicit formulation
-  int Lambda_size = rotAndRangeMatrixSize();
-  if (formulation_ == Formulation::Explicit) {
-    Lambda_size += numLandmarks() + numPoses();
-  }
-
+  int Lambda_size = getDataMatrixSize();
   SparseMatrix Lambda(Lambda_size, Lambda_size);
   Lambda.setFromTriplets(elements.begin(), elements.end());
   return Lambda;
@@ -1017,13 +1011,36 @@ SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
   return data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
 }
 
-Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
-  if (formulation_ == Formulation::Implicit) {
-    throw std::invalid_argument(
-        "Problem::alignEstimateToOrigin not implemented for implicit "
-        "formulation");
-  }
+Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
+  // the matrix Y should be a point in the translation-implicit form of the
+  // problem, so we need to convert it to the translation-explicit form
+  checkMatrixShape("Problem::getTranslationExplicitSolution::Y",
+                   rotAndRangeMatrixSize(), Y.cols(), Y.rows(), Y.cols());
 
+  // function Xfull = extract_translations_from_marginalized_solution(X,
+  // problem)
+  //     % t* = - (X*)' * Qxy * Qyy^{-1};
+  //     translations = - (X' * problem.LeftOperator) / problem.Ltrans;
+  //     Xfull = [X; translations'];
+  // end
+
+  // t = - [LtransCholRed \ (TransOffDiagRed' * Y); zeros(1, size(Y, 2))];
+  Matrix t_pinned = -LtransCholRed_->solve(TransOffDiagRed_.transpose() * Y);
+  checkMatrixShape("Problem::getTranslationExplicitSolution::t_pinned",
+                   numTranslationalStates() - 1, Y.cols(), t_pinned.rows(),
+                   t_pinned.cols());
+
+  // we are solving with the last translation variable pinned to zero so
+  // we will leave the last row as zeros
+  Matrix Xfull = Matrix::Zero(getDataMatrixSize(), Y.cols());
+  Xfull.block(0, 0, rotAndRangeMatrixSize(), Y.cols()) = Y;
+  Xfull.block(rotAndRangeMatrixSize(), 0, numTranslationalStates() - 1,
+              Y.cols()) = t_pinned;
+
+  return Xfull;
+}
+
+Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
   if (Y.cols() != dim_) {
     throw std::invalid_argument(
         "Problem::alignEstimateToOrigin: Y must have "
@@ -1033,7 +1050,13 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
 
   // start by rotating everything such that the first dxd block is the identity
   Matrix first_rot = Y.block(0, 0, dim_, dim_);
-  Matrix Y_aligned = Y * first_rot.transpose();
+
+  Matrix Y_aligned;
+  if (formulation_ == Formulation::Explicit) {
+    Y_aligned = Y * first_rot.transpose();
+  } else if (formulation_ == Formulation::Implicit) {
+    Y_aligned = getTranslationExplicitSolution(Y * first_rot.transpose());
+  }
 
   // now uniformly translate all of the translation variables such that the
   // first translation variable is the origin

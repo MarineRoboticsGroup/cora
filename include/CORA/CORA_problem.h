@@ -380,8 +380,11 @@ public:
 
   /************** Utilities **********************/
 
+  Matrix getTranslationExplicitSolution(const Matrix &Y) const;
+
   /**
-   * @brief Given an estimate Y with d columns (i.e., not relaxed), this
+   * @brief Given an estimate Y of the problem, this function returns a
+   * **translation-explicit** estimate that is aligned to the origin. This
    * function aligns the estimate to the origin by rotating the first dxd block
    * to the identity matrix and offsetting the translational states such that
    * the first translational variable is at the origin.
