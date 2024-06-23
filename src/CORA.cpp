@@ -37,182 +37,184 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     checkMatrixShape("solveCora::Simplified", problem.rotAndRangeMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   }
-}
 
-// if log_iterates is true, throw a warning that will be
-// slower than usual
-if (log_iterates) {
-  std::cout << "WARNING: Logging iterates will slow down the optimization "
-               "process.  This is intended for debugging and viz purposes only."
-            << std::endl;
-}
+  // if log_iterates is true, throw a warning that will be
+  // slower than usual
+  if (log_iterates) {
+    std::cout
+        << "WARNING: Logging iterates will slow down the optimization "
+           "process.  This is intended for debugging and viz purposes only."
+        << std::endl;
+  }
 
-// objective function
-Optimization::Objective<Matrix, Scalar, Matrix> f =
-    [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
-      return problem.evaluateObjective(Y);
-    };
-
-// quadratic model
-Optimization::Riemannian::QuadraticModel<Matrix, Matrix, Matrix> QM =
-    [&problem](const Matrix &Y, Matrix &grad,
-               Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>
-                   &HessOp,
-               Matrix &NablaF_Y) {
-      // Compute and cache Euclidean gradient at the current iterate
-      NablaF_Y = problem.Euclidean_gradient(Y);
-
-      // Compute Riemannian gradient from Euclidean gradient
-      grad = problem.Riemannian_gradient(Y, NablaF_Y);
-
-      // Define linear operator for computing Riemannian Hessian-vector
-      // products (cf. eq. (44) in the SE-Sync tech report)
-      HessOp = [&problem](const Matrix &Y, const Matrix &Ydot,
-                          const Matrix &NablaF_Y) {
-        return problem.Riemannian_Hessian_vector_product(Y, NablaF_Y, Ydot);
+  // objective function
+  Optimization::Objective<Matrix, Scalar, Matrix> f =
+      [&problem](const Matrix &Y, const Matrix &NablaF_Y) {
+        return problem.evaluateObjective(Y);
       };
-    };
 
-// get retraction from problem
-Optimization::Riemannian::Retraction<Matrix, Matrix, Matrix> retract =
-    [&problem](const Matrix &Y, const Matrix &V, const Matrix &NablaF_Y) {
-      return problem.retract(Y, V);
-    };
+  // quadratic model
+  Optimization::Riemannian::QuadraticModel<Matrix, Matrix, Matrix> QM =
+      [&problem](const Matrix &Y, Matrix &grad,
+                 Optimization::Riemannian::LinearOperator<Matrix, Matrix,
+                                                          Matrix> &HessOp,
+                 Matrix &NablaF_Y) {
+        // Compute and cache Euclidean gradient at the current iterate
+        NablaF_Y = problem.Euclidean_gradient(Y);
 
-// Euclidean gradient (is passed by reference to QM for caching purposes)
-Matrix NablaF_Y;
+        // Compute Riemannian gradient from Euclidean gradient
+        grad = problem.Riemannian_gradient(Y, NablaF_Y);
 
-// get preconditioner from problem
-std::optional<Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>>
-    precon = [&problem](const Matrix &Y, const Matrix &Ydot,
-                        const Matrix &NablaF_Y) {
-      return problem.tangent_space_projection(Y, problem.precondition(Ydot));
-    };
+        // Define linear operator for computing Riemannian Hessian-vector
+        // products (cf. eq. (44) in the SE-Sync tech report)
+        HessOp = [&problem](const Matrix &Y, const Matrix &Ydot,
+                            const Matrix &NablaF_Y) {
+          return problem.Riemannian_Hessian_vector_product(Y, NablaF_Y, Ydot);
+        };
+      };
 
-// default TNT parameters for CORA
-Optimization::Riemannian::TNTParams<Scalar> params;
-params.Delta0 = 5;
-params.alpha2 = 3.0;
-params.max_TPCG_iterations = 200;
-params.max_iterations = 700;
-params.preconditioned_gradient_tolerance = 1e-4;
-params.gradient_tolerance = 1e-4;
-params.theta = 0.8;
-params.Delta_tolerance = 1e-4;
-params.verbose = true;
-params.precision = 2;
-params.max_computation_time = 50;
-params.relative_decrease_tolerance = 1e-5;
-params.stepsize_tolerance = 1e-5;
-params.log_iterates = log_iterates;
+  // get retraction from problem
+  Optimization::Riemannian::Retraction<Matrix, Matrix, Matrix> retract =
+      [&problem](const Matrix &Y, const Matrix &V, const Matrix &NablaF_Y) {
+        return problem.retract(Y, V);
+      };
 
-// certification parameters
-const Scalar MIN_CERT_ETA = 1e-4;
-const Scalar MAX_CERT_ETA = 1e-1;
-const Scalar REL_CERT_ETA = 5e-7;
-const int LOBPCG_BLOCK_SIZE = 10;
-Scalar eta;
+  // Euclidean gradient (is passed by reference to QM for caching purposes)
+  Matrix NablaF_Y;
 
-// metric over the tangent space is the standard matrix trace inner product
-Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
-    metric =
-        [](const Matrix &Y, const Matrix &V1, const Matrix &V2,
-           const Matrix &NablaF_Y) { return (V1.transpose() * V2).trace(); };
+  // get preconditioner from problem
+  std::optional<
+      Optimization::Riemannian::LinearOperator<Matrix, Matrix, Matrix>>
+      precon = [&problem](const Matrix &Y, const Matrix &Ydot,
+                          const Matrix &NablaF_Y) {
+        return problem.tangent_space_projection(Y, problem.precondition(Ydot));
+      };
 
-// no custom instrumentation function for now
-std::optional<InstrumentationFunction> user_function = std::nullopt;
+  // default TNT parameters for CORA
+  Optimization::Riemannian::TNTParams<Scalar> params;
+  params.Delta0 = 5;
+  params.alpha2 = 3.0;
+  params.max_TPCG_iterations = 200;
+  params.max_iterations = 700;
+  params.preconditioned_gradient_tolerance = 1e-4;
+  params.gradient_tolerance = 1e-4;
+  params.theta = 0.8;
+  params.Delta_tolerance = 1e-4;
+  params.verbose = true;
+  params.precision = 2;
+  params.max_computation_time = 50;
+  params.relative_decrease_tolerance = 1e-5;
+  params.stepsize_tolerance = 1e-5;
+  params.log_iterates = log_iterates;
 
-CoraTntResult result;
-Matrix X = x0;
-CertResults cert_results;
-Matrix eigvec_bootstrap;
-std::vector<Matrix> iterates = std::vector<Matrix>();
-bool first_loop = true;
-int loop_cnt = 0;
-while (problem.getRelaxationRank() <= max_relaxation_rank) {
-  loop_cnt++;
-  // solve the problem
-  printIfVerbose(verbose, "\nSolving problem at rank " +
-                              std::to_string(problem.getRelaxationRank()));
-  result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
-      f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-  printIfVerbose(verbose, "Obtained solution with objective value: " +
-                              std::to_string(result.f));
-  if (log_iterates) {
-    for (Matrix iterate : result.iterates) {
-      iterates.push_back(iterate);
+  // certification parameters
+  const Scalar MIN_CERT_ETA = 1e-4;
+  const Scalar MAX_CERT_ETA = 1e-1;
+  const Scalar REL_CERT_ETA = 5e-7;
+  const int LOBPCG_BLOCK_SIZE = 10;
+  Scalar eta;
+
+  // metric over the tangent space is the standard matrix trace inner product
+  Optimization::Riemannian::RiemannianMetric<Matrix, Matrix, Scalar, Matrix>
+      metric =
+          [](const Matrix &Y, const Matrix &V1, const Matrix &V2,
+             const Matrix &NablaF_Y) { return (V1.transpose() * V2).trace(); };
+
+  // no custom instrumentation function for now
+  std::optional<InstrumentationFunction> user_function = std::nullopt;
+
+  CoraTntResult result;
+  Matrix X = x0;
+  CertResults cert_results;
+  Matrix eigvec_bootstrap;
+  std::vector<Matrix> iterates = std::vector<Matrix>();
+  bool first_loop = true;
+  int loop_cnt = 0;
+  while (problem.getRelaxationRank() <= max_relaxation_rank) {
+    loop_cnt++;
+    // solve the problem
+    printIfVerbose(verbose, "\nSolving problem at rank " +
+                                std::to_string(problem.getRelaxationRank()));
+    result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
+        f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
+    if (log_iterates) {
+      for (Matrix iterate : result.iterates) {
+        iterates.push_back(iterate);
+      }
     }
-  }
 
-  // check if the solution is certified
-  eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
-  if (first_loop) {
-    eigvec_bootstrap = result.x;
-  } else {
-    // eigvec_bootstrap = result.x;
-    eigvec_bootstrap = cert_results.all_eigvecs;
-  }
-
-  cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
-                                          eigvec_bootstrap);
-
-  printIfVerbose(
-      verbose,
-      "Result is certified: " + std::to_string(cert_results.is_certified) +
-          " with eta: " + std::to_string(eta) +
-          " and theta: " + std::to_string(cert_results.theta));
-
-  // if theta is NaN, then throw an exception
-  if (std::isnan(cert_results.theta)) {
-    throw std::runtime_error("Theta is NaN");
-  }
-
-  // if the solution is certified, we're done
-  if (cert_results.is_certified) {
-    break;
-  }
-
-  // otherwise, increment the relaxation rank and try again
-  const Scalar SADDLE_GRAD_TOL = 1e-4;
-  const Scalar PRECON_SADDLE_GRAD_TOL = 1e-4;
-  problem.incrementRank();
-  X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
-                   SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
-}
-
-// if X has more columns than 'd' then we want to project it down to the
-// correct dimension and refine the solution
-if (X.cols() > problem.dim()) {
-  printIfVerbose(verbose, "\nProjecting solution to rank " +
-                              std::to_string(problem.dim()) + " and refining.");
-  X = projectSolution(problem, X, verbose);
-  problem.setRank(problem.dim());
-  result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
-      f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-  printIfVerbose(verbose, "Obtained solution with objective value: " +
-                              std::to_string(result.f));
-
-  if (log_iterates) {
-    for (Matrix iterate : result.iterates) {
-      iterates.push_back(iterate);
+    // check if the solution is certified
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    if (first_loop) {
+      eigvec_bootstrap = result.x;
+    } else {
+      // eigvec_bootstrap = result.x;
+      eigvec_bootstrap = cert_results.all_eigvecs;
     }
+
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
+                                            eigvec_bootstrap);
+
+    printIfVerbose(
+        verbose,
+        "Result is certified: " + std::to_string(cert_results.is_certified) +
+            " with eta: " + std::to_string(eta) +
+            " and theta: " + std::to_string(cert_results.theta));
+
+    // if theta is NaN, then throw an exception
+    if (std::isnan(cert_results.theta)) {
+      throw std::runtime_error("Theta is NaN");
+    }
+
+    // if the solution is certified, we're done
+    if (cert_results.is_certified) {
+      break;
+    }
+
+    // otherwise, increment the relaxation rank and try again
+    const Scalar SADDLE_GRAD_TOL = 1e-4;
+    const Scalar PRECON_SADDLE_GRAD_TOL = 1e-4;
+    problem.incrementRank();
+    X = saddleEscape(problem, result.x, cert_results.theta, cert_results.x,
+                     SADDLE_GRAD_TOL, PRECON_SADDLE_GRAD_TOL);
   }
 
-  // let's check if the solution is certified
-  std::cout << "Checking certification of refined solution." << std::endl;
-  eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
-  cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
-                                          eigvec_bootstrap);
-}
+  // if X has more columns than 'd' then we want to project it down to the
+  // correct dimension and refine the solution
+  if (X.cols() > problem.dim()) {
+    printIfVerbose(verbose, "\nProjecting solution to rank " +
+                                std::to_string(problem.dim()) +
+                                " and refining.");
+    X = projectSolution(problem, X, verbose);
+    problem.setRank(problem.dim());
+    result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
+        f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
+    printIfVerbose(verbose, "Obtained solution with objective value: " +
+                                std::to_string(result.f));
 
-// print out whether or not the solution is certified
-printIfVerbose(verbose,
-               "Final solution is certified: " +
-                   std::to_string(cert_results.is_certified) +
-                   " with eta: " + std::to_string(eta) +
-                   " and theta: " + std::to_string(cert_results.theta));
+    if (log_iterates) {
+      for (Matrix iterate : result.iterates) {
+        iterates.push_back(iterate);
+      }
+    }
 
-return std::make_pair(result, iterates);
+    // let's check if the solution is certified
+    std::cout << "Checking certification of refined solution." << std::endl;
+    eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
+    cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
+                                            eigvec_bootstrap);
+  }
+
+  // print out whether or not the solution is certified
+  printIfVerbose(verbose,
+                 "Final solution is certified: " +
+                     std::to_string(cert_results.is_certified) +
+                     " with eta: " + std::to_string(eta) +
+                     " and theta: " + std::to_string(cert_results.theta));
+
+  return std::make_pair(result, iterates);
 }
 
 Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
