@@ -79,7 +79,6 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
   int num_ranges_to_skip = static_cast<int>(num_ranges / num_ranges_to_show);
   while (alive && curr_loop_cnt < max_num_loops) {
     auto soln = iterates.at(soln_idx);
-    auto aligned_sol_matrix = problem.alignEstimateToOrigin(soln);
 
     auto pose_sym_to_idx = problem.getPoseSymbolMap();
     auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
@@ -93,12 +92,12 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
       if (num_poses_to_skip > 0 && pose_idx % num_poses_to_skip != 0) {
         continue;
       }
-      viz_poses.emplace_back(getPose(problem, aligned_sol_matrix, pose_sym));
+      viz_poses.emplace_back(getPose(problem, soln, pose_sym));
     }
     viz->AddVizPoses(viz_poses);
 
     for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
-      viz->AddVizLandmark(getPoint(problem, aligned_sol_matrix, landmark_sym));
+      viz->AddVizLandmark(getPoint(problem, soln, landmark_sym));
     }
 
     int range_measurement_idx = -1;
@@ -108,10 +107,8 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
           range_measurement_idx % num_ranges_to_skip != 0) {
         continue;
       }
-      auto p1 =
-          getPoint(problem, aligned_sol_matrix, range_measurement.first_id);
-      auto p2 =
-          getPoint(problem, aligned_sol_matrix, range_measurement.second_id);
+      auto p1 = getPoint(problem, soln, range_measurement.first_id);
+      auto p2 = getPoint(problem, soln, range_measurement.second_id);
 
       if (pose_sym_to_idx.find(range_measurement.first_id) ==
           pose_sym_to_idx.end()) {

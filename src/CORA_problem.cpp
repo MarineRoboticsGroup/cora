@@ -902,7 +902,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   // We compute the certificate matrix corresponding to the *full* (i.e.
   // translation-explicit) form of the problem
   Lambda_blocks = compute_Lambda_blocks(Y);
-  S = data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+  S = data_matrix_ -
+      compute_Lambda_from_Lambda_blocks(Lambda_blocks, getDataMatrixSize());
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method
@@ -917,10 +918,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
   init_eigvec_guess.block(0, 0, S.rows(), eigvec_bootstrap.cols()) =
       eigvec_bootstrap;
 
-  std::cout << "starting fast verification" << std::endl;
   CertResults results = fast_verification(
       S, eta, init_eigvec_guess, max_LOBPCG_iters, max_fill_factor, drop_tol);
-  std::cout << "finished fast verification" << std::endl;
 
   while (std::isnan(results.theta)) {
     // this seems to happen when there is a clustering of eigenvalues around
@@ -938,7 +937,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
     results.x = v;
 
     // Compute x's Rayleight quotient with the simplified certificate matrix
-    SparseMatrix Lambda = compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+    SparseMatrix Lambda = compute_Lambda_from_Lambda_blocks(
+        Lambda_blocks, rotAndRangeMatrixSize());
     Vector Sx = dataMatrixProduct(results.x) - Lambda * results.x;
     results.theta = results.x.dot(Sx);
     if (std::isnan(results.theta)) {
@@ -978,8 +978,9 @@ Problem::LambdaBlocks Problem::compute_Lambda_blocks(const Matrix &Y) const {
   return std::make_pair(stiefel_Lambda_blocks, oblique_inner_prods);
 }
 
-SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
-    const LambdaBlocks &Lambda_blocks) const {
+SparseMatrix
+Problem::compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks,
+                                           const int &Lambda_size) const {
   std::vector<Eigen::Triplet<Scalar>> elements;
   elements.reserve(dim_ * numPosesDim() + numRangeMeasurements());
 
@@ -1001,7 +1002,6 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
   }
 
   // add additional zeros if we're using the explicit formulation
-  int Lambda_size = getDataMatrixSize();
   SparseMatrix Lambda(Lambda_size, Lambda_size);
   Lambda.setFromTriplets(elements.begin(), elements.end());
   return Lambda;
@@ -1009,7 +1009,8 @@ SparseMatrix Problem::compute_Lambda_from_Lambda_blocks(
 
 SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
   LambdaBlocks Lambda_blocks = compute_Lambda_blocks(Y);
-  return data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
+  return data_matrix_ -
+         compute_Lambda_from_Lambda_blocks(Lambda_blocks, getDataMatrixSize());
 }
 
 Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
@@ -1038,36 +1039,90 @@ Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
   Xfull.block(rotAndRangeMatrixSize(), 0, numTranslationalStates() - 1,
               Y.cols()) = t_pinned;
 
+  checkVariablesAreValid(Xfull);
+
   return Xfull;
 }
 
-Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
-  if (Y.cols() != dim_) {
-    throw std::invalid_argument(
-        "Problem::alignEstimateToOrigin: Y must have "
-        "the same number of columns as the dimension. This method is not "
-        "implemented for a relaxed solution.");
+void Problem::checkVariablesAreValid(const Matrix &Y) const {
+  // lets make sure all of the variables are valid (i.e. on the manifold)
+  std::cout << "Checking that all variables are valid...";
+  std::cout << "Y size: " << Y.rows() << " x " << Y.cols() << std::endl;
+  for (int i = 0; i < numPoses(); ++i) {
+    Matrix rot_block = Y.block(i * dim_, 0, dim_, Y.cols());
+    // check R * R^T = I
+    Matrix rot_prod = rot_block * rot_block.transpose();
+    if (!rot_prod.isApprox(Matrix::Identity(dim_, dim_))) {
+      std::cout << "R^T R for pose " << i << " is not the identity"
+                << std::endl;
+      // throw std::runtime_error("Pose is not a valid rotation matrix");
+    }
+    // check det(R) = 1
+    if (Y.cols() == dim_ && std::abs(rot_block.determinant() - 1) > 1e-6) {
+      std::cout << "Pose " << i << " has determinant "
+                << rot_block.determinant() << std::endl;
+      // throw std::runtime_error("Pose does not have determinant 1");
+    }
   }
+  for (int i = 0; i < numRangeMeasurements(); ++i) {
+    Vector range_block = Y.row(numPosesDim() + i);
+    // check ||r|| = 1
+    if (!range_block.isApprox(range_block.normalized())) {
+      std::cout << "Range " << i << " has norm " << range_block.norm()
+                << std::endl;
+      throw std::runtime_error("Range is not a unit vector");
+    }
+  }
+  std::cout << "done" << std::endl;
+}
+
+Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
+  checkMatrixShape("Problem::alignEstimateToOrigin::Y",
+                   getExpectedVariableSize(), dim_, Y.rows(), Y.cols());
+
+  std::cout << "checking variables before aligning estimate to origin"
+            << std::endl;
+  checkVariablesAreValid(Y);
 
   // start by rotating everything such that the first dxd block is the identity
-  Matrix first_rot = Y.block(0, 0, dim_, dim_);
-
-  Matrix Y_aligned;
-  if (formulation_ == Formulation::Explicit) {
+  // of course, only do this if we have poses
+  Matrix Y_aligned = Y;
+  if (numPoses() > 0) {
+    Matrix first_rot = Y.block(0, 0, dim_, dim_);
     Y_aligned = Y * first_rot.transpose();
-  } else if (formulation_ == Formulation::Implicit) {
-    Y_aligned = getTranslationExplicitSolution(Y * first_rot.transpose());
   }
+
+  if (formulation_ == Formulation::Implicit) {
+    Y_aligned = getTranslationExplicitSolution(Y_aligned);
+  }
+
+  std::cout << "checking variables before pinning last translation variable"
+            << std::endl;
+  checkVariablesAreValid(Y_aligned);
 
   // now uniformly translate all of the translation variables such that the
   // first translation variable is the origin
-  auto rot_range_mat_sz = rotAndRangeMatrixSize();
-  Vector first_translation =
-      Y_aligned.block(rot_range_mat_sz, 0, 1, dim_).transpose();
-  Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_) =
-      Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_)
-          .rowwise() -
-      first_translation.transpose();
+  throw NotImplementedException(
+      "alignEstimateToOrigin not implemented -- need to "
+      "implement translation alignment");
+  // auto rot_range_mat_sz = rotAndRangeMatrixSize();
+  // Vector first_translation = Y_aligned.bottomRows(1);
+  // Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_) =
+  //     Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_)
+  //         .rowwise() -
+  //     first_translation.transpose();
+  // auto rot_range_mat_sz = rotAndRangeMatrixSize();
+  // Vector first_translation =
+  //     Y_aligned.block(rot_range_mat_sz, 0, 1, dim_).transpose();
+  // Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_) =
+  //     Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_)
+  //         .rowwise() -
+  //     first_translation.transpose();
+
+  std::cout << "checking variables after pinning last translation variable"
+            << std::endl;
+
+  checkVariablesAreValid(Y_aligned);
 
   return Y_aligned;
 }

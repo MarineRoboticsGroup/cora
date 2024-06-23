@@ -1,4 +1,3 @@
-# SE-Sync command-line driver
 add_executable(cora_example main.cpp)
 target_link_libraries(cora_example CORA)
 

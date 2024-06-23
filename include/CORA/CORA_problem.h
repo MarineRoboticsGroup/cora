@@ -360,7 +360,8 @@ public:
   /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
    * this function computes and returns the matrix Lambda itself */
   SparseMatrix
-  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks) const;
+  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks,
+                                    const int &Lambda_size) const;
 
   /** Given a critical point Y of the rank-r relaxation, this function computes
    * and returns a d x dn matrix comprised of d x d block elements of the
@@ -381,6 +382,8 @@ public:
   /************** Utilities **********************/
 
   Matrix getTranslationExplicitSolution(const Matrix &Y) const;
+
+  void checkVariablesAreValid(const Matrix &Y) const;
 
   /**
    * @brief Given an estimate Y of the problem, this function returns a

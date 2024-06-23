@@ -2,6 +2,7 @@
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
+#include <CORA/CORA_vis.h>
 #include <CORA/Symbol.h>
 #include <CORA/pyfg_text_parser.h>
 
@@ -19,6 +20,7 @@ struct Config {
   int max_rank;
   bool verbose;
   bool log_iterates;
+  bool show_iterates;
   CORA::Preconditioner preconditioner;
   CORA::Formulation formulation;
   InitType init_type;
@@ -41,6 +43,7 @@ Config parseConfig(const std::string &filename) {
   config.max_rank = j["max_rank"];
   config.verbose = j["verbose"];
   config.log_iterates = j["log_iterates"];
+  config.show_iterates = j["show_iterates"];
 
   std::string preconditioner_str = j["preconditioner"];
   if (preconditioner_str == "Jacobi") {
@@ -481,12 +484,17 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
     if (diff.norm() < 1e-5) {
       // set x0.row(range_start_idx) to a random unit vector
       x0.row(range_start_idx) = CORA::Matrix::Random(1, dim);
-      x0.row(range_start_idx) =
-          x0.row(range_start_idx) / x0.row(range_start_idx).norm();
     } else {
-      x0.row(range_start_idx) = diff / diff.norm();
+      x0.row(range_start_idx) = diff;
     }
   }
+  // normalize the range variables by rowwise normalization
+  x0.block(problem.numPosesDim(), 0, problem.numRangeMeasurements(),
+           x0.cols()) =
+      x0.block(problem.numPosesDim(), 0, problem.numRangeMeasurements(),
+               x0.cols())
+          .rowwise()
+          .normalized();
 
   // rotate the solution so that it is generically dense
   CORA::Matrix rot = CORA::Matrix::Random(problem.getRelaxationRank(),
@@ -567,7 +575,8 @@ void saveSolutions(const CORA::Problem &problem,
 CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
                           int max_rank, CORA::Preconditioner preconditioner,
                           CORA::Formulation formulation, InitType init_type,
-                          bool verbose = true, bool log_iterates = true) {
+                          bool verbose = true, bool log_iterates = true,
+                          bool show_iterates = false) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
   CORA::Problem problem =
@@ -604,8 +613,8 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  CORA::CoraResult soln =
-      CORA::solveCORA(problem, x0, max_rank, verbose, log_iterates);
+  CORA::CoraResult soln = CORA::solveCORA(problem, x0, max_rank, verbose,
+                                          log_iterates, show_iterates);
 
   // end timer
   auto end = std::chrono::high_resolution_clock::now();
@@ -620,6 +629,13 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   std::ofstream results_file("results.txt", std::ios_base::app);
   results_file << pyfg_fpath << " " << elapsed.count() << std::endl;
   results_file.close();
+
+  // if we are logging the iterates, then let's visualize CORA
+  if (log_iterates && false) {
+    CORA::CORAVis viz{};
+    double viz_hz = 10.0;
+    viz.run(problem, {soln.second}, viz_hz, true);
+  }
 
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
@@ -680,10 +696,10 @@ int main(int argc, char **argv) {
   Config config = parseConfig("./bin/config.json");
 
   for (auto file : files) {
-    CORA::Matrix soln =
-        solveProblem(file, config.init_rank_jump, config.max_rank,
-                     config.preconditioner, config.formulation,
-                     config.init_type, config.verbose, config.log_iterates);
+    CORA::Matrix soln = solveProblem(
+        file, config.init_rank_jump, config.max_rank, config.preconditioner,
+        config.formulation, config.init_type, config.verbose,
+        config.log_iterates, config.show_iterates);
     std::cout << std::endl;
   }
 }

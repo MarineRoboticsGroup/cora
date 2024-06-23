@@ -100,8 +100,8 @@ TEST_CASE("Test small RA-SLAM verification") {
 
   // build the sparse matrix from the lambda blocks and verify that it is
   // still all zeros
-  SparseMatrix Lambda =
-      problem.compute_Lambda_from_Lambda_blocks(lambda_blocks);
+  SparseMatrix Lambda = problem.compute_Lambda_from_Lambda_blocks(
+      lambda_blocks, problem.getDataMatrixSize());
   CHECK_THAT(Lambda, IsApproximatelyEqual<SparseMatrix>(
                          SparseMatrix(Lambda.rows(), Lambda.cols()), 1e-6));
 

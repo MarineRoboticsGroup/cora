@@ -9,8 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set the default build type to debug
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-    # set(CMAKE_BUILD_TYPE Debug)
+    # set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Debug)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
     message(STATUS "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified.")
 else()
@@ -35,7 +35,7 @@ set(ENABLE_OPENMP OFF CACHE BOOL "Enable OMP parallelization? [enabled by defaul
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
-set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+set(ENABLE_VISUALIZATION ON CACHE BOOL "Enable visualization module.")
 # Run the experiments from the paper
 set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples

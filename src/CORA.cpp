@@ -25,7 +25,7 @@ namespace CORA {
 
 CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                      const Matrix &x0, int max_relaxation_rank, bool verbose,
-                     bool log_iterates) {
+                     bool log_iterates, bool show_iterates) {
   // check that x0 has the right number of rows
   if (problem.getFormulation() == Formulation::Explicit) {
     checkMatrixShape("solveCora::Explicit", problem.getDataMatrixSize(),
@@ -101,7 +101,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   params.gradient_tolerance = 1e-4;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-4;
-  params.verbose = true;
+  params.verbose = show_iterates;
   params.precision = 2;
   params.max_computation_time = 50;
   params.relative_decrease_tolerance = 1e-5;
@@ -125,7 +125,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
   CoraTntResult result;
-  Matrix X = x0;
+  Matrix X = problem.projectToManifold(x0);
   CertResults cert_results;
   Matrix eigvec_bootstrap;
   std::vector<Matrix> iterates = std::vector<Matrix>();
@@ -142,6 +142,10 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                                 std::to_string(result.f));
     if (log_iterates) {
       for (Matrix iterate : result.iterates) {
+        // check that the iterate is the expected size
+        checkMatrixShape(
+            "solveCora::iterate", problem.getExpectedVariableSize(),
+            problem.getRelaxationRank(), iterate.rows(), iterate.cols());
         iterates.push_back(iterate);
       }
     }
@@ -205,6 +209,9 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
     if (log_iterates) {
       for (Matrix iterate : result.iterates) {
+        checkMatrixShape("solveCora::iterate",
+                         problem.getExpectedVariableSize(), problem.dim(),
+                         iterate.rows(), iterate.cols());
         iterates.push_back(iterate);
       }
     }
@@ -338,6 +345,8 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int n = problem.numPoses();
   int l = problem.numLandmarks();
   int r = problem.numRangeMeasurements();
+  checkMatrixShape("projectSolution", problem.getExpectedVariableSize(),
+                   problem.getRelaxationRank(), Y.rows(), Y.cols());
 
   // First, compute a thin SVD of Y
   Eigen::JacobiSVD<Matrix> svd(Y, Eigen::ComputeThinU);
@@ -398,14 +407,14 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int rot_mat_sz = problem.numPosesDim();
   Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
-  if (problem.getFormulation() == Formulation::Explicit) {
-    checkMatrixShape("projectSolution::Explicit", problem.getDataMatrixSize(),
-                     problem.dim(), Yd.rows(), Yd.cols());
-  } else {
-    checkMatrixShape("projectSolution::Implicit",
-                     problem.rotAndRangeMatrixSize(), problem.dim(), Yd.rows(),
-                     Yd.cols());
-  }
+  std::cout << "Checking validity of projected solution... ";
+  problem.checkVariablesAreValid(Yd);
+  std::cout << "done." << std::endl;
+  std::cout << "Checked projectSolution" << std::endl;
+
+  checkMatrixShape("projectSolution", problem.getExpectedVariableSize(), d,
+                   Yd.rows(), Yd.cols());
+
   return Yd;
 }
 

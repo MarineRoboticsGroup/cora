@@ -1,8 +1,9 @@
 {
   "init_rank_jump": 2,
-  "max_rank": 20,
-  "verbose": false,
-  "log_iterates": false,
+  "max_rank": 10,
+  "verbose": true,
+  "log_iterates": true,
+  "show_iterates": false,
   "preconditioner": "RegularizedCholesky",
   "formulation": "Implicit",
   "init_type": "Odom",
