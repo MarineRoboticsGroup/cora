@@ -605,7 +605,7 @@ void Problem::fillImplicitFormulationMatrices() {
 
 Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
   checkMatrixShape("Problem::dataMatrixProduct::Y", getExpectedVariableSize(),
-                   relaxation_rank_, Y.rows(), Y.cols());
+                   Y.cols(), Y.rows(), Y.cols());
   if (formulation_ == Formulation::Explicit) {
     return data_matrix_ * Y;
   } else if (formulation_ == Formulation::Implicit) {
@@ -901,7 +901,8 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
 
   // We compute the certificate matrix corresponding to the *full* (i.e.
   // translation-explicit) form of the problem
-  S = get_certificate_matrix(Y);
+  Lambda_blocks = compute_Lambda_blocks(Y);
+  S = data_matrix_ - compute_Lambda_from_Lambda_blocks(Lambda_blocks);
 
   /// Test positive-semidefiniteness of certificate matrix S using fast
   /// verification method

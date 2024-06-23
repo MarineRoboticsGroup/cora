@@ -511,7 +511,10 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
                           bool verbose = true, bool log_iterates = true) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
-  CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
+  CORA::Problem problem =
+      std::filesystem::exists(pyfg_fpath)
+          ? CORA::parsePyfgTextToProblem(pyfg_fpath)
+          : CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
 
   // set the problem parameters
   problem.setRank(problem.dim() + init_rank_jump);
@@ -531,8 +534,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   // if we're in implicit mode, then we need to truncate x0
   // to not have translation variables
   if (formulation == CORA::Formulation::Implicit) {
-    x0 = x0.block(0, 0, problem.rotAndRangeMatrixSize(),
-                  x0.cols());
+    x0 = x0.block(0, 0, problem.rotAndRangeMatrixSize(), x0.cols());
   }
 
 #ifdef GPERFTOOLS
@@ -638,17 +640,23 @@ int main(int argc, char **argv) {
                mrclam_range_and_rpm_files.end());
 
   files = {"data/test.pyfg"};
-  files = {"data/factor_graph_small.pyfg"};
+  // files = {"data/factor_graph_small.pyfg"};
 
-  int init_rank_jump = 4;
+  // load file from environment variable "CORAFILE"
+  if (const char *env_p = std::getenv("CORAFILE")) {
+    std::cout << "Using file from environment variable: " << env_p << std::endl;
+    files = {env_p};
+  }
+
+  int init_rank_jump = 2;
   int max_rank = 20;
   bool verbose = true;
   bool log_iterates = false;
 
   // set the initialization type
   InitType init_type;
-  // init_type = InitType::Odom;
-  init_type = InitType::Random;
+  init_type = InitType::Odom;
+  // init_type = InitType::Random;
 
   // set the preconditioner
   CORA::Preconditioner preconditioner;
