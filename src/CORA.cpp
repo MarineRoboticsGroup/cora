@@ -346,7 +346,7 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int l = problem.numLandmarks();
   int r = problem.numRangeMeasurements();
   checkMatrixShape("projectSolution", problem.getExpectedVariableSize(),
-                   problem.getRelaxationRank(), Y.rows(), Y.cols());
+                   Y.cols(), Y.rows(), Y.cols());
 
   // First, compute a thin SVD of Y
   Eigen::JacobiSVD<Matrix> svd(Y, Eigen::ComputeThinU);
@@ -407,10 +407,7 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int rot_mat_sz = problem.numPosesDim();
   Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
-  std::cout << "Checking validity of projected solution... ";
   problem.checkVariablesAreValid(Yd);
-  std::cout << "done." << std::endl;
-  std::cout << "Checked projectSolution" << std::endl;
 
   checkMatrixShape("projectSolution", problem.getExpectedVariableSize(), d,
                    Yd.rows(), Yd.cols());

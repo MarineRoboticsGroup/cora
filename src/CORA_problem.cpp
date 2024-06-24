@@ -1046,8 +1046,6 @@ Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
 
 void Problem::checkVariablesAreValid(const Matrix &Y) const {
   // lets make sure all of the variables are valid (i.e. on the manifold)
-  std::cout << "Checking that all variables are valid...";
-  std::cout << "Y size: " << Y.rows() << " x " << Y.cols() << std::endl;
   for (int i = 0; i < numPoses(); ++i) {
     Matrix rot_block = Y.block(i * dim_, 0, dim_, Y.cols());
     // check R * R^T = I
@@ -1055,13 +1053,13 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
     if (!rot_prod.isApprox(Matrix::Identity(dim_, dim_))) {
       std::cout << "R^T R for pose " << i << " is not the identity"
                 << std::endl;
-      // throw std::runtime_error("Pose is not a valid rotation matrix");
+      throw std::runtime_error("Pose is not a valid rotation matrix");
     }
     // check det(R) = 1
     if (Y.cols() == dim_ && std::abs(rot_block.determinant() - 1) > 1e-6) {
       std::cout << "Pose " << i << " has determinant "
                 << rot_block.determinant() << std::endl;
-      // throw std::runtime_error("Pose does not have determinant 1");
+      throw std::runtime_error("Pose does not have determinant 1");
     }
   }
   for (int i = 0; i < numRangeMeasurements(); ++i) {
@@ -1073,15 +1071,12 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
       throw std::runtime_error("Range is not a unit vector");
     }
   }
-  std::cout << "done" << std::endl;
 }
 
 Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
   checkMatrixShape("Problem::alignEstimateToOrigin::Y",
                    getExpectedVariableSize(), dim_, Y.rows(), Y.cols());
 
-  std::cout << "checking variables before aligning estimate to origin"
-            << std::endl;
   checkVariablesAreValid(Y);
 
   // start by rotating everything such that the first dxd block is the identity
@@ -1096,31 +1091,19 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
     Y_aligned = getTranslationExplicitSolution(Y_aligned);
   }
 
-  std::cout << "checking variables before pinning last translation variable"
-            << std::endl;
   checkVariablesAreValid(Y_aligned);
 
   // now uniformly translate all of the translation variables such that the
   // first translation variable is the origin
-  throw NotImplementedException(
-      "alignEstimateToOrigin not implemented -- need to "
-      "implement translation alignment");
-  // auto rot_range_mat_sz = rotAndRangeMatrixSize();
-  // Vector first_translation = Y_aligned.bottomRows(1);
-  // Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_) =
-  //     Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_)
-  //         .rowwise() -
-  //     first_translation.transpose();
-  // auto rot_range_mat_sz = rotAndRangeMatrixSize();
-  // Vector first_translation =
-  //     Y_aligned.block(rot_range_mat_sz, 0, 1, dim_).transpose();
-  // Y_aligned.block(rot_range_mat_sz, 0, numTranslationalStates(), dim_) =
-  //     Y_aligned.block(rot_range_mat_sz, 0, numPoses() + numLandmarks(), dim_)
-  //         .rowwise() -
-  //     first_translation.transpose();
+  auto trans_offset = rotAndRangeMatrixSize();
 
-  std::cout << "checking variables after pinning last translation variable"
-            << std::endl;
+  // subtract the last translation variable from all of the translation
+  // variables (from trans_offset to the end of the matrix)
+  Vector first_translation = Y_aligned.bottomRows(1);
+  Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_) =
+      Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_)
+          .rowwise() -
+      first_translation.transpose();
 
   checkVariablesAreValid(Y_aligned);
 

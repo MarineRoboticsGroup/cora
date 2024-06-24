@@ -7,9 +7,10 @@
 #include <CORA/pyfg_text_parser.h>
 
 #include <filesystem>
-#include <json.hpp>
 #include <set>
 #include <vector>
+
+#include <json.hpp>
 
 using json = nlohmann::json;
 
@@ -631,7 +632,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   results_file.close();
 
   // if we are logging the iterates, then let's visualize CORA
-  if (log_iterates && false) {
+  if (log_iterates) {
     CORA::CORAVis viz{};
     double viz_hz = 10.0;
     viz.run(problem, {soln.second}, viz_hz, true);
