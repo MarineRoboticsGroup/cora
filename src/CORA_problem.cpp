@@ -1046,6 +1046,8 @@ Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
 
 void Problem::checkVariablesAreValid(const Matrix &Y) const {
   // lets make sure all of the variables are valid (i.e. on the manifold)
+
+  // check all of the rotations
   for (int i = 0; i < numPoses(); ++i) {
     Matrix rot_block = Y.block(i * dim_, 0, dim_, Y.cols());
     // check R * R^T = I
@@ -1062,6 +1064,8 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
       throw std::runtime_error("Pose does not have determinant 1");
     }
   }
+
+  // check all of the range measurements
   for (int i = 0; i < numRangeMeasurements(); ++i) {
     Vector range_block = Y.row(numPosesDim() + i);
     // check ||r|| = 1
@@ -1071,6 +1075,10 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
       throw std::runtime_error("Range is not a unit vector");
     }
   }
+
+  // print the last translation variable
+  // std::cout << "Last translation: " << Y.bottomRows(1)
+  //           << std::endl;
 }
 
 Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
@@ -1097,13 +1105,27 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
   // first translation variable is the origin
   auto trans_offset = rotAndRangeMatrixSize();
 
-  // subtract the last translation variable from all of the translation
-  // variables (from trans_offset to the end of the matrix)
-  Vector first_translation = Y_aligned.bottomRows(1);
-  Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_) =
-      Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_)
-          .rowwise() -
-      first_translation.transpose();
+  // if the last row is not approximately zeros, then we need to subtract the
+  // last translation variable from all of the translation variables to pin the
+  // last translation variable to the origin
+  if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
+    Vector last_translation = Y_aligned.bottomRows(1);
+    std::cout << "Last translation vec size: " << last_translation.size()
+              << std::endl;
+    std::cout << "Last translation (before): " << last_translation.transpose()
+              << std::endl;
+
+    Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_) =
+        Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_)
+            .rowwise() -
+        last_translation.transpose();
+  }
+
+  // check that the last row is now (approximately) zeros
+  if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
+    std::cout << "Last translation is not zeros" << std::endl;
+    throw std::runtime_error("Last translation is not zeros");
+  }
 
   checkVariablesAreValid(Y_aligned);
 

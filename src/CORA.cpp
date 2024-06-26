@@ -183,6 +183,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
+      X = result.x;
       break;
     }
 
@@ -200,11 +201,13 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     printIfVerbose(verbose, "\nProjecting solution to rank " +
                                 std::to_string(problem.dim()) +
                                 " and refining.");
+
     X = projectSolution(problem, X, verbose);
+
     problem.setRank(problem.dim());
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-    printIfVerbose(verbose, "Obtained solution with objective value: " +
+    printIfVerbose(verbose, "\nObtained FINAL solution with objective value: " +
                                 std::to_string(result.f));
 
     if (log_iterates) {
@@ -411,6 +414,16 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
 
   checkMatrixShape("projectSolution", problem.getExpectedVariableSize(), d,
                    Yd.rows(), Yd.cols());
+
+  // print the singular values of the projected solution
+  if (verbose) {
+    Eigen::JacobiSVD<Matrix> svd_Yd(Yd, Eigen::ComputeThinU);
+    Vector sigmas_Yd = svd_Yd.singularValues();
+    printIfVerbose(verbose, "Singular values of Yd: ");
+    for (size_t i = 0; i < sigmas_Yd.size(); ++i) {
+      printIfVerbose(verbose, std::to_string(sigmas_Yd(i)));
+    }
+  }
 
   return Yd;
 }
