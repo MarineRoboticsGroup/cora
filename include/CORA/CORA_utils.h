@@ -66,6 +66,10 @@ inline CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
 Matrix projectToSOd(const Matrix &A);
 
+void saveSolnToG20(const std::vector<Symbol> pose_symbols,
+                   const Problem &problem, const Matrix &soln,
+                   const std::string &fpath);
+
 void saveSolnToTum(const std::vector<Symbol> pose_symbols,
                    const Problem &problem, const Matrix &soln,
                    const std::string &fpath);
