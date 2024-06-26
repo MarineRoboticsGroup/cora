@@ -541,7 +541,7 @@ void saveSolutions(const CORA::Problem &problem,
   size_t pyfg_index = pyfg_fpath.find(".pyfg");
   std::string save_dir_name =
       pyfg_fpath.substr(data_length, pyfg_index - data_length);
-  std::string save_dir_path = "/tmp/" + save_dir_name;
+  std::string save_dir_path = "/tmp" + save_dir_name;
 
   // create the directory if it does not exist. Make sure to recursively create
   // the parent directories
@@ -570,6 +570,10 @@ void saveSolutions(const CORA::Problem &problem,
         save_path + std::to_string(robot_index) + ".tum";
     saveSolnToTum(robot_pose_chain, problem, aligned_soln, robot_save_path);
     std::cout << "Saved " << robot_save_path << std::endl;
+
+    std::string g2o_path = save_path + std::to_string(robot_index) + ".g2o";
+    saveSolnToG20(robot_pose_chain, problem, aligned_soln, g2o_path);
+    std::cout << "Saved " << g2o_path << std::endl;
   }
 }
 

@@ -34,6 +34,9 @@ void Problem::addLandmarkVariable(const Symbol &landmark_id) {
 void Problem::addRangeMeasurement(const RangeMeasurement &range_measurement) {
   if (std::find(range_measurements_.begin(), range_measurements_.end(),
                 range_measurement) != range_measurements_.end()) {
+    std::cout << "Found duplicate measure: "
+              << range_measurement.first_id.string() << " -> "
+              << range_measurement.second_id.string() << std::endl;
     throw std::invalid_argument("Range measurement already exists");
   }
   range_measurements_.push_back(range_measurement);
