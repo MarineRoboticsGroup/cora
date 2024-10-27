@@ -91,6 +91,11 @@ private:
   // the pose-landmark measurements that are used to construct the problem
   std::vector<RelativePoseLandmarkMeasurement> rel_pose_landmark_measurements_;
 
+  // the symbol for the origin (is added automatically if there are any priors)
+  Symbol origin_symbol_;
+
+  void addOriginPose();
+
   // the pose priors that are used to construct the problem
   std::vector<PosePrior> pose_priors_;
 
@@ -111,6 +116,9 @@ private:
 
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
+
+  // a flag to check if there are any priors
+  bool has_priors_ = false;
 
   // a flag to check if any data has been modified since last call to
   // updateProblemData()
@@ -189,8 +197,10 @@ public:
         relaxation_rank_(relaxation_rank),
         formulation_(formulation),
         preconditioner_(preconditioner),
+        origin_symbol_(Symbol("O0")),
         manifolds_(Manifolds()) {
     // relaxation rank must be >= dim
+    std::cout << "Origin symbol: " << origin_symbol_.string() << std::endl;
     assert(relaxation_rank >= dim);
     manifolds_.oblique_manifold_ = ObliqueManifold(relaxation_rank, 0);
     manifolds_.stiefel_prod_manifold_ = StiefelProduct(dim, relaxation_rank, 0);
@@ -286,6 +296,12 @@ public:
   }
   inline int numPoseLandmarkMeasurements() const {
     return static_cast<int>(rel_pose_landmark_measurements_.size());
+  }
+  inline int numPosePriors() const {
+    return static_cast<int>(pose_priors_.size());
+  }
+  inline int numLandmarkPriors() const {
+    return static_cast<int>(landmark_priors_.size());
   }
   inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());

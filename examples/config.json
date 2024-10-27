@@ -1,11 +1,11 @@
 {
-  "init_rank_jump": 0,
+  "init_rank_jump": 1,
   "max_rank": 10,
-  "verbose": false,
-  "log_iterates": false,
-  "show_iterates": false,
+  "verbose": true,
+  "log_iterates": true,
+  "show_iterates": true,
   "preconditioner": "RegularizedCholesky",
-  "formulation": "Explicit",
+  "formulation": "Implicit",
   "init_type": "Odom",
   "files": ["data/test.pyfg"]
 }

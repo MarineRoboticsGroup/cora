@@ -95,15 +95,15 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   Optimization::Riemannian::TNTParams<Scalar> params;
   params.Delta0 = 5;
   params.alpha2 = 3.0;
-  params.max_TPCG_iterations = 200;
-  params.max_iterations = 700;
+  params.max_TPCG_iterations = 80;
+  params.max_iterations = 250;
   params.preconditioned_gradient_tolerance = 1e-4;
   params.gradient_tolerance = 1e-4;
   params.theta = 0.8;
   params.Delta_tolerance = 1e-4;
   params.verbose = show_iterates;
   params.precision = 2;
-  params.max_computation_time = 50;
+  params.max_computation_time = 20;
   params.relative_decrease_tolerance = 1e-5;
   params.stepsize_tolerance = 1e-5;
   params.log_iterates = log_iterates;

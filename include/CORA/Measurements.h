@@ -64,6 +64,11 @@ struct RelativePoseMeasurement : PairMeasurement {
         t(std::move(t_measurement)),
         cov(std::move(cov)) {}
 
+  std::string toString() const {
+    std::string str = first_id.string() + " -> " + second_id.string();
+    return str;
+  }
+
   /**
    * @brief Computes the rotational (scalar) precision of the measurement
    * from the covariance matrix. This is a bit more sophisticated b/c of
@@ -156,6 +161,27 @@ struct PosePrior : Measurement {
         R(std::move(R)),
         t(std::move(t)),
         cov(std::move(cov)) {}
+
+  Scalar getRotPrecision() const {
+    if (cov.rows() == 6) {
+      // for 3D rotations the (information-divergence minimizing) precision is:
+      // 3.0 / (2*trace(cov(3:6, 3:6))))
+      return 1.5 / (cov(3, 3) + cov(4, 4) + cov(5, 5));
+    } else if (cov.rows() == 3) {
+      // for 2D rotations, the rotational variance is a scalar, so the
+      // precision is just the inverse of the variance
+      return 1.0 / cov(2, 2);
+    } else {
+      throw std::runtime_error(
+          "PosePrior::getRotPrecision() only implemented for 2D and 3D "
+          "rotations");
+    }
+  }
+
+  Scalar getTransPrecision() const {
+    size_t dim = t.size();
+    return static_cast<double>(dim) / (cov.block(0, 0, dim, dim).trace());
+  }
 };
 
 struct LandmarkPrior : Measurement {
@@ -164,6 +190,13 @@ struct LandmarkPrior : Measurement {
 
   LandmarkPrior(const Symbol &id, Vector p, Matrix cov)
       : Measurement(id), p(std::move(p)), cov(std::move(cov)) {}
+
+  Scalar getPrecision() const {
+    size_t dim = p.size();
+    return static_cast<double>(dim) / (cov.block(0, 0, dim, dim).trace());
+  }
+
+  Scalar getTransPrecision() const { return getPrecision(); }
 };
 
 typedef std::vector<CORA::RelativePoseMeasurement> rel_pose_pose_measurements_t;

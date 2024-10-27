@@ -433,6 +433,10 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
   // iterate over the odom chains
   bool first = true;
   for (const std::vector<RPM> &odom_chain : getOdomChains(problem)) {
+    if (odom_chain.size() == 0) {
+      continue;
+    }
+
     CORA::Matrix cur_pose;
     if (first) {
       cur_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
