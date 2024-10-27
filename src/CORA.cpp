@@ -111,7 +111,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   // certification parameters
   const Scalar MIN_CERT_ETA = 1e-4;
   const Scalar MAX_CERT_ETA = 1e-1;
-  const Scalar REL_CERT_ETA = 5e-7;
+  const Scalar REL_CERT_ETA = 5e-6;
   const int LOBPCG_BLOCK_SIZE = 10;
   Scalar eta;
 

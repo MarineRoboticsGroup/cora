@@ -10,6 +10,8 @@
 #include <set>
 #include <vector>
 
+#include <unsupported/Eigen/SparseExtra>
+
 #include <json.hpp>
 
 using json = nlohmann::json;
@@ -395,10 +397,11 @@ std::vector<std::vector<RPM>> getOdomChains(const CORA::Problem &problem) {
 
     if (odom_chain.size() != pose_chain.size() - 1) {
       throw std::runtime_error(
-          "Expected odom chain size to be pose chain size - 1");
-      // "Expected odom chain size to be pose chain size " +
-      // "- 1. The pose chain size is " + std::to_string(pose_chain.size()) +
-      // " and the odom chain size is " + std::to_string(odom_chain.size()));
+          // "Expected odom chain size to be pose chain size - 1");
+          "Expected odom chain size to be pose chain size "
+          "- 1. The pose chain size is " +
+          std::to_string(pose_chain.size()) + " and the odom chain size is " +
+          std::to_string(odom_chain.size()));
     }
   }
 
@@ -541,7 +544,12 @@ void saveSolutions(const CORA::Problem &problem,
   size_t pyfg_index = pyfg_fpath.find(".pyfg");
   std::string save_dir_name =
       pyfg_fpath.substr(data_length, pyfg_index - data_length);
-  std::string save_dir_path = "/tmp" + save_dir_name;
+
+  // if save_dir_name starts with /, then remove it
+  if (save_dir_name[0] == '/') {
+    save_dir_name = save_dir_name.substr(1);
+  }
+  std::string save_dir_path = "/tmp/" + save_dir_name;
 
   // create the directory if it does not exist. Make sure to recursively create
   // the parent directories
@@ -597,6 +605,11 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   // update the problem data
   problem.updateProblemData();
 
+  // save problem.data_matrix_ (an Eigen SparseMatrix) to a file
+  std::string fpath = "/home/alan/data_matrix.mtx";
+  Eigen::saveMarket(problem.data_matrix_, fpath);
+  std::cout << "Saved data matrix to " << fpath << std::endl;
+
   CORA::Matrix x0;
   if (init_type == InitType::Random) {
     x0 = problem.getRandomInitialGuess();
@@ -625,6 +638,14 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
   std::cout << "CORA took " << elapsed.count() << " seconds" << std::endl;
+
+  std::cout << "Experiment result, name: " << pyfg_fpath
+            << ", time: " << elapsed.count()
+            << " seconds, cost: " << soln.first.f << ", marginalized: "
+            << (formulation == CORA::Formulation::Implicit)
+            << ", init rank jump: " << init_rank_jump
+            << ", init random: " << (init_type == InitType::Random)
+            << std::endl;
 
 #ifdef GPERFTOOLS
   ProfilerStop();
@@ -682,14 +703,15 @@ int main(int argc, char **argv) {
   std::vector<std::string> files = {};
 
   // original experiments
-  // files.insert(files.end(), original_exp_files.begin(),
-  //              original_exp_files.end());
+  files.insert(files.end(), original_exp_files.begin(),
+               original_exp_files.end());
 
   // mrclam range and rpm experiments
-  // files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
-  //              mrclam_range_and_rpm_files.end());
+  files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
+               mrclam_range_and_rpm_files.end());
 
   // files = {"data/test.pyfg"};
+  // files = {"data/tiers.pyfg"};
 
   // load file from environment variable "CORAFILE"
   if (const char *env_p = std::getenv("CORAFILE")) {

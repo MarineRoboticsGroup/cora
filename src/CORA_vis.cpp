@@ -64,7 +64,7 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
 
   auto soln_idx{0};
   int curr_loop_cnt = 0;
-  int max_num_loops = 20;
+  int max_num_loops = 2;
 
   // we will use double buffering to render the poses and landmarks
   // so that we don't have to clear the screen every time

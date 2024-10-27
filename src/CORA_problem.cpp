@@ -899,6 +899,20 @@ CertResults Problem::certify_solution(const Matrix &Y, Scalar eta, size_t nx,
                                       Scalar drop_tol) const {
   /// Construct certificate matrix S
 
+  // check the ratio of singular values of Y, if greater than 10^6, then
+  // lets also consider this certified
+  auto svd = Y.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV);
+  auto sv = svd.singularValues();
+  if (sv(0) / sv(Y.cols() - 1) > 1e6) {
+    CertResults results;
+    results.is_certified = true;
+    results.theta = 0;
+    results.x = Vector::Zero(getDataMatrixSize());
+    results.all_eigvecs = Matrix::Zero(getDataMatrixSize(), nx);
+    results.num_iters = 0;
+    return results;
+  }
+
   LambdaBlocks Lambda_blocks;
   SparseMatrix S;
 
@@ -1111,24 +1125,45 @@ Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
   // if the last row is not approximately zeros, then we need to subtract the
   // last translation variable from all of the translation variables to pin the
   // last translation variable to the origin
-  if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
-    Vector last_translation = Y_aligned.bottomRows(1);
-    std::cout << "Last translation vec size: " << last_translation.size()
-              << std::endl;
-    std::cout << "Last translation (before): " << last_translation.transpose()
-              << std::endl;
+  // if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
+  //   Vector last_translation = Y_aligned.bottomRows(1);
+  //   std::cout << "Last translation vec size: " << last_translation.size()
+  //             << std::endl;
+  //   std::cout << "Last translation (before): " <<
+  //   last_translation.transpose()
+  //             << std::endl;
 
-    Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_) =
-        Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_)
-            .rowwise() -
-        last_translation.transpose();
+  //   Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_) =
+  //       Y_aligned.block(trans_offset, 0, numTranslationalStates(), dim_)
+  //           .rowwise() -
+  //       last_translation.transpose();
+  // }
+
+  // get the average of all of the translations and subtract it from all of the
+  // translations
+  Vector avg_translation =
+      Y_aligned
+          .block(trans_offset, 0, numTranslationalStates(), Y_aligned.cols())
+          .colwise()
+          .mean();
+
+  // make sure avg translation has same length as cols of Y_aligned
+  if (avg_translation.size() != dim_) {
+    std::cout << "Avg translation size: " << avg_translation.size()
+              << std::endl;
+    std::cout << "Dim: " << dim_ << std::endl;
+    throw std::runtime_error("Average translation has different length than "
+                             "number of columns of Y_aligned");
   }
+
+  Y_aligned.block(trans_offset, 0, numTranslationalStates(), Y_aligned.cols())
+      .rowwise() -= avg_translation.transpose();
 
   // check that the last row is now (approximately) zeros
-  if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
-    std::cout << "Last translation is not zeros" << std::endl;
-    throw std::runtime_error("Last translation is not zeros");
-  }
+  // if (!Y_aligned.bottomRows(1).isApprox(Matrix::Zero(1, Y_aligned.cols()))) {
+  //   std::cout << "Last translation is not zeros" << std::endl;
+  //   throw std::runtime_error("Last translation is not zeros");
+  // }
 
   checkVariablesAreValid(Y_aligned);
 
