@@ -97,19 +97,19 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   params.alpha2 = 3.0;
   params.max_TPCG_iterations = 80;
   params.max_iterations = 250;
-  params.preconditioned_gradient_tolerance = 1e-4;
-  params.gradient_tolerance = 1e-4;
+  params.preconditioned_gradient_tolerance = 1e-6;
+  params.gradient_tolerance = 1e-6;
   params.theta = 0.8;
-  params.Delta_tolerance = 1e-4;
+  params.Delta_tolerance = 1e-5;
   params.verbose = show_iterates;
   params.precision = 2;
   params.max_computation_time = 20;
-  params.relative_decrease_tolerance = 1e-5;
-  params.stepsize_tolerance = 1e-5;
+  params.relative_decrease_tolerance = 1e-6;
+  params.stepsize_tolerance = 1e-6;
   params.log_iterates = log_iterates;
 
   // certification parameters
-  const Scalar MIN_CERT_ETA = 1e-4;
+  const Scalar MIN_CERT_ETA = 1e-7;
   const Scalar MAX_CERT_ETA = 1e-1;
   const Scalar REL_CERT_ETA = 5e-6;
   const int LOBPCG_BLOCK_SIZE = 10;
@@ -215,7 +215,13 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
         checkMatrixShape("solveCora::iterate",
                          problem.getExpectedVariableSize(), problem.dim(),
                          iterate.rows(), iterate.cols());
-        iterates.push_back(iterate);
+
+        if (std::getenv("CORA_IGNORE_FINAL_ITERATES") == "true") {
+          std::cout << "WARNING - currently not logging final iterates"
+                    << std::endl;
+        } else {
+          iterates.push_back(iterate);
+        }
       }
     }
 
@@ -379,6 +385,12 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
     determinants(i) = Yd.block(i * d, 0, d, d).determinant();
     if (determinants(i) > 0)
       ++ng0;
+
+    // if abs(determinant(i)) is far from 1, then print a warning
+    if (std::abs(determinants(i) - 1) > 1e-6) {
+      std::cout << "WARNING: Determinant of block " << i
+                << " is: " << determinants(i) << " not 1" << std::endl;
+    }
   }
 
   printIfVerbose(verbose,

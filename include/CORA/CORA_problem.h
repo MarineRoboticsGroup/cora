@@ -200,7 +200,6 @@ public:
         origin_symbol_(Symbol("O0")),
         manifolds_(Manifolds()) {
     // relaxation rank must be >= dim
-    std::cout << "Origin symbol: " << origin_symbol_.string() << std::endl;
     assert(relaxation_rank >= dim);
     manifolds_.oblique_manifold_ = ObliqueManifold(relaxation_rank, 0);
     manifolds_.stiefel_prod_manifold_ = StiefelProduct(dim, relaxation_rank, 0);
@@ -249,6 +248,8 @@ public:
 
   // get pose symbols that start with a given character
   std::vector<Symbol> getPoseSymbols(unsigned char chr) const;
+
+  Symbol getOriginSymbol() const { return origin_symbol_; }
 
   // Get copies of pose and landmark symbol maps
   std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }

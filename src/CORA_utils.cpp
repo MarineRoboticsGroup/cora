@@ -216,7 +216,8 @@ Matrix getRotation(const Symbol &sym, const Problem &problem,
   // need the dim x dim rotation matrix
   Index start_idx = problem.getRotationIdx(sym);
   Matrix rot =
-      soln.block(start_idx * problem.dim(), 0, problem.dim(), problem.dim());
+      soln.block(start_idx * problem.dim(), 0, problem.dim(), problem.dim())
+          .transpose();
   // check that the rotation matrix is valid
   if (std::abs(rot.determinant() - 1) > 1e-6) {
     throw std::runtime_error("Rotation matrix determinant is: " +
@@ -292,7 +293,7 @@ void saveSolnToG20(const std::vector<Symbol> pose_symbols,
   output_file.close();
 
   // print that we saved the poses
-  std::cout << "Saved robot poses to " << fpath << std::endl;
+  // std::cout << "Saved robot poses to " << fpath << std::endl;
 }
 
 void saveSolnToTum(const std::vector<Symbol> pose_symbols,

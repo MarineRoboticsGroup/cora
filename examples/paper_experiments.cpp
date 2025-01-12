@@ -581,11 +581,11 @@ void saveSolutions(const CORA::Problem &problem,
     std::string robot_save_path =
         save_path + std::to_string(robot_index) + ".tum";
     saveSolnToTum(robot_pose_chain, problem, aligned_soln, robot_save_path);
-    std::cout << "Saved " << robot_save_path << std::endl;
+    // std::cout << "Saved " << robot_save_path << std::endl;
 
     std::string g2o_path = save_path + std::to_string(robot_index) + ".g2o";
     saveSolnToG20(robot_pose_chain, problem, aligned_soln, g2o_path);
-    std::cout << "Saved " << g2o_path << std::endl;
+    // std::cout << "Saved " << g2o_path << std::endl;
   }
 }
 
@@ -664,6 +664,15 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   if (log_iterates) {
     CORA::CORAVis viz{};
     double viz_hz = 10.0;
+
+    // save all the iterates to separate .tum files
+    auto aligned_iterates = viz.projectAndAlignIterates(problem, soln.second);
+    for (size_t i = 0; i < soln.second.size(); i++) {
+      std::string fake_fpath =
+          "saved_iterates/cora_" + std::to_string(i) + ".pyfg";
+      saveSolutions(problem, aligned_iterates[i], fake_fpath);
+    }
+
     viz.run(problem, {soln.second}, viz_hz, true);
   }
 
@@ -723,7 +732,7 @@ int main(int argc, char **argv) {
     files = {env_p};
   }
 
-  Config config = parseConfig("./bin/config.json");
+  Config config = parseConfig("/home/alan/cora-plus-plus/examples/config.json");
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(

@@ -49,7 +49,9 @@ void Problem::addRelativePoseMeasurement(
   if (std::find(rel_pose_pose_measurements_.begin(),
                 rel_pose_pose_measurements_.end(),
                 rel_pose_measure) != rel_pose_pose_measurements_.end()) {
-    throw std::invalid_argument("Relative pose measurement already exists");
+    throw std::invalid_argument("Relative pose measurement already exists: " +
+                                rel_pose_measure.first_id.string() + " -> " +
+                                rel_pose_measure.second_id.string());
   }
   rel_pose_pose_measurements_.push_back(rel_pose_measure);
   problem_data_up_to_date_ = false;
@@ -218,15 +220,16 @@ void Problem::fillRelPoseSubmatrices() {
         measure_idx, measure_idx) = pp.getRotPrecision();
 
     // fill in incidence matrix
-    Index id1 = getTranslationIdx(pp.id) - translation_offset;
-    Index id2 = getTranslationIdx(origin_symbol_) - translation_offset;
-    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = 1.0;
+    Index id1 = getTranslationIdx(origin_symbol_) - translation_offset;
+    Index id2 = getTranslationIdx(pp.id) - translation_offset;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id1) = -1.0;
+    data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
     // fill in translation data matrix where the id1-th (1 x dim_) block is
-    // pp.t and all other blocks are 0
+    // -pp.t and all other blocks are 0
     for (int k = 0; k < dim_; k++) {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
-          measure_idx, id1 * dim_ + k) = pp.t(k);
+          measure_idx, id1 * dim_ + k) = -pp.t(k);
     }
   }
   measures_added += num_pose_priors;
@@ -332,8 +335,8 @@ void Problem::fillRotConnLaplacian() {
   }
 
   // pose priors
-  i = getRotationIdx(origin_symbol_);
   for (const PosePrior &prior : pose_priors_) {
+    i = getRotationIdx(origin_symbol_);
     j = getRotationIdx(prior.id);
 
     // Elements of ith block-diagonal
@@ -625,16 +628,7 @@ void Problem::fillDataMatrix() {
   // Q11
   // upper-left dn x dn block is:
   // rotation connection Laplacian + T^T * Omega_t * T
-  std::cout << "Forming Q11" << std::endl;
-
-  auto a = data_submatrices_.rel_pose_translation_data_matrix.transpose();
-  auto b = data_submatrices_.rel_pose_translation_precision_matrix;
-  auto c = data_submatrices_.rel_pose_translation_data_matrix;
-
   // print the size of a, b, and c
-  std::cout << "a: " << a.rows() << " x " << a.cols() << std::endl;
-  std::cout << "b: " << b.rows() << " x " << b.cols() << std::endl;
-  std::cout << "c: " << c.rows() << " x " << c.cols() << std::endl;
   SparseMatrix Q11 =
       data_submatrices_.rotation_conn_laplacian +
       data_submatrices_.rel_pose_translation_data_matrix.transpose() *
@@ -645,7 +639,6 @@ void Problem::fillDataMatrix() {
 
   // Q13
   // upper-right dn x (n+l) block is: T^T * Omega_t * A_t
-  std::cout << "Forming Q13" << std::endl;
   SparseMatrix Q13 =
       data_submatrices_.rel_pose_translation_data_matrix.transpose() *
       data_submatrices_.rel_pose_translation_precision_matrix *
@@ -653,7 +646,6 @@ void Problem::fillDataMatrix() {
 
   // Q22
   // the next (r x r) block on the diagonal is: Omega_r * D * D
-  std::cout << "Forming Q22" << std::endl;
   SparseMatrix OmegaRD = data_submatrices_.range_precision_matrix *
                          data_submatrices_.range_dist_matrix;
   SparseMatrix Q22 = OmegaRD * data_submatrices_.range_dist_matrix;
@@ -661,12 +653,10 @@ void Problem::fillDataMatrix() {
   // Q23
   // the next (r x (n+l)) block to the right of the (r x r) block on the
   // diagonal is D * Omega_r * A_r
-  std::cout << "Forming Q23" << std::endl;
   SparseMatrix Q23 = OmegaRD * data_submatrices_.range_incidence_matrix;
 
   // Q33
   // the bottom-right block on the diagonal is: L_r + L_t
-  std::cout << "Forming Q33" << std::endl;
   SparseMatrix Q33 = (data_submatrices_.rel_pose_incidence_matrix.transpose() *
                       data_submatrices_.rel_pose_translation_precision_matrix *
                       data_submatrices_.rel_pose_incidence_matrix) +
@@ -679,7 +669,6 @@ void Problem::fillDataMatrix() {
    * indices of the triplets to account for the fact that the submatrices are
    * located in different parts of the data matrix.
    */
-  std::cout << "Combining triplets" << std::endl;
   std::vector<Eigen::Triplet<Scalar>> combined_triplets;
   combined_triplets.reserve(Q11.nonZeros() + 2 * Q13.nonZeros() +
                             Q22.nonZeros() + 2 * Q23.nonZeros() +
@@ -972,7 +961,9 @@ Index Problem::getRotationIdx(const Symbol &pose_symbol) const {
   }
 
   // if we get here, we didn't find the pose symbol
-  throw std::invalid_argument("Unknown pose symbol");
+  throw std::invalid_argument("Unknown pose symbol:"
+                              " " +
+                              pose_symbol.string());
 }
 
 Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
@@ -1236,8 +1227,8 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
 }
 
 Matrix Problem::alignEstimateToOrigin(const Matrix &Y) const {
-  checkMatrixShape("Problem::alignEstimateToOrigin::Y",
-                   getExpectedVariableSize(), dim_, Y.rows(), Y.cols());
+  // checkMatrixShape("Problem::alignEstimateToOrigin::Y",
+  //                  getExpectedVariableSize(), dim_, Y.rows(), Y.cols());
 
   checkVariablesAreValid(Y);
 
