@@ -13,8 +13,8 @@ CORAVis::CORAVis() {}
 using TNTStatus = Optimization::Riemannian::TNTStatus;
 
 std::vector<Matrix>
-projectAndAlignIterates(const Problem &problem,
-                        const std::vector<Matrix> &iterates) {
+CORAVis::projectAndAlignIterates(const Problem &problem,
+                                 const std::vector<Matrix> &iterates) {
   std::vector<Matrix> aligned_iterates;
   for (const auto &iterate : iterates) {
     auto aligned_sol_matrix = problem.alignEstimateToOrigin(projectSolution(
@@ -44,9 +44,10 @@ void CORAVis::run(const Problem &problem, std::vector<Matrix> iterates,
 
   auto viz = std::make_shared<mrg::Visualizer>(params);
   auto render_thread = std::thread(&CORAVis::renderLoop, this, viz);
+
+  auto aligned_iterates = projectAndAlignIterates(problem, iterates);
   dataPlaybackLoop(std::shared_ptr<mrg::Visualizer>(viz), problem,
-                   projectAndAlignIterates(problem, iterates), rate_hz,
-                   verbose);
+                   aligned_iterates, rate_hz, verbose);
   render_thread.join();
 }
 
@@ -63,7 +64,16 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
 
   auto soln_idx{0};
   int curr_loop_cnt = 0;
-  int max_num_loops = 3;
+  int max_num_loops = 2;
+
+  // try to load max_num_loops from the environment
+  if (const char *env_p = std::getenv("CORA_MAX_LOOPS")) {
+    max_num_loops = std::stoi(env_p);
+    std::cout << "Using max_num_loops from environment variable: "
+              << max_num_loops << std::endl;
+  } else {
+    std::cout << "Using default max_num_loops: " << max_num_loops << std::endl;
+  }
 
   // we will use double buffering to render the poses and landmarks
   // so that we don't have to clear the screen every time
@@ -72,35 +82,73 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
   // set it up so only drawing <=100 poses total (skip the right number of
   // poses)
   int num_poses = problem.numPoses();
-  int num_poses_to_show = 1000;
+  int num_poses_to_show = 5000;
   int num_poses_to_skip = static_cast<int>(num_poses / num_poses_to_show);
   int num_ranges = problem.numRangeMeasurements();
   int num_ranges_to_show = 2000;
   int num_ranges_to_skip = static_cast<int>(num_ranges / num_ranges_to_show);
+
+  auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
+  auto range_measurements = problem.getRangeMeasurements();
+
+  auto pose_sym_to_idx = problem.getPoseSymbolMap();
+  // isolate the different pose chains by the character of the symbols
+  std::set<char> pose_chain_chars;
+  for (const auto &[pose_sym, pose_idx] : pose_sym_to_idx) {
+    pose_chain_chars.insert(pose_sym.chr());
+  }
+
+  int num_pose_chains = pose_chain_chars.size();
+  std::vector<std::map<Symbol, int>> pose_chain_sym_to_idx(num_pose_chains);
+  for (const auto &[pose_sym, pose_idx] : pose_sym_to_idx) {
+    char pose_char = pose_sym.chr();
+    int pose_chain_idx = std::distance(pose_chain_chars.begin(),
+                                       pose_chain_chars.find(pose_char));
+    pose_chain_sym_to_idx[pose_chain_idx][pose_sym] = pose_idx;
+  }
+
   while (alive && curr_loop_cnt < max_num_loops) {
     auto soln = iterates.at(soln_idx);
-    auto aligned_sol_matrix = problem.alignEstimateToOrigin(soln);
 
-    auto pose_sym_to_idx = problem.getPoseSymbolMap();
-    auto landmark_sym_to_idx = problem.getLandmarkSymbolMap();
-    auto range_measurements = problem.getRangeMeasurements();
     // Ready false
     viz->setReadyToRender(false);
     viz->Clear();
 
-    std::vector<mrg::VizPose> viz_poses = {};
-    for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
-      if (num_poses_to_skip > 0 && pose_idx % num_poses_to_skip != 0) {
-        continue;
+    // add all poses
+    for (int pose_chain_idx = 0; pose_chain_idx < num_pose_chains;
+         pose_chain_idx++) {
+      auto pose_sym_to_idx = pose_chain_sym_to_idx[pose_chain_idx];
+      std::vector<mrg::VizPose> viz_poses = {};
+      for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
+        if (num_poses_to_skip > 0 && pose_idx % num_poses_to_skip != 0) {
+          continue;
+        }
+        if (pose_sym == problem.getOriginSymbol()) {
+          continue;
+        }
+
+        viz_poses.emplace_back(getPose(problem, soln, pose_sym));
       }
-      viz_poses.emplace_back(getPose(problem, aligned_sol_matrix, pose_sym));
+      viz->AddVizPoses(viz_poses, pose_chain_idx);
     }
-    viz->AddVizPoses(viz_poses);
+    // std::vector<mrg::VizPose> viz_poses = {};
+    // for (auto [pose_sym, pose_idx] : pose_sym_to_idx) {
+    //   if (num_poses_to_skip > 0 && pose_idx % num_poses_to_skip != 0) {
+    //     continue;
+    //   }
+    //   if (pose_sym == problem.getOriginSymbol()) {
+    //     continue;
+    //   }
+    //   viz_poses.emplace_back(getPose(problem, soln, pose_sym));
+    // }
+    // viz->AddVizPoses(viz_poses);
 
+    // add all landmarks
     for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
-      viz->AddVizLandmark(getPoint(problem, aligned_sol_matrix, landmark_sym));
+      viz->AddVizLandmark(getPoint(problem, soln, landmark_sym));
     }
 
+    // add all range measurements
     int range_measurement_idx = -1;
     for (const auto &range_measurement : range_measurements) {
       range_measurement_idx++;
@@ -108,10 +156,8 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
           range_measurement_idx % num_ranges_to_skip != 0) {
         continue;
       }
-      auto p1 =
-          getPoint(problem, aligned_sol_matrix, range_measurement.first_id);
-      auto p2 =
-          getPoint(problem, aligned_sol_matrix, range_measurement.second_id);
+      auto p1 = getPoint(problem, soln, range_measurement.first_id);
+      auto p2 = getPoint(problem, soln, range_measurement.second_id);
 
       if (pose_sym_to_idx.find(range_measurement.first_id) ==
           pose_sym_to_idx.end()) {
@@ -119,7 +165,11 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
         std::swap(p1, p2);
       }
 
-      mrg::Range range{p1(0), p1(1), range_measurement.r, p2(0), p2(1)};
+      Eigen::Vector3d p1_vec = Eigen::Vector3d::Zero();
+      p1_vec.block(0, 0, problem.dim(), 1) = p1;
+      Eigen::Vector3d p2_vec = Eigen::Vector3d::Zero();
+      p2_vec.block(0, 0, problem.dim(), 1) = p2;
+      mrg::Range range{p1_vec, p2_vec, range_measurement.r};
       viz->AddRangeMeasurement(range);
     }
 

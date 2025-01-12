@@ -21,7 +21,7 @@ using CoraResult = std::pair<CoraTntResult, std::vector<Matrix>>;
 
 CoraResult solveCORA(Problem &problem, const Matrix &x0,
                      int max_relaxation_rank = 20, bool verbose = false,
-                     bool log_iterates = false);
+                     bool log_iterates = false, bool show_iterates = false);
 inline CoraResult solveCORA(std::string filepath) {
   Problem problem = parsePyfgTextToProblem(filepath);
   Matrix x0 = Matrix();

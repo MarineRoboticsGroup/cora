@@ -51,7 +51,7 @@ typedef Eigen::DiagonalMatrix<Scalar, Eigen::Dynamic> DiagonalMatrix;
 enum class Formulation {
   // The CORA problem in which translations are explicitly represented
   Explicit,
-  // The SE-Sync problem in which translations are marginalized out
+  // The problem in which translations are marginalized out
   Implicit
 };
 

@@ -35,7 +35,7 @@ set(ENABLE_OPENMP OFF CACHE BOOL "Enable OMP parallelization? [enabled by defaul
 # Enable code profiling using gperftools
 set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
-set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
+set(ENABLE_VISUALIZATION ON CACHE BOOL "Enable visualization module.")
 # Run the experiments from the paper
 set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples

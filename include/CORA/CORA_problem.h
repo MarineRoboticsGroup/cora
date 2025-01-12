@@ -91,6 +91,11 @@ private:
   // the pose-landmark measurements that are used to construct the problem
   std::vector<RelativePoseLandmarkMeasurement> rel_pose_landmark_measurements_;
 
+  // the symbol for the origin (is added automatically if there are any priors)
+  Symbol origin_symbol_;
+
+  void addOriginPose();
+
   // the pose priors that are used to construct the problem
   std::vector<PosePrior> pose_priors_;
 
@@ -111,6 +116,9 @@ private:
 
   // the submatrices that are used to construct the data matrix
   CoraDataSubmatrices data_submatrices_;
+
+  // a flag to check if there are any priors
+  bool has_priors_ = false;
 
   // a flag to check if any data has been modified since last call to
   // updateProblemData()
@@ -175,6 +183,8 @@ private:
    */
   void fillDataMatrix();
 
+  void fillImplicitFormulationMatrices();
+
   void updatePreconditioner();
 
   Matrix dataMatrixProduct(const Matrix &Y) const;
@@ -187,6 +197,7 @@ public:
         relaxation_rank_(relaxation_rank),
         formulation_(formulation),
         preconditioner_(preconditioner),
+        origin_symbol_(Symbol("O0")),
         manifolds_(Manifolds()) {
     // relaxation rank must be >= dim
     assert(relaxation_rank >= dim);
@@ -238,6 +249,8 @@ public:
   // get pose symbols that start with a given character
   std::vector<Symbol> getPoseSymbols(unsigned char chr) const;
 
+  Symbol getOriginSymbol() const { return origin_symbol_; }
+
   // Get copies of pose and landmark symbol maps
   std::map<Symbol, int> getPoseSymbolMap() const { return pose_symbol_idxs_; }
   std::map<Symbol, int> getLandmarkSymbolMap() const {
@@ -256,6 +269,12 @@ public:
   // the data matrix that is used to construct the problem
   SparseMatrix data_matrix_;
 
+  // the elements that we will use to compute matrix products in the implicit
+  // form
+  SparseMatrix Qmain_;
+  SparseMatrix TransOffDiagRed_;
+  CholFactorPtr LtransCholRed_;
+
   // the most recent minimum eigenvectors computed by LOBPCG for certification
   CertResults last_cert_results_;
   bool last_cert_results_valid_ = false;
@@ -265,6 +284,8 @@ public:
 
   // the full size of the full (explicit problem) data matrix
   int getDataMatrixSize() const;
+
+  int getExpectedVariableSize() const;
 
   Formulation getFormulation() const { return formulation_; }
   inline int dim() const { return dim_; }
@@ -276,6 +297,12 @@ public:
   }
   inline int numPoseLandmarkMeasurements() const {
     return static_cast<int>(rel_pose_landmark_measurements_.size());
+  }
+  inline int numPosePriors() const {
+    return static_cast<int>(pose_priors_.size());
+  }
+  inline int numLandmarkPriors() const {
+    return static_cast<int>(landmark_priors_.size());
   }
   inline int numLandmarks() const {
     return static_cast<int>(landmark_symbol_idxs_.size());
@@ -308,6 +335,7 @@ public:
   void setPreconditioner(Preconditioner preconditioner) {
     preconditioner_ = preconditioner;
   }
+  void setFormulation(Formulation formulation) { formulation_ = formulation; }
 
   Scalar evaluateObjective(const Matrix &Y) const;
   Matrix Euclidean_gradient(const Matrix &Y) const;
@@ -349,7 +377,8 @@ public:
   /** Given the d x dn block matrix containing the diagonal blocks of Lambda,
    * this function computes and returns the matrix Lambda itself */
   SparseMatrix
-  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks) const;
+  compute_Lambda_from_Lambda_blocks(const LambdaBlocks &Lambda_blocks,
+                                    const int &Lambda_size) const;
 
   /** Given a critical point Y of the rank-r relaxation, this function computes
    * and returns a d x dn matrix comprised of d x d block elements of the
@@ -369,8 +398,13 @@ public:
 
   /************** Utilities **********************/
 
+  Matrix getTranslationExplicitSolution(const Matrix &Y) const;
+
+  void checkVariablesAreValid(const Matrix &Y) const;
+
   /**
-   * @brief Given an estimate Y with d columns (i.e., not relaxed), this
+   * @brief Given an estimate Y of the problem, this function returns a
+   * **translation-explicit** estimate that is aligned to the origin. This
    * function aligns the estimate to the origin by rotating the first dxd block
    * to the identity matrix and offsetting the translational states such that
    * the first translational variable is at the origin.

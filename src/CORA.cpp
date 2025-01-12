@@ -25,7 +25,20 @@ namespace CORA {
 
 CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                      const Matrix &x0, int max_relaxation_rank, bool verbose,
-                     bool log_iterates) {
+                     bool log_iterates, bool show_iterates) {
+  // check that x0 has the right number of rows
+  if (problem.getFormulation() == Formulation::Explicit) {
+    checkMatrixShape("solveCora::Explicit", problem.getDataMatrixSize(),
+                     x0.cols(), x0.rows(), x0.cols());
+  } else {
+    std::cout << "Solving problem in translation implicit mode. Make sure that "
+                 "the initial guess only contains rotation and range "
+                 "variables."
+              << std::endl;
+    checkMatrixShape("solveCora::Implicit", problem.rotAndRangeMatrixSize(),
+                     x0.cols(), x0.rows(), x0.cols());
+  }
+
   // if log_iterates is true, throw a warning that will be
   // slower than usual
   if (log_iterates) {
@@ -80,23 +93,25 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
   // default TNT parameters for CORA
   Optimization::Riemannian::TNTParams<Scalar> params;
-  params.max_TPCG_iterations = 200;
-  params.max_iterations = 200;
-  params.preconditioned_gradient_tolerance = 1e-4;
-  params.gradient_tolerance = 1e-4;
+  params.Delta0 = 5;
+  params.alpha2 = 3.0;
+  params.max_TPCG_iterations = 80;
+  params.max_iterations = 250;
+  params.preconditioned_gradient_tolerance = 1e-6;
+  params.gradient_tolerance = 1e-6;
   params.theta = 0.8;
-  params.Delta_tolerance = 1e-4;
-  params.verbose = false;
+  params.Delta_tolerance = 1e-5;
+  params.verbose = show_iterates;
   params.precision = 2;
-  params.max_computation_time = 50;
-  params.relative_decrease_tolerance = 1e-5;
-  params.stepsize_tolerance = 1e-5;
+  params.max_computation_time = 20;
+  params.relative_decrease_tolerance = 1e-6;
+  params.stepsize_tolerance = 1e-6;
   params.log_iterates = log_iterates;
 
   // certification parameters
-  const Scalar MIN_CERT_ETA = 1e-4;
+  const Scalar MIN_CERT_ETA = 1e-7;
   const Scalar MAX_CERT_ETA = 1e-1;
-  const Scalar REL_CERT_ETA = 5e-7;
+  const Scalar REL_CERT_ETA = 5e-6;
   const int LOBPCG_BLOCK_SIZE = 10;
   Scalar eta;
 
@@ -110,7 +125,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   std::optional<InstrumentationFunction> user_function = std::nullopt;
 
   CoraTntResult result;
-  Matrix X = x0;
+  Matrix X = problem.projectToManifold(x0);
   CertResults cert_results;
   Matrix eigvec_bootstrap;
   std::vector<Matrix> iterates = std::vector<Matrix>();
@@ -127,6 +142,10 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                                 std::to_string(result.f));
     if (log_iterates) {
       for (Matrix iterate : result.iterates) {
+        // check that the iterate is the expected size
+        checkMatrixShape(
+            "solveCora::iterate", problem.getExpectedVariableSize(),
+            problem.getRelaxationRank(), iterate.rows(), iterate.cols());
         iterates.push_back(iterate);
       }
     }
@@ -135,8 +154,16 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
     if (first_loop) {
       eigvec_bootstrap = result.x;
+
+      // if we are using the translation implicit formulation, we should solve
+      // for the translation explicit solution (there is an analytical solution
+      // for this)
+      if (problem.getFormulation() == Formulation::Implicit) {
+        eigvec_bootstrap =
+            problem.getTranslationExplicitSolution(eigvec_bootstrap);
+      }
+
     } else {
-      // eigvec_bootstrap = result.x;
       eigvec_bootstrap = cert_results.all_eigvecs;
     }
 
@@ -156,6 +183,7 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
 
     // if the solution is certified, we're done
     if (cert_results.is_certified) {
+      X = result.x;
       break;
     }
 
@@ -173,16 +201,27 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     printIfVerbose(verbose, "\nProjecting solution to rank " +
                                 std::to_string(problem.dim()) +
                                 " and refining.");
+
     X = projectSolution(problem, X, verbose);
+
     problem.setRank(problem.dim());
     result = Optimization::Riemannian::TNT<Matrix, Matrix, Scalar, Matrix>(
         f, QM, metric, retract, X, NablaF_Y, precon, params, user_function);
-    printIfVerbose(verbose, "Obtained solution with objective value: " +
+    printIfVerbose(verbose, "\nObtained FINAL solution with objective value: " +
                                 std::to_string(result.f));
 
     if (log_iterates) {
       for (Matrix iterate : result.iterates) {
-        iterates.push_back(iterate);
+        checkMatrixShape("solveCora::iterate",
+                         problem.getExpectedVariableSize(), problem.dim(),
+                         iterate.rows(), iterate.cols());
+
+        if (std::getenv("CORA_IGNORE_FINAL_ITERATES") == "true") {
+          std::cout << "WARNING - currently not logging final iterates"
+                    << std::endl;
+        } else {
+          iterates.push_back(iterate);
+        }
       }
     }
 
@@ -315,6 +354,8 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int n = problem.numPoses();
   int l = problem.numLandmarks();
   int r = problem.numRangeMeasurements();
+  checkMatrixShape("projectSolution", problem.getExpectedVariableSize(),
+                   Y.cols(), Y.rows(), Y.cols());
 
   // First, compute a thin SVD of Y
   Eigen::JacobiSVD<Matrix> svd(Y, Eigen::ComputeThinU);
@@ -344,6 +385,12 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
     determinants(i) = Yd.block(i * d, 0, d, d).determinant();
     if (determinants(i) > 0)
       ++ng0;
+
+    // if abs(determinant(i)) is far from 1, then print a warning
+    if (std::abs(determinants(i) - 1) > 1e-6) {
+      std::cout << "WARNING: Determinant of block " << i
+                << " is: " << determinants(i) << " not 1" << std::endl;
+    }
   }
 
   printIfVerbose(verbose,
@@ -353,7 +400,7 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
                      std::to_string(static_cast<double>(ng0) / n * 100) +
                      "% of the total.");
 
-  if (ng0 < n / 2) {
+  if (n > 0 && ng0 < n / 2) {
     // Less than half of the total number of blocks have the correct sign, so
     // reverse their orientations
 
@@ -375,25 +422,22 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
   int rot_mat_sz = problem.numPosesDim();
   Yd.block(rot_mat_sz, 0, r, d).rowwise().normalize();
 
-  if (problem.getFormulation() == Formulation::Explicit) {
-    // Yd already includes the translation estimates (Explicit)
-    return Yd;
-  } else {
-    // form_ == Simplified:  In this case, we also need to recover the
-    // optimal translations corresponding to the estimated rotational states
-    Matrix X(d, (d + 1) * n);
+  problem.checkVariablesAreValid(Yd);
 
-    // Set rotational states
-    X.block(0, 0, rot_mat_sz, d) = Yd;
+  checkMatrixShape("projectSolution", problem.getExpectedVariableSize(), d,
+                   Yd.rows(), Yd.cols());
 
-    // Recover translational states
-    throw NotImplementedException(
-        "Recovering translational states from rotational states is not yet "
-        "implemented");
-    // X.block(0, 0, d, n) = recover_translations(B1_, B2_, R);
-
-    return X;
+  // print the singular values of the projected solution
+  if (verbose) {
+    Eigen::JacobiSVD<Matrix> svd_Yd(Yd, Eigen::ComputeThinU);
+    Vector sigmas_Yd = svd_Yd.singularValues();
+    printIfVerbose(verbose, "Singular values of Yd: ");
+    for (size_t i = 0; i < sigmas_Yd.size(); ++i) {
+      printIfVerbose(verbose, std::to_string(sigmas_Yd(i)));
+    }
   }
+
+  return Yd;
 }
 
 } // namespace CORA

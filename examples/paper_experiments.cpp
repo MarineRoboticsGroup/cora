@@ -2,12 +2,79 @@
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
+#include <CORA/CORA_vis.h>
 #include <CORA/Symbol.h>
 #include <CORA/pyfg_text_parser.h>
 
 #include <filesystem>
 #include <set>
 #include <vector>
+
+#include <unsupported/Eigen/SparseExtra>
+
+#include <json.hpp>
+
+using json = nlohmann::json;
+
+enum InitType { Random, Odom };
+
+struct Config {
+  int init_rank_jump;
+  int max_rank;
+  bool verbose;
+  bool log_iterates;
+  bool show_iterates;
+  CORA::Preconditioner preconditioner;
+  CORA::Formulation formulation;
+  InitType init_type;
+  std::vector<std::string> files;
+};
+
+Config parseConfig(const std::string &filename) {
+  // check if the file exists
+  if (!std::filesystem::exists(filename)) {
+    std::cout << "Looking for file: " << filename << std::endl;
+    throw std::runtime_error("Config file does not exist");
+  }
+
+  std::ifstream file(filename);
+  json j;
+  file >> j;
+
+  Config config;
+  config.init_rank_jump = j["init_rank_jump"];
+  config.max_rank = j["max_rank"];
+  config.verbose = j["verbose"];
+  config.log_iterates = j["log_iterates"];
+  config.show_iterates = j["show_iterates"];
+
+  std::string preconditioner_str = j["preconditioner"];
+  if (preconditioner_str == "Jacobi") {
+    config.preconditioner = CORA::Preconditioner::Jacobi;
+  } else if (preconditioner_str == "BlockCholesky") {
+    config.preconditioner = CORA::Preconditioner::BlockCholesky;
+  } else if (preconditioner_str == "RegularizedCholesky") {
+    config.preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  }
+
+  std::string formulation_str = j["formulation"];
+  if (formulation_str == "Implicit") {
+    config.formulation = CORA::Formulation::Implicit;
+  } else if (formulation_str == "Explicit") {
+    config.formulation = CORA::Formulation::Explicit;
+  }
+
+  std::string init_type_str = j["init_type"];
+  if (init_type_str == "Odom") {
+    config.init_type = InitType::Odom;
+  } else if (init_type_str == "Random") {
+    config.init_type = InitType::Random;
+  }
+
+  config.files = j["files"].get<std::vector<std::string>>();
+
+  return config;
+}
 
 using PoseChain = std::vector<CORA::Symbol>;
 using PoseChains = std::vector<PoseChain>;
@@ -330,10 +397,11 @@ std::vector<std::vector<RPM>> getOdomChains(const CORA::Problem &problem) {
 
     if (odom_chain.size() != pose_chain.size() - 1) {
       throw std::runtime_error(
-          "Expected odom chain size to be pose chain size - 1");
-      // "Expected odom chain size to be pose chain size " +
-      // "- 1. The pose chain size is " + std::to_string(pose_chain.size()) +
-      // " and the odom chain size is " + std::to_string(odom_chain.size()));
+          // "Expected odom chain size to be pose chain size - 1");
+          "Expected odom chain size to be pose chain size "
+          "- 1. The pose chain size is " +
+          std::to_string(pose_chain.size()) + " and the odom chain size is " +
+          std::to_string(odom_chain.size()));
     }
   }
 
@@ -365,6 +433,10 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
   // iterate over the odom chains
   bool first = true;
   for (const std::vector<RPM> &odom_chain : getOdomChains(problem)) {
+    if (odom_chain.size() == 0) {
+      continue;
+    }
+
     CORA::Matrix cur_pose;
     if (first) {
       cur_pose = CORA::Matrix::Identity(dim + 1, dim + 1);
@@ -420,12 +492,17 @@ CORA::Matrix getOdomInitialization(const CORA::Problem &problem,
     if (diff.norm() < 1e-5) {
       // set x0.row(range_start_idx) to a random unit vector
       x0.row(range_start_idx) = CORA::Matrix::Random(1, dim);
-      x0.row(range_start_idx) =
-          x0.row(range_start_idx) / x0.row(range_start_idx).norm();
     } else {
-      x0.row(range_start_idx) = diff / diff.norm();
+      x0.row(range_start_idx) = diff;
     }
   }
+  // normalize the range variables by rowwise normalization
+  x0.block(problem.numPosesDim(), 0, problem.numRangeMeasurements(),
+           x0.cols()) =
+      x0.block(problem.numPosesDim(), 0, problem.numRangeMeasurements(),
+               x0.cols())
+          .rowwise()
+          .normalized();
 
   // rotate the solution so that it is generically dense
   CORA::Matrix rot = CORA::Matrix::Random(problem.getRelaxationRank(),
@@ -471,6 +548,11 @@ void saveSolutions(const CORA::Problem &problem,
   size_t pyfg_index = pyfg_fpath.find(".pyfg");
   std::string save_dir_name =
       pyfg_fpath.substr(data_length, pyfg_index - data_length);
+
+  // if save_dir_name starts with /, then remove it
+  if (save_dir_name[0] == '/') {
+    save_dir_name = save_dir_name.substr(1);
+  }
   std::string save_dir_path = "/tmp/" + save_dir_name;
 
   // create the directory if it does not exist. Make sure to recursively create
@@ -499,33 +581,50 @@ void saveSolutions(const CORA::Problem &problem,
     std::string robot_save_path =
         save_path + std::to_string(robot_index) + ".tum";
     saveSolnToTum(robot_pose_chain, problem, aligned_soln, robot_save_path);
-    std::cout << "Saved " << robot_save_path << std::endl;
+    // std::cout << "Saved " << robot_save_path << std::endl;
+
+    std::string g2o_path = save_path + std::to_string(robot_index) + ".g2o";
+    saveSolnToG20(robot_pose_chain, problem, aligned_soln, g2o_path);
+    // std::cout << "Saved " << g2o_path << std::endl;
   }
 }
 
-enum InitType { Random, Odom };
-
 CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
                           int max_rank, CORA::Preconditioner preconditioner,
-                          InitType init_type, bool verbose = true,
-                          bool log_iterates = true) {
+                          CORA::Formulation formulation, InitType init_type,
+                          bool verbose = true, bool log_iterates = true,
+                          bool show_iterates = false) {
   std::cout << "Solving " << pyfg_fpath << std::endl;
 
-  CORA::Problem problem = CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
+  CORA::Problem problem =
+      std::filesystem::exists(pyfg_fpath)
+          ? CORA::parsePyfgTextToProblem(pyfg_fpath)
+          : CORA::parsePyfgTextToProblem("./bin/" + pyfg_fpath);
 
-  // set the rank
+  // set the problem parameters
   problem.setRank(problem.dim() + init_rank_jump);
-
   problem.setPreconditioner(preconditioner);
+  problem.setFormulation(formulation);
 
   // update the problem data
   problem.updateProblemData();
+
+  // save problem.data_matrix_ (an Eigen SparseMatrix) to a file
+  std::string fpath = "/home/alan/data_matrix.mtx";
+  Eigen::saveMarket(problem.data_matrix_, fpath);
+  std::cout << "Saved data matrix to " << fpath << std::endl;
 
   CORA::Matrix x0;
   if (init_type == InitType::Random) {
     x0 = problem.getRandomInitialGuess();
   } else if (init_type == InitType::Odom) {
     x0 = getOdomInitialization(problem, pyfg_fpath);
+  }
+
+  // if we're in implicit mode, then we need to truncate x0
+  // to not have translation variables
+  if (formulation == CORA::Formulation::Implicit) {
+    x0 = x0.block(0, 0, problem.rotAndRangeMatrixSize(), x0.cols());
   }
 
 #ifdef GPERFTOOLS
@@ -536,13 +635,21 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   auto start = std::chrono::high_resolution_clock::now();
 
   // solve the problem
-  CORA::CoraResult soln =
-      CORA::solveCORA(problem, x0, max_rank, verbose, log_iterates);
+  CORA::CoraResult soln = CORA::solveCORA(problem, x0, max_rank, verbose,
+                                          log_iterates, show_iterates);
 
   // end timer
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
   std::cout << "CORA took " << elapsed.count() << " seconds" << std::endl;
+
+  std::cout << "Experiment result, name: " << pyfg_fpath
+            << ", time: " << elapsed.count()
+            << " seconds, cost: " << soln.first.f << ", marginalized: "
+            << (formulation == CORA::Formulation::Implicit)
+            << ", init rank jump: " << init_rank_jump
+            << ", init random: " << (init_type == InitType::Random)
+            << std::endl;
 
 #ifdef GPERFTOOLS
   ProfilerStop();
@@ -553,34 +660,26 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   results_file << pyfg_fpath << " " << elapsed.count() << std::endl;
   results_file.close();
 
+  // if we are logging the iterates, then let's visualize CORA
+  if (log_iterates) {
+    CORA::CORAVis viz{};
+    double viz_hz = 10.0;
+
+    // save all the iterates to separate .tum files
+    auto aligned_iterates = viz.projectAndAlignIterates(problem, soln.second);
+    for (size_t i = 0; i < soln.second.size(); i++) {
+      std::string fake_fpath =
+          "saved_iterates/cora_" + std::to_string(i) + ".pyfg";
+      saveSolutions(problem, aligned_iterates[i], fake_fpath);
+    }
+
+    viz.run(problem, {soln.second}, viz_hz, true);
+  }
+
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
 
   return aligned_soln;
-}
-
-std::vector<std::string> getRangeOnlyMrclamFiles() {
-  std::string base_dir = "data/mrclam/range_only/";
-  std::vector<std::string> filenames = {
-      "mrclam2.pyfg",
-      // "mrclam3a.pyfg", "mrclam3b.pyfg",
-      "mrclam4.pyfg",
-      // "mrclam5a.pyfg", "mrclam5b.pyfg", "mrclam5c.pyfg",
-      "mrclam6.pyfg",
-      "mrclam7.pyfg",
-  };
-
-  // for each file, prepend a directory that is everything before the file
-  // extension (.pyfg)
-  std::vector<std::string> full_paths = {};
-  for (auto file : filenames) {
-    // strip the .pyfg extension
-    size_t pyfg_index = file.find(".pyfg");
-    std::string filename = file.substr(0, pyfg_index);
-    full_paths.push_back(base_dir + filename + "/" + file);
-  }
-
-  return full_paths;
 }
 
 std::vector<std::string> getRangeAndRpmMrclamFiles() {
@@ -609,53 +708,37 @@ std::vector<std::string> getRangeAndRpmMrclamFiles() {
 
 int main(int argc, char **argv) {
   std::vector<std::string> original_exp_files = {
-      // "data/marine_two_robots.pyfg",
-      "data/plaza1.pyfg",
-      "data/plaza2.pyfg",
-      "data/single_drone.pyfg",
-      "data/tiers.pyfg"
-      }; // TIERS faster w/ random init
+      "data/plaza1.pyfg", "data/plaza2.pyfg", "data/single_drone.pyfg",
+      "data/tiers.pyfg"}; // TIERS faster w/ random init
 
-  auto mrclam_range_only_files = getRangeOnlyMrclamFiles();
   auto mrclam_range_and_rpm_files = getRangeAndRpmMrclamFiles();
 
   std::vector<std::string> files = {};
 
   // original experiments
-  // files.insert(files.end(), original_exp_files.begin(),
-  //              original_exp_files.end());
-
-  // mrclam range only experiments
-  files.insert(files.end(), mrclam_range_only_files.begin(),
-               mrclam_range_only_files.end());
+  files.insert(files.end(), original_exp_files.begin(),
+               original_exp_files.end());
 
   // mrclam range and rpm experiments
   files.insert(files.end(), mrclam_range_and_rpm_files.begin(),
                mrclam_range_and_rpm_files.end());
 
   // files = {"data/test.pyfg"};
+  // files = {"data/tiers.pyfg"};
 
-  int init_rank_jump = 1;
-  int max_rank = 7;
-  bool verbose = true;
-  bool log_iterates = false;
+  // load file from environment variable "CORAFILE"
+  if (const char *env_p = std::getenv("CORAFILE")) {
+    std::cout << "Using file from environment variable: " << env_p << std::endl;
+    files = {env_p};
+  }
 
-
-  // set the initialization type
-  InitType init_type;
-  init_type = InitType::Odom;
-  // init_type = InitType::Random;
-
-  // set the preconditioner
-  CORA::Preconditioner preconditioner;
-  // preconditioner = CORA::Preconditioner::Jacobi;
-  // preconditioner = CORA::Preconditioner::BlockCholesky;
-  preconditioner = CORA::Preconditioner::RegularizedCholesky;
+  Config config = parseConfig("/home/alan/cora-plus-plus/examples/config.json");
 
   for (auto file : files) {
-    CORA::Matrix soln =
-        solveProblem(file, init_rank_jump, max_rank, preconditioner, init_type,
-                     verbose, log_iterates);
+    CORA::Matrix soln = solveProblem(
+        file, config.init_rank_jump, config.max_rank, config.preconditioner,
+        config.formulation, config.init_type, config.verbose,
+        config.log_iterates, config.show_iterates);
     std::cout << std::endl;
   }
 }

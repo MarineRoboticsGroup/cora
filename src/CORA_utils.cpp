@@ -17,10 +17,10 @@ using SymmetricLinOp =
 CertResults fast_verification(const SparseMatrix &S, Scalar eta,
                               const Matrix &X0, size_t max_iters,
                               Scalar max_fill_factor, Scalar drop_tol) {
-
   // Don't forget to set this on input!
   size_t num_iters = 0;
   Scalar theta = 0;
+
   Matrix X; // Matrix to hold eigenvector estimates for S
 
   unsigned int n = S.rows();
@@ -174,7 +174,7 @@ CertResults fast_verification(const SparseMatrix &S, Scalar eta,
 
       num_iters += static_cast<size_t>(unprecon_iter_frac * num_iters);
     } // if (!(theta < -eta / 2))
-  } // if(!PSD)
+  }   // if(!PSD)
 
   CertResults results;
   results.is_certified = PSD;
@@ -216,7 +216,8 @@ Matrix getRotation(const Symbol &sym, const Problem &problem,
   // need the dim x dim rotation matrix
   Index start_idx = problem.getRotationIdx(sym);
   Matrix rot =
-      soln.block(start_idx * problem.dim(), 0, problem.dim(), problem.dim());
+      soln.block(start_idx * problem.dim(), 0, problem.dim(), problem.dim())
+          .transpose();
   // check that the rotation matrix is valid
   if (std::abs(rot.determinant() - 1) > 1e-6) {
     throw std::runtime_error("Rotation matrix determinant is: " +
@@ -230,16 +231,13 @@ Matrix getRotation(const Symbol &sym, const Problem &problem,
   return rot;
 }
 
-void saveSolnToTum(const std::vector<Symbol> pose_symbols,
+void saveSolnToG20(const std::vector<Symbol> pose_symbols,
                    const Problem &problem, const Matrix &soln,
                    const std::string &fpath) {
-  // we do not currently support Implicit formulation
-  if (problem.getFormulation() == Formulation::Implicit) {
-    throw std::runtime_error(
-        "saveSolnToTum does not currently support Implicit formulation");
-  }
-
-  checkMatrixShape("saveSolnToTum", problem.getDataMatrixSize(), problem.dim(),
+  // we are assuming that the solution is in translation-explicit form. We have
+  // helper functions to do this: "getTranslationExplicitSolution" and
+  // "alignEstimateToOrigin"
+  checkMatrixShape("saveSolnToG20", problem.getDataMatrixSize(), problem.dim(),
                    soln.rows(), soln.cols());
 
   // open fpath for writing
@@ -248,9 +246,70 @@ void saveSolnToTum(const std::vector<Symbol> pose_symbols,
     throw std::runtime_error("Could not open file " + fpath);
   }
 
-  // print warning that we are not using timestamps
-  // std::cout << "Warning: timestamps are not being used in saveSolnToTum"
-  //           << std::endl;
+  // iterate over all the symbols and find the rotation and translation indices
+  for (size_t time = 0; time < pose_symbols.size(); time++) {
+    //  write the poses to the file in the format:
+    //  timestamp x y z qx qy qz qw
+    Matrix tran = getTranslation(pose_symbols[time], problem, soln);
+    Matrix rot = getRotation(pose_symbols[time], problem, soln);
+
+    // get xyz from tran
+    Scalar x = tran(0);
+    Scalar y = tran(1);
+    Scalar z;
+    if (problem.dim() == 2) {
+      z = 0;
+    } else {
+      z = tran(2);
+    }
+
+    // get quaternion from rot
+    Eigen::Matrix3d rot_padded = Eigen::Matrix3d::Identity();
+    rot_padded.block(0, 0, problem.dim(), problem.dim()) = rot;
+
+    if (problem.dim() == 3) {
+      // VERTEX_SE3:QUAT 1 0.341895 -0.0416997 0.0330394 -0.00189341 0.00395691
+      // 0.0899835 0.995934
+
+      Eigen::Quaternion<Scalar> quat(rot_padded);
+      Scalar qw = quat.w();
+      Scalar qx = quat.x();
+      Scalar qy = quat.y();
+      Scalar qz = quat.z();
+
+      // write the line to the file
+      output_file << "VERTEX_SE3:QUAT " << time << " " << x << " " << y << " "
+                  << z << " " << qx << " " << qy << " " << qz << " " << qw
+                  << "\n";
+    } else {
+      // VERTEX_SE2 1 0.144012 -0.004462 -0.017453
+      Scalar theta = std::atan2(rot(1, 0), rot(0, 0));
+      output_file << "VERTEX_SE2 " << time << " " << x << " " << y << " "
+                  << theta << "\n";
+    }
+  }
+
+  // close the file
+  output_file.close();
+
+  // print that we saved the poses
+  // std::cout << "Saved robot poses to " << fpath << std::endl;
+}
+
+void saveSolnToTum(const std::vector<Symbol> pose_symbols,
+                   const Problem &problem, const Matrix &soln,
+                   const std::string &fpath) {
+  // we are assuming that the solution is in translation-explicit form. We have
+  // helper functions to do this: "getTranslationExplicitSolution" and
+  // "alignEstimateToOrigin"
+  checkMatrixShape("saveSolnToTum", problem.getDataMatrixSize(), problem.dim(),
+                   soln.rows(), soln.cols());
+
+  // open fpath for writing
+  std::ofstream output_file(fpath);
+  if (!output_file.is_open()) {
+    throw std::runtime_error("Could not open file " + fpath);
+  }
 
   // iterate over all the symbols and find the rotation and translation indices
   for (size_t time = 0; time < pose_symbols.size(); time++) {

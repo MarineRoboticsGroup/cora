@@ -1,0 +1,11 @@
+{
+  "init_rank_jump": 1,
+  "max_rank": 10,
+  "verbose": true,
+  "log_iterates": false,
+  "show_iterates": false,
+  "preconditioner": "RegularizedCholesky",
+  "formulation": "Implicit",
+  "init_type": "Random",
+  "files": ["data/test.pyfg"]
+}

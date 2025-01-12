@@ -20,6 +20,10 @@ public:
            bool verbose = false);
   ~CORAVis() = default;
 
+  std::vector<Matrix>
+  projectAndAlignIterates(const Problem &problem,
+                          const std::vector<Matrix> &iterates);
+
 private:
   std::atomic<bool> alive{true}; // Shared between threads, will be false if
                                  // either thread terminates
