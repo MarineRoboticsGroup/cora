@@ -13,6 +13,13 @@
 #include <CORA/CORA_utils.h>
 #include <Optimization/LinearAlgebra/LOBPCG.h>
 
+#include <algorithm>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
   if (pose_symbol_idxs_.find(pose_id) != pose_symbol_idxs_.end()) {
@@ -278,10 +285,10 @@ void Problem::fillRelPoseSubmatrices() {
     data_submatrices_.rel_pose_incidence_matrix.insert(measure_idx, id2) = 1.0;
 
     // fill in translation data matrix where the id1-th (1 x dim_) block is
-    // lp.t and all other blocks are 0
+    // -lp.t and all other blocks are 0
     for (int k = 0; k < dim_; k++) {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
-          measure_idx, id1 * dim_ + k) = lp.p(k);
+          measure_idx, id1 * dim_ + k) = -lp.p(k);
     }
   }
   measures_added += num_landmark_priors;
