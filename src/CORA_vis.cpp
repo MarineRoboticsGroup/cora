@@ -6,6 +6,13 @@
 #include "CORA/CORA_problem.h"
 #include <thread> // NOLINT [build/c++11]
 #include <utility>
+
+#include <iostream>
+#include <map>
+#include <memory>
+#include <set>
+#include <vector>
+
 namespace CORA {
 
 CORAVis::CORAVis() {}
@@ -165,11 +172,11 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
         std::swap(p1, p2);
       }
 
-      Eigen::Vector3d p1_vec = Eigen::Vector3d::Zero();
-      p1_vec.block(0, 0, problem.dim(), 1) = p1;
-      Eigen::Vector3d p2_vec = Eigen::Vector3d::Zero();
-      p2_vec.block(0, 0, problem.dim(), 1) = p2;
-      mrg::Range range{p1_vec, p2_vec, range_measurement.r};
+      // Eigen::Vector3d p1_vec = Eigen::Vector3d::Zero();
+      // p1_vec.block(0, 0, problem.dim(), 1) = p1;
+      // Eigen::Vector3d p2_vec = Eigen::Vector3d::Zero();
+      // p2_vec.block(0, 0, problem.dim(), 1) = p2;
+      mrg::Range range{p1, p2, range_measurement.r};
       viz->AddRangeMeasurement(range);
     }
 
