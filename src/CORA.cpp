@@ -4,6 +4,12 @@
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
 
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <utility>
+#include <vector>
+
 void printIfVerbose(bool verbose, std::string msg) {
   if (verbose) {
     std::cout << msg << std::endl;
@@ -386,8 +392,8 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
     if (determinants(i) > 0)
       ++ng0;
 
-    // if abs(determinant(i)) is far from 1, then print a warning
-    if (std::abs(determinants(i) - 1) > 1e-6) {
+    // if abs(determinant(i)) is far from +-1, then print a warning
+    if (verbose && std::abs(std::abs(determinants(i)) - 1) > 1e-6) {
       std::cout << "WARNING: Determinant of block " << i
                 << " is: " << determinants(i) << " not 1" << std::endl;
     }

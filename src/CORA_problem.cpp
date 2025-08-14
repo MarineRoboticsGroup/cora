@@ -149,8 +149,8 @@ void Problem::fillRangeSubmatrices() {
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
   auto num_pose_pose_measurements = numPosePoseMeasurements();
-  data_submatrices_.rel_pose_rotation_precision_matrix =
-      SparseMatrix(num_pose_pose_measurements, num_pose_pose_measurements);
+  // data_submatrices_.rel_pose_rotation_precision_matrix =
+  //     SparseMatrix(num_pose_pose_measurements, num_pose_pose_measurements);
 
   auto num_pose_landmark_measurements = numPoseLandmarkMeasurements();
   auto num_translations = numTranslationalStates();
@@ -196,8 +196,8 @@ void Problem::fillRelPoseSubmatrices() {
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
         measure_idx, measure_idx) = rpm.getTransPrecision();
-    data_submatrices_.rel_pose_rotation_precision_matrix.insert(
-        measure_idx, measure_idx) = rpm.getRotPrecision();
+    // data_submatrices_.rel_pose_rotation_precision_matrix.insert(
+    //     measure_idx, measure_idx) = rpm.getRotPrecision();
 
     // fill in incidence matrix
     Index id1 = getTranslationIdx(rpm.first_id) - translation_offset;
@@ -223,8 +223,8 @@ void Problem::fillRelPoseSubmatrices() {
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
         measure_idx, measure_idx) = pp.getTransPrecision();
-    data_submatrices_.rel_pose_rotation_precision_matrix.insert(
-        measure_idx, measure_idx) = pp.getRotPrecision();
+    // data_submatrices_.rel_pose_rotation_precision_matrix.insert(
+    //     measure_idx, measure_idx) = pp.getRotPrecision();
 
     // fill in incidence matrix
     Index id1 = getTranslationIdx(origin_symbol_) - translation_offset;
