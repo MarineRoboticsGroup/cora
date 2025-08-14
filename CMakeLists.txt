@@ -72,10 +72,6 @@ message(STATUS "Enabling code profiling using Google Performance Tools")
 set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} -lprofiler)
 endif()
 
-if(${BUILD_PYTHON_BINDINGS})
-message(STATUS "Building Python bindings")
-endif()
-
 # DEPENDENCIES
 
 # FIND ADDITIONAL LIBRARIES
@@ -88,6 +84,16 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # set the libs directory
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+
+if(${BUILD_PYTHON_BINDINGS})
+    message(STATUS "Building Python bindings")
+    set(PYBIND11_DIR ${LIBS_DIR}/pybind11/ CACHE PATH "Path to top-level directory of pybind11 library (the one containing CMakeLists.txt)")
+    add_subdirectory(${PYBIND11_DIR})
+    pybind11_add_module(cora_py
+        src/python_bindings.cpp
+    )
+    target_link_libraries(cora_py PRIVATE ${PROJECT_NAME})
+endif()
 
 # Testing
 if(${BUILD_TESTS})
@@ -175,10 +181,6 @@ if (${ENABLE_VISUALIZATION})
     target_link_libraries(${PROJECT_NAME} PUBLIC tonioviz)
 endif()
 
-# If python bindings are enabled, set warning that this is not implemented yet
-if(${BUILD_PYTHON_BINDINGS})
-message(WARNING "Python bindings are not implemented yet.")
-endif()
 
 # Tests
 if(${BUILD_TESTS})
