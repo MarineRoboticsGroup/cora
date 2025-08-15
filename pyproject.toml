@@ -1,0 +1,24 @@
+[build-system]
+requires = ["scikit-build-core>=0.5.0", "pybind11>=2.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "cora-py"
+version = "0.1.0" # You might want to make this dynamic or manage it elsewhere
+authors = [
+  { name="Alan Papalia", email="alan.papalia@example.com" }, # Replace with actual email
+]
+description = "Python bindings for the CORA library"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License", # Assuming MIT license based on common open source projects
+    "Operating System :: OS Independent",
+]
+
+[tool.scikit-build]
+# This tells scikit-build where to find your CMakeLists.txt
+cmake.source-dir = "."
+# This tells scikit-build to install the Python module
+install.strip = true

@@ -31,9 +31,13 @@ PYBIND11_MODULE(cora_py, m) {
 
   py::class_<CORA::Problem>(m, "Problem")
       .def(py::init<int, int>(), py::arg("dim"), py::arg("rank"))
-      .def("addPoseVariable", &CORA::Problem::addPoseVariable,
+      .def("addPoseVariable",
+           static_cast<void (CORA::Problem::*)(const CORA::Symbol &)>(
+               &CORA::Problem::addPoseVariable),
            py::arg("symbol"))
-      .def("addLandmarkVariable", &CORA::Problem::addLandmarkVariable,
+      .def("addLandmarkVariable",
+           static_cast<void (CORA::Problem::*)(const CORA::Symbol &)>(
+               &CORA::Problem::addLandmarkVariable),
            py::arg("symbol"))
       .def("addRangeMeasurement", &CORA::Problem::addRangeMeasurement,
            py::arg("measurement"))
@@ -81,6 +85,12 @@ PYBIND11_MODULE(cora_py, m) {
       .def(py::init<CORA::Symbol, CORA::Vector, CORA::Matrix>(), py::arg("id"),
            py::arg("p"), py::arg("cov"));
 
-  m.def("solveCORA", &CORA::solveCORA, "Solve the CORA problem");
+  m.def("solveCORA",
+        static_cast<CORA::CoraResult (*)(CORA::Problem &, const CORA::Matrix &,
+                                         int, bool, bool, bool)>(
+            &CORA::solveCORA),
+        py::arg("problem"), py::arg("x0"), py::arg("max_relaxation_rank") = 20,
+        py::arg("verbose") = false, py::arg("log_iterates") = false,
+        py::arg("show_iterates") = false);
   m.def("projectSolution", &CORA::projectSolution, "Project the solution");
 }

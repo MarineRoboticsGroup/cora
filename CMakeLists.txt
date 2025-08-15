@@ -7,6 +7,7 @@ project(CORA LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
 # Set the default build type to debug
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -86,14 +87,23 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 if(${BUILD_PYTHON_BINDINGS})
+    find_package(pybind11 CONFIG REQUIRED)
+
     message(STATUS "Building Python bindings")
-    set(PYBIND11_DIR ${LIBS_DIR}/pybind11/ CACHE PATH "Path to top-level directory of pybind11 library (the one containing CMakeLists.txt)")
-    add_subdirectory(${PYBIND11_DIR})
-    pybind11_add_module(cora_py
-        src/python_bindings.cpp
-    )
+    # The source file is src/python_bindings.cpp
+    pybind11_add_module(cora_py bindings/module.cpp)
     target_link_libraries(cora_py PRIVATE ${PROJECT_NAME})
+
+    # On Linux ensure no RPATH issues for the extension:
+    set_target_properties(cora_py PROPERTIES
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+    # Tell scikit-build to install the module
+    scikit_build_core_install(MODULE cora_py)
 endif()
+
+
 
 # Testing
 if(${BUILD_TESTS})
