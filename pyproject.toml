@@ -1,24 +1,59 @@
 [build-system]
-requires = ["scikit-build-core>=0.5.0", "pybind11>=2.10"]
+requires = [
+  "scikit-build-core>=0.9",   # many fixes since 0.5
+  "pybind11>=2.12",           # bugfixes & Python 3.12/3.13 polish
+  "numpy>=1.22"               # needed at build time if you expose NumPy
+]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "cora-py"
-version = "0.1.0" # You might want to make this dynamic or manage it elsewhere
-authors = [
-  { name="Alan Papalia", email="alan.papalia@example.com" }, # Replace with actual email
-]
-description = "Python bindings for the CORA library"
+# Prefer dynamic versioning or a single source of truth:
+version = "0.1.0"
+description = "Python bindings for the CORA optimization library"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
+authors = [{ name="Alan Papalia", email="alanpapalia@gmail.com" }]
+license = { text = "MIT" }   # or "BSD-3-Clause" etc.
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License", # Assuming MIT license based on common open source projects
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: C++",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 
+# If your Python API depends on NumPy at runtime, declare it:
+# dependencies = ["numpy>=1.22"]
+
+[project.urls]
+Homepage = "https://github.com/MarineRoboticsGroup/cora"
+Issues = "https://github.com/MarineRoboticsGroup/cora/issues"
+
 [tool.scikit-build]
-# This tells scikit-build where to find your CMakeLists.txt
-cmake.source-dir = "."
-# This tells scikit-build to install the Python module
+cmake.minimum-version = "3.15"
+cmake.version = "3.15"
+cmake.build-type = "Release"
+cmake.define.BUILD_PYTHON_BINDINGS = true
+cmake.define.CMAKE_PREFIX_PATH = "{env:CONDA_PREFIX}"
+cmake.define.CXX_STANDARD = "17"
+
+
+# Helpful for reproducible, fast CI builds:
+# generator = "Ninja"
+# Pass any CMake options here, e.g. turn off -march=native for wheels:
+# cmake.args = ["-DENABLE_VECTORIZATION=OFF"]
+
+# Strip symbols in wheels (sdist remains full)
 install.strip = true
+
+# If your extension should live inside a package directory, set that here
+# and install to ${SKBUILD_PLATLIB_DIR}/cora in CMake.
+# wheel.packages = ["cora"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# Optional: cibuildwheel hints if you plan to publish wheels
+# [tool.cibuildwheel]
+# build-verbosity = 1
+# skip = "pp* *-musllinux_*"  # if you don’t plan to support these

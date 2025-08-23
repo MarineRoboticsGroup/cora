@@ -1,7 +1,7 @@
 # Based on original by David M. Rosen
 # Modified for CORA by Alan Papalia
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.15...3.30)  # 3.30 = "known good upper bound" today
 
 project(CORA LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
@@ -42,7 +42,7 @@ set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples
 set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
 # Build Python bindings
-set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings.")
+set(BUILD_PYTHON_BINDINGS ON CACHE BOOL "Build Python bindings.")
 # Build tests using Catch2
 set (BUILD_TESTS ON CACHE BOOL "Build Catch2 tests.")
 
@@ -85,24 +85,6 @@ message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # set the libs directory
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
-
-if(${BUILD_PYTHON_BINDINGS})
-    find_package(pybind11 CONFIG REQUIRED)
-
-    message(STATUS "Building Python bindings")
-    # The source file is src/python_bindings.cpp
-    pybind11_add_module(cora_py bindings/module.cpp)
-    target_link_libraries(cora_py PRIVATE ${PROJECT_NAME})
-
-    # On Linux ensure no RPATH issues for the extension:
-    set_target_properties(cora_py PROPERTIES
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
-    )
-    # Tell scikit-build to install the module
-    scikit_build_core_install(MODULE cora_py)
-endif()
-
 
 
 # Testing
@@ -189,6 +171,44 @@ endif()
 if (${ENABLE_VISUALIZATION})
     target_include_directories(${PROJECT_NAME} PUBLIC ${TONIOVIZ_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} PUBLIC tonioviz)
+endif()
+
+if(BUILD_PYTHON_BINDINGS)
+    # Try config first, then fall back to FetchContent if not found
+    find_package(pybind11 CONFIG QUIET)
+    if(NOT pybind11_FOUND)
+      message(STATUS "pybind11 not found via CONFIG; fetching...")
+      include(FetchContent)
+      FetchContent_Declare(pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG        v2.12.0
+      )
+      FetchContent_MakeAvailable(pybind11)
+    endif()
+
+    message(STATUS "Building Python bindings")
+
+    # Build the extension module
+    pybind11_add_module(cora_py bindings/module.cpp)
+    target_link_libraries(cora_py PRIVATE ${PROJECT_NAME})
+
+    # Optional hygiene
+    set_target_properties(cora_py PROPERTIES
+        OUTPUT_NAME "cora_py"                 # import name
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON
+    )
+
+    if(NOT DEFINED SKBUILD_PLATLIB_DIR)
+        set(SKBUILD_PLATLIB_DIR "${CMAKE_INSTALL_LIBDIR}")
+    endif()
+
+    # Install into site-packages (root). If you want it under a package, append /cora
+    install(TARGETS cora_py
+        LIBRARY DESTINATION ${SKBUILD_PLATLIB_DIR}/cora
+        RUNTIME DESTINATION ${SKBUILD_PLATLIB_DIR}/cora
+    )
+
 endif()
 
 
