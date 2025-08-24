@@ -13,23 +13,47 @@ example in `examples/cora_vis_tests.cpp` by uncommenting `line 12` and switching
 
 ![Plaza 2](https://github.com/MarineRoboticsGroup/cora/assets/17442843/1a0ad0b0-a554-4248-9b92-f52815d1cd34)
 
-## Building
+## Building with Conan
 
-Install dependencies
+This project uses Conan for package management. To build the project, you will need to install Conan.
+
 ```bash
-sudo apt-get install build-essential cmake-gui libeigen3-dev liblapack-dev libblas-dev libsuitesparse-dev -y
+pip install conan
 ```
 
-Install submodules and build with CMake
+Then, you can build the project with CMake.
+
 ```bash
 git clone git@github.com:MarineRoboticsGroup/cora-plus-plus.git
 cd cora-plus-plus
 git submodule update --init
-mkdir build
+conan install . --output-folder=build --build=missing
 cd build
 cmake ..
 make -j
 ```
+
+### Build Options
+
+You can customize the build by passing options to Conan when running `conan install`. For example, to build without visualization and with tests enabled, you can run:
+
+```bash
+conan install . --output-folder=build --build=missing -o cora/enable_visualization=False -o cora/build_tests=True
+```
+
+The available options are:
+
+* `shared`: Build as a shared library (`True`/`False`, default: `False`)
+* `fPIC`: Enable position-independent code (`True`/`False`, default: `True`)
+* `enable_vectorization`: Enable vectorized instruction sets (`True`/`False`, default: `True`)
+* `enable_openmp`: Enable OpenMP parallelization (`True`/`False`, default: `False`)
+* `enable_profiling`: Enable code profiling with gperftools (`True`/`False`, default: `False`)
+* `enable_visualization`: Enable visualization module (`True`/`False`, default: `True`)
+* `perform_experiments`: Run experiments from the paper (`True`/`False`, default: `True`)
+* `build_examples`: Build C++ examples (`True`/`False`, default: `True`)
+* `build_python_bindings`: Build Python bindings (`True`/`False`, default: `True`)
+* `build_tests`: Build tests (`True`/`False`, default: `True`)
+
 
 ## Usage
 
@@ -70,37 +94,7 @@ cd /path/to/cora
 pre-commit install
 ```
 
-## Let there be Viz
 
-To build with visualization there is a bit more set up needed. The following
-terminal commands should get you up and running with visualization.
-
-```bash
-# install Pangolin
-git clone git@github.com:stevenlovegrove/Pangolin.git
-cd Pangolin
-sudo git submodule update --init
-git checkout d484494 # this is the most recent commit that worked for everything
-mkdir build
-cd build
-cmake ..
-make -j
-sudo make install
-
-# install GTSAM 4.2
-sudo add-apt-repository ppa:borglab/gtsam-release-4.2
-sudo apt-get update
-sudo apt-get install libgtsam-dev libgtsam-unstable-dev
-```
-
-## Code Profiling
-
-Additionally, if you want to run profiling you will need to install the Google
-Performance Tools
-
-```bash
-sudo apt-get install libgoogle-perftools-dev google-perftools graphviz
-```
 
 ## With some help from our friends
 

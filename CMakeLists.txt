@@ -7,6 +7,9 @@ project(CORA LANGUAGES C CXX VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Conan setup
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+conan_basic_setup()
 
 # Set the default build type to debug
 if(NOT CMAKE_BUILD_TYPE)
@@ -46,15 +49,6 @@ set(BUILD_PYTHON_BINDINGS ON CACHE BOOL "Build Python bindings.")
 # Build tests using Catch2
 set (BUILD_TESTS ON CACHE BOOL "Build Catch2 tests.")
 
-# Add the .cmake files that ship with Eigen3 to the CMake module path (useful for finding other stuff)
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE STRING "The CMake module path used for this project")
-
-# Find (system) Eigen library
-find_package(Eigen3 3.3.7 REQUIRED)
-if(EIGEN3_FOUND)
-message(STATUS "Found Eigen3 library: ${EIGEN3_INCLUDE_DIR}\n")
-endif()
-
 if(${ENABLE_VECTORIZATION})
 message(STATUS "Enabling SIMD/AVX instruction sets")
 add_definitions(-march=native)
@@ -70,28 +64,13 @@ endif()
 
 if(${ENABLE_PROFILING})
 message(STATUS "Enabling code profiling using Google Performance Tools")
-set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} -lprofiler)
 endif()
-
-# DEPENDENCIES
-
-# FIND ADDITIONAL LIBRARIES
-# These next operations make use of the .cmake files shipped with Eigen3
-find_package(SPQR REQUIRED)
-find_package(BLAS REQUIRED)
 
 # print out the current_source_dir
 message(STATUS "Current source directory: ${CMAKE_CURRENT_SOURCE_DIR}")
 
 # set the libs directory
 set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
-
-
-# Testing
-if(${BUILD_TESTS})
-set(CATCH2_DIR ${LIBS_DIR}/Catch2/ CACHE PATH "Path to top-level directory of Catch2 library (the one containing CMakeLists.txt)")
-add_subdirectory(${CATCH2_DIR})
-endif()
 
 # Find Optimization library
 set(OPTIMIZATION_DIR ${LIBS_DIR}/Optimization/ CACHE PATH "Path to top-level directory of Optimization library (the one containing CMakeLists.txt)")
@@ -122,7 +101,7 @@ set(CORA_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 # The CORA headers and and Eigen 3, SPQR, and Cholmod are all referenced by the
 # header files of the CORA library, hence must be PUBLICLY included (i.e.
 # clients using the CORA headers must also include these headers)
-set(CORA_INCLUDES ${CORA_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIR} ${SPQR_INCLUDES} CACHE INTERNAL "")
+set(CORA_INCLUDES ${CORA_INCLUDE_DIR} CACHE INTERNAL "")
 
 # The CORA header and source files
 set(CORA_HDRS
@@ -160,7 +139,11 @@ endif()
 # The CORA library
 add_library(${PROJECT_NAME} SHARED ${CORA_HDRS} ${CORA_SRCS})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CORA_INCLUDES} ${OPTIMIZATION_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME} PUBLIC ILDL ${SPQR_LIBRARIES} ${BLAS_LIBRARIES} ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC Eigen::Eigen SuiteSparse::SuiteSparse_config openblas::openblas ${OPTIMIZATION_LIBRARIES} ${PRECONDITIONERS_LIBRARIES})
+
+if(ENABLE_PROFILING)
+    target_link_libraries(${PROJECT_NAME} PUBLIC gperftools::gperftools)
+endif()
 
 if(OPENMP_FOUND)
 # Add additional compilation flags to enable OpenMP support
@@ -174,18 +157,6 @@ if (${ENABLE_VISUALIZATION})
 endif()
 
 if(BUILD_PYTHON_BINDINGS)
-    # Try config first, then fall back to FetchContent if not found
-    find_package(pybind11 CONFIG QUIET)
-    if(NOT pybind11_FOUND)
-      message(STATUS "pybind11 not found via CONFIG; fetching...")
-      include(FetchContent)
-      FetchContent_Declare(pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
-        GIT_TAG        v2.12.0
-      )
-      FetchContent_MakeAvailable(pybind11)
-    endif()
-
     message(STATUS "Building Python bindings")
 
     # Build the extension module
