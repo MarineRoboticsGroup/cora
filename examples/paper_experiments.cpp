@@ -611,11 +611,6 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   // update the problem data
   problem.updateProblemData();
 
-  // save problem.data_matrix_ (an Eigen SparseMatrix) to a file
-  std::string fpath = "/home/alan/data_matrix.mtx";
-  Eigen::saveMarket(problem.data_matrix_, fpath);
-  std::cout << "Saved data matrix to " << fpath << std::endl;
-
   CORA::Matrix x0;
   if (init_type == InitType::Random) {
     x0 = problem.getRandomInitialGuess();

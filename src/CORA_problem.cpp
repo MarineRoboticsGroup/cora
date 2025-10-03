@@ -188,7 +188,7 @@ void Problem::fillRelPoseSubmatrices() {
   int measures_added = 0;
 
   // pose-pose measures
-  std::cout << "adding pose-pose measures" << std::endl;
+  // std::cout << "adding pose-pose measures" << std::endl;
   for (int measure_idx = 0; measure_idx < num_pose_pose_measurements;
        measure_idx++) {
     RelativePoseMeasurement rpm = rel_pose_pose_measurements_[measure_idx];
@@ -215,7 +215,7 @@ void Problem::fillRelPoseSubmatrices() {
   measures_added += num_pose_pose_measurements;
 
   // pose priors
-  std::cout << "adding pose priors" << std::endl;
+  // std::cout << "adding pose priors" << std::endl;
   for (int measure_idx = measures_added;
        measure_idx < measures_added + num_pose_priors; measure_idx++) {
     PosePrior pp = pose_priors_[measure_idx - measures_added];
@@ -242,7 +242,7 @@ void Problem::fillRelPoseSubmatrices() {
   measures_added += num_pose_priors;
 
   // pose-landmark measures
-  std::cout << "adding pose-landmark measures" << std::endl;
+  // std::cout << "adding pose-landmark measures" << std::endl;
   for (int measure_idx = measures_added;
        measure_idx < measures_added + num_pose_landmark_measurements;
        measure_idx++) {
@@ -269,7 +269,7 @@ void Problem::fillRelPoseSubmatrices() {
   measures_added += num_pose_landmark_measurements;
 
   // landmark priors
-  std::cout << "adding landmark priors" << std::endl;
+  // std::cout << "adding landmark priors" << std::endl;
   for (int measure_idx = measures_added;
        measure_idx < measures_added + num_landmark_priors; measure_idx++) {
     LandmarkPrior lp = landmark_priors_[measure_idx - measures_added];
