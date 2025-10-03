@@ -2,7 +2,9 @@
 #include <CORA/CORA_problem.h>
 #include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
+#ifdef ENABLE_VISUALIZATION
 #include <CORA/CORA_vis.h>
+#endif
 #include <CORA/Symbol.h>
 #include <CORA/pyfg_text_parser.h>
 
@@ -661,6 +663,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
   results_file.close();
 
   // if we are logging the iterates, then let's visualize CORA
+#ifdef ENABLE_VISUALIZATION
   if (log_iterates) {
     CORA::CORAVis viz{};
     double viz_hz = 10.0;
@@ -675,6 +678,7 @@ CORA::Matrix solveProblem(std::string pyfg_fpath, int init_rank_jump,
 
     viz.run(problem, {soln.second}, viz_hz, true);
   }
+#endif
 
   CORA::Matrix aligned_soln = problem.alignEstimateToOrigin(soln.first.x);
   saveSolutions(problem, aligned_soln, pyfg_fpath);
@@ -732,7 +736,7 @@ int main(int argc, char **argv) {
     files = {env_p};
   }
 
-  Config config = parseConfig("/home/alan/cora-plus-plus/examples/config.json");
+  Config config = parseConfig("/home/alan/projects/cora/examples/config.json");
 
   for (auto file : files) {
     CORA::Matrix soln = solveProblem(

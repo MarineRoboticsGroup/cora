@@ -388,8 +388,8 @@ Matrix projectSolution(const Problem &problem, const Matrix &Y, bool verbose) {
 
     // if abs(determinant(i)) is far from 1, then print a warning
     if (std::abs(determinants(i) - 1) > 1e-6) {
-      std::cout << "WARNING: Determinant of block " << i
-                << " is: " << determinants(i) << " not 1" << std::endl;
+      // std::cout << "WARNING: Determinant of block " << i
+      //           << " is: " << determinants(i) << " not 1" << std::endl;
     }
   }
 

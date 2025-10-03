@@ -2,7 +2,10 @@
 // Created by tim on 11/13/23.
 //
 #include <CORA/CORA.h>
+
+#ifdef ENABLE_VISUALIZATION
 #include <CORA/CORA_vis.h>
+#endif
 
 #include <thread> // NOLINT [build/c++11]
 
@@ -21,10 +24,14 @@ int main() {
   res = solveCORA(problem, x0, max_rank, verbose, log_iterates);
 
   std::cout << "Testing with Random initialization" << std::endl;
+
+#ifdef ENABLE_VISUALIZATION
   // Visualize the result
   CORA::CORAVis viz{};
   double viz_hz = 10.0;
   // double viz_hz = 2.0;
   viz.run(problem, {res.second}, viz_hz, true);
+#endif
+
   return 0;
 }

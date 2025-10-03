@@ -1,3 +1,5 @@
+#ifdef ENABLE_VISUALIZATION
+
 //
 // Created by tim on 11/12/23.
 //
@@ -233,3 +235,5 @@ Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
 }
 
 } // namespace CORA
+
+#endif // ENABLE_VISUALIZATION

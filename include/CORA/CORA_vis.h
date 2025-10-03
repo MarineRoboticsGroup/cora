@@ -4,6 +4,8 @@
 
 #pragma once
 
+#ifdef ENABLE_VISUALIZATION
+
 #include <CORA/CORA.h>
 #include <CORA/CORA_types.h>
 #include <atomic>
@@ -43,3 +45,5 @@ private:
 };
 
 } // namespace CORA
+
+#endif // ENABLE_VISUALIZATION
