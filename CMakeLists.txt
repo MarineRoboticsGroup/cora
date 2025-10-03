@@ -161,7 +161,8 @@ endif()
 
 # If python bindings are enabled, set warning that this is not implemented yet
 if(${BUILD_PYTHON_BINDINGS})
-message(WARNING "Python bindings are not implemented yet.")
+  message(STATUS "Building Python bindings")
+  add_subdirectory(bindings)
 endif()
 
 # Tests

@@ -10,3 +10,6 @@
 [submodule "libs/tonioviz"]
 	path = libs/tonioviz
 	url = https://github.com/MarineRoboticsGroup/tonioviz.git
+[submodule "libs/pybind11"]
+	path = libs/pybind11
+	url = https://github.com/pybind/pybind11.git
