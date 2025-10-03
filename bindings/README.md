@@ -21,17 +21,48 @@ This directory contains the Python bindings for the CORA library, enabling you t
    ```
    This will build the shared library (e.g., `cora.cpython-<version>-<platform>.so`) in `build/lib/`.
 
-2. **(Optional) Install the Python module:**
-   You can copy the generated `.so` file to your Python project or install it system-wide.
-   To install as a Python package, run the following command **from inside the `build` directory**:
+
+2. **(Optional) Make the Python module importable in your environment:**
+
+Because this project doesn’t currently ship a `setup.py/pyproject.toml`, the easiest ways to use the built module are:
+
+- Option A (recommended): Write a .pth file into your environment’s site-packages
+   - This repo ships a helper script that does exactly that.
+
    ```bash
-   cd build
-   pip install .
+   # From the project root after building
+   ./bindings/install_cora_python.sh
    ```
-   Or manually copy the built `.so` file:
+
+   The script writes a `cora_local.pth` into your active Python’s site-packages, pointing at `build/lib`, so `import cora` works anywhere. You can pass a specific build dir or Python:
+
    ```bash
-   cp lib/cora*.so /path/to/your/python/project/
+   ./bindings/install_cora_python.sh /path/to/build/lib python
    ```
+
+- Option B: Use PYTHONPATH during development (no files modified)
+
+   ```bash
+   # From the project root
+   export PYTHONPATH="$(pwd)/build/lib:${PYTHONPATH}"
+   python -c "import cora, sys; print('cora from', cora.__file__)"
+   ```
+
+- Option C: Copy the built shared object into site-packages directly
+
+   ```bash
+   # Find your site-packages
+   python - <<'PY'
+import sysconfig
+print(sysconfig.get_paths()['purelib'])
+PY
+   # Copy the .so from build/lib into the path printed above
+   # Example:
+   cp build/lib/cora.cpython-*.so "$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/"
+   ```
+
+Pick the option that fits your workflow. Option A is easy to undo by removing the `cora_local.pth` file.
+
 
 ## Using the Python Bindings
 
