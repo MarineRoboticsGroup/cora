@@ -5,7 +5,7 @@
 //
 
 #include "CORA/CORA_vis.h"
-#include "CORA/CORA_problem.h"
+#include "CORA/CORA.h"
 #include <thread> // NOLINT [build/c++11]
 #include <utility>
 
@@ -136,7 +136,17 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
           continue;
         }
 
-        viz_poses.emplace_back(getPose(problem, soln, pose_sym));
+  // Extract rotation and translation in CORA's native dimension
+  auto pose_pair = CORA::extractPose(problem, soln, pose_sym);
+  const CORA::Matrix &rotation = pose_pair.first;
+  const CORA::Vector &translation = pose_pair.second;
+
+  // Pack into an SE-like 4x4 matrix expected by the visualizer
+  Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
+  int dim = problem.dim();
+  pose_matrix.block(0, 0, dim, dim) = rotation.transpose();
+  pose_matrix.block(0, 3, dim, 1) = translation.transpose();
+  viz_poses.emplace_back(pose_matrix, 0.5, 4.0);
       }
       viz->AddVizPoses(viz_poses, pose_chain_idx);
     }
@@ -154,7 +164,13 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
 
     // add all landmarks
     for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
-      viz->AddVizLandmark(getPoint(problem, soln, landmark_sym));
+  // Convert CORA::Vector to Eigen::Vector3d for the visualizer
+  {
+    CORA::Vector pvec = CORA::extractPoint(problem, soln, landmark_sym);
+    Eigen::Vector3d p3 = Eigen::Vector3d::Zero();
+    p3.block(0, 0, problem.dim(), 1) = pvec;
+    viz->AddVizLandmark(p3);
+  }
     }
 
     // add all range measurements
@@ -165,8 +181,12 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
           range_measurement_idx % num_ranges_to_skip != 0) {
         continue;
       }
-      auto p1 = getPoint(problem, soln, range_measurement.first_id);
-      auto p2 = getPoint(problem, soln, range_measurement.second_id);
+  CORA::Vector p1_vec = CORA::extractPoint(problem, soln, range_measurement.first_id);
+  CORA::Vector p2_vec = CORA::extractPoint(problem, soln, range_measurement.second_id);
+  Eigen::Vector3d p1 = Eigen::Vector3d::Zero();
+  Eigen::Vector3d p2 = Eigen::Vector3d::Zero();
+  p1.block(0, 0, problem.dim(), 1) = p1_vec;
+  p2.block(0, 0, problem.dim(), 1) = p2_vec;
 
       if (pose_sym_to_idx.find(range_measurement.first_id) ==
           pose_sym_to_idx.end()) {
@@ -178,8 +198,8 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
       // p1_vec.block(0, 0, problem.dim(), 1) = p1;
       // Eigen::Vector3d p2_vec = Eigen::Vector3d::Zero();
       // p2_vec.block(0, 0, problem.dim(), 1) = p2;
-      mrg::Range range{p1, p2, range_measurement.r};
-      viz->AddRangeMeasurement(range);
+  mrg::Range range{p1, p2, range_measurement.r};
+    viz->AddRangeMeasurement(range);
     }
 
     // Ready true
@@ -204,35 +224,7 @@ void CORAVis::renderLoop(const std::shared_ptr<mrg::Visualizer> &viz) {
   alive = false;
 }
 
-mrg::VizPose CORAVis::getPose(const Problem &problem,
-                              const Matrix &solution_matrix,
-                              const Symbol &pose_sym) {
-  auto dim = problem.dim();
-  auto rotation_idx = problem.getRotationIdx(pose_sym);
-  auto rotation = solution_matrix.block(rotation_idx * dim, 0, dim, dim);
-  auto translation =
-      solution_matrix.block(problem.getTranslationIdx(pose_sym), 0, 1, dim);
-  // Convert rotation and translation to SE3 as a Matrix4d
-  Eigen::Matrix4d pose_matrix = Eigen::Matrix4d::Identity();
-
-  // we need to transpose the rotation matrix b/c the solution matrix is
-  // actually [R0, R1, ..., Rn, t0, t1, ..., tn]^T so each rotation block is
-  // actually R^T
-  pose_matrix.block(0, 0, dim, dim) = rotation.transpose();
-  pose_matrix.block(0, 3, dim, 1) = translation.transpose();
-  return std::make_tuple(pose_matrix, 0.5, 4.0);
-}
-
-Eigen::Vector3d CORAVis::getPoint(const Problem &problem,
-                                  const Matrix &solution_matrix,
-                                  const Symbol &point_sym) {
-  Eigen::Vector3d point = Eigen::Vector3d::Zero();
-  point.block(0, 0, problem.dim(), 1) =
-      solution_matrix
-          .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
-          .transpose();
-  return point;
-}
+// getPose/getPoint removed: use CORA::extractPose / CORA::extractPoint
 
 } // namespace CORA
 

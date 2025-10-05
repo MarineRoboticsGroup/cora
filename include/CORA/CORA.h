@@ -37,4 +37,21 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
 Matrix projectSolution(const Problem &problem, const Matrix &Y,
                        bool verbose = false);
 
+/**
+ * @brief Extract the rotation matrix and translation vector for a pose from
+ * a candidate solution. Both returned types use CORA's Matrix/Vector aliases
+ * and are sized according to the problem dimension. This keeps the core
+ * library dimension-agnostic; any repackaging to SE(3)/SE(2) should be done
+ * by consumers (e.g., visualization).
+ */
+std::pair<Matrix, Vector> extractPose(const Problem &problem,
+                                      const Matrix &solution_matrix,
+                                      const Symbol &pose_sym);
+
+/**
+ * @brief Extract a translation vector for a point from a candidate solution.
+ * Returns a CORA::Vector sized to the problem dimension.
+ */
+Vector extractPoint(const Problem &problem, const Matrix &solution_matrix,
+                    const Symbol &point_sym);
 } // namespace CORA

@@ -34,11 +34,19 @@ Because this project doesn’t currently ship a `setup.py/pyproject.toml`, the e
    ./bindings/install_cora_python.sh
    ```
 
-   The script writes a `cora_local.pth` into your active Python’s site-packages, pointing at `build/lib`, so `import cora` works anywhere. You can pass a specific build dir or Python:
+   The script writes a `cora_local.pth` into your active Python’s site-packages,
+   pointing at `build/lib`, so `import cora` works anywhere. You can pass a
+   specific build dir or Python:
 
    ```bash
    ./bindings/install_cora_python.sh /path/to/build/lib python
    ```
+
+   **Does this work even if I update CORA and rebuild?**
+   Yes, as long as you rebuild the bindings in the same build directory, the
+   `.pth` file will continue to point to the correct location of the updated
+   shared object file. Just ensure that you run the build commands again after
+   making changes to CORA or its bindings.
 
 - Option B: Use PYTHONPATH during development (no files modified)
 

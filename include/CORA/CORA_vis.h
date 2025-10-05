@@ -30,12 +30,7 @@ private:
   std::atomic<bool> alive{true}; // Shared between threads, will be false if
                                  // either thread terminates
 
-  static mrg::VizPose getPose(const Problem &problem,
-                              const Matrix &solution_matrix,
-                              const Symbol &pose_sym);
-  static Eigen::Vector3d getPoint(const Problem &problem,
-                                  const Matrix &solution_matrix,
-                                  const Symbol &point_sym);
+  // pose/point extraction is provided by core CORA helpers
 
   void dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
                         const Problem &problem, std::vector<Matrix> iterates,

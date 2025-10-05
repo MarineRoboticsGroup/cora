@@ -1,8 +1,10 @@
 #include <CORA/CORA.h>
+#include <CORA/CORA_types.h>
 #include <CORA/CORA_utils.h>
 
 #include <Optimization/Base/Concepts.h>
 #include <Optimization/Riemannian/TNT.h>
+#include <map>
 
 void printIfVerbose(bool verbose, std::string msg) {
   if (verbose) {
@@ -240,6 +242,32 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
                      " and theta: " + std::to_string(cert_results.theta));
 
   return std::make_pair(result, iterates);
+}
+
+std::pair<Matrix, Vector> extractPose(const Problem &problem,
+                                      const Matrix &solution_matrix,
+                                      const Symbol &pose_sym) {
+  auto dim = problem.dim();
+  auto rotation_idx = problem.getRotationIdx(pose_sym);
+  Matrix rotation =
+      solution_matrix.block(rotation_idx * dim, 0, dim, dim).transpose();
+  Vector translation =
+      solution_matrix.block(problem.getTranslationIdx(pose_sym), 0, 1, dim)
+          .transpose();
+  // Note: rotation is stored so that the block corresponds to R^T in the
+  // solution matrix representation — consumers should transpose if they
+  // require the conventional rotation matrix.
+  return std::make_pair(rotation, translation);
+}
+
+Vector extractPoint(const Problem &problem, const Matrix &solution_matrix,
+                    const Symbol &point_sym) {
+  Vector point = Vector::Zero(problem.dim());
+  point.block(0, 0, problem.dim(), 1) =
+      solution_matrix
+          .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
+          .transpose();
+  return point;
 }
 
 Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,

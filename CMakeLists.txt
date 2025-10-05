@@ -35,13 +35,13 @@ set(ENABLE_PROFILING OFF CACHE BOOL "Enable code profiling using gperftools")
 # Enable visualization module.
 set(ENABLE_VISUALIZATION OFF CACHE BOOL "Enable visualization module.")
 # Run the experiments from the paper
-set(PERFORM_EXPERIMENTS ON CACHE BOOL "Run the experiments from the paper.")
+set(PERFORM_EXPERIMENTS OFF CACHE BOOL "Run the experiments from the paper.")
 # Build C++ examples
-set(BUILD_EXAMPLES ON CACHE BOOL "Build C++ examples.")
+set(BUILD_EXAMPLES OFF CACHE BOOL "Build C++ examples.")
 # Build Python bindings
-set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings.")
+set(BUILD_PYTHON_BINDINGS ON CACHE BOOL "Build Python bindings.")
 # Build tests using Catch2
-set (BUILD_TESTS ON CACHE BOOL "Build Catch2 tests.")
+set (BUILD_TESTS OFF CACHE BOOL "Build Catch2 tests.")
 
 # Add the .cmake files that ship with Eigen3 to the CMake module path (useful for finding other stuff)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE STRING "The CMake module path used for this project")
@@ -122,6 +122,7 @@ ${CORA_HDR_DIR}/CORA.h
 ${CORA_HDR_DIR}/CORA_types.h
 ${CORA_HDR_DIR}/CORA_utils.h
 ${CORA_HDR_DIR}/CORA_problem.h
+${CORA_HDR_DIR}/CORA_variable_management.h
 ${CORA_HDR_DIR}/CORA_preconditioners.h
 ${CORA_HDR_DIR}/Symbol.h
 ${CORA_HDR_DIR}/Measurements.h
@@ -134,6 +135,7 @@ ${CORA_HDR_DIR}/ObliqueManifold.h
 set(CORA_SRCS
 ${CORA_SOURCE_DIR}/CORA.cpp
 ${CORA_SOURCE_DIR}/CORA_problem.cpp
+${CORA_SOURCE_DIR}/CORA_variable_management.cpp
 ${CORA_SOURCE_DIR}/CORA_utils.cpp
 ${CORA_SOURCE_DIR}/CORA_preconditioners.cpp
 ${CORA_SOURCE_DIR}/Symbol.cpp

@@ -41,6 +41,13 @@ echo "  PTH FILE:          ${PTH_FILE}"
 echo "${BUILD_LIB_DIR}" > "${PTH_FILE}"
 echo "Wrote ${PTH_FILE} with path: ${BUILD_LIB_DIR}"
 
+# Copy type stub for editor / type-checker convenience
+STUB_SRC="${SCRIPT_DIR}/cora.pyi"
+if [[ -f "${STUB_SRC}" ]]; then
+  echo "Copying stub file to site-packages: ${STUB_SRC} -> ${SITE_PACKAGES_DIR}"
+  cp "${STUB_SRC}" "${SITE_PACKAGES_DIR}/cora.pyi"
+fi
+
 echo "Verifying import in a fresh ${PYEXE}..."
 ${PYEXE} - <<'PYCODE'
 import importlib, sys
