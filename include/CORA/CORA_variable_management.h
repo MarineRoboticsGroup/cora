@@ -18,21 +18,21 @@ namespace CORA {
  * keyed by `Symbol`. The data can then be packed into an `x0` matrix that
  * `solveCORA` accepts.
  */
-class InitializationMap {
+class Values {
 public:
-  InitializationMap() = default;
+  Values() = default;
   void clear();
 
   // Pose initialization: rotation (d x d) and translation (d,)
-  void setPoseInitialization(const Symbol &sym, const Matrix &R,
+  void setPose(const Symbol &sym, const Matrix &R,
                              const Vector &t);
-  bool hasPoseInitialization(const Symbol &sym) const;
+  bool hasPose(const Symbol &sym) const;
   const Matrix *getPoseRotation(const Symbol &sym) const;
   const Vector *getPoseTranslation(const Symbol &sym) const;
 
   // Landmark initialization: position vector (d,)
-  void setLandmarkInitialization(const Symbol &sym, const Vector &p);
-  bool hasLandmarkInitialization(const Symbol &sym) const;
+  void setLandmark(const Symbol &sym, const Vector &p);
+  bool hasLandmark(const Symbol &sym) const;
   const Vector *getLandmark(const Symbol &sym) const;
 
   inline std::map<Symbol, Matrix> getAllPoseRotations() const {
@@ -52,51 +52,53 @@ private:
 };
 
 /**
- * @brief Generate an `InitializationMap` from an initialization matrix `x0`.
+ * @brief Generate an `Values` from an initialization matrix `x0`.
  * Checks that all variables are initialized to be feasible (i.e., are members
  * of the correct manifold).
  */
-InitializationMap getInitMapFromInitMatrix(const Problem &problem,
+Values getValuesFromVarMatrix(const Problem &problem,
                                            const Matrix &x0);
 
 /**
- * @brief Convert an `InitializationMap` into an initialization matrix `x0`. Any
+ * @brief Convert an `Values` into an initialization matrix `x0`. Any
  * values not specified in the map will be set randomly.
  */
-Matrix getInitMatrixFromInitMap(const Problem &problem,
-                                const InitializationMap &inits);
+Matrix getVarMatrixFromValues(const Problem &problem,
+                                const Values &inits);
 
 /**
- * @brief Update an `InitializationMap` `inits` based on values in an
+ * @brief Update an `Values` `inits` based on values in an
  * initialization matrix `x0`.
  */
-void updateInitMapFromInitMatrix(const Problem &problem,
-                                 InitializationMap &inits, const Matrix &x0);
+void updateValuesFromVarMatrix(const Problem &problem,
+                                 Values &inits, const Matrix &x0);
 
 /**
  * @brief Update the range measurement rows of an initialization matrix `x0`
- * based on its current translation values.
+ * based on its current translation values. If the formulation is implicit,
+ * the translation-explicit form is computed first and the 'optimal' translations
+ * are used to compute the ranges.
  */
-void updateInitMatrixRangesBasedOnTranslationVals(const Problem &problem,
+void updateVarMatrixRangesBasedOnTranslationVals(const Problem &problem,
                                                   Matrix &x0);
 
 /**
  * @brief Update an initialization matrix `x0` based on values in an
- * `InitializationMap` `inits`.
+ * `Values` `inits`.
  */
-void updateInitMatrixFromInitMap(const Problem &problem,
-                                 const InitializationMap &inits, Matrix &x0);
+void updateVarMatrixFromValues(const Problem &problem,
+                                 const Values &inits, Matrix &x0);
 
 /**
  * @brief Generate a random initialization map for the problem. The map should
  * initialize all poses and landmarks.
  */
-InitializationMap getRandomInitMap(const Problem &problem);
+Values getRandomValues(const Problem &problem);
 
 /**
  * @brief Generate a random initialization matrix for the problem. The matrix
  * should initialize all poses and landmarks.
  */
-Matrix getRandomInitMatrix(const Problem &problem);
+Matrix getRandomVarMatrix(const Problem &problem);
 
 } // namespace CORA

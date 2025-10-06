@@ -148,51 +148,34 @@ void Problem::fillRangeSubmatrices() {
 
 void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
-  auto num_pose_pose_measurements = numPosePoseMeasurements();
+
+  auto num_rel_rotation_measures = numPosePoseMeasurements() + numPosePriors();
+  auto num_rel_translation_measures =
+      num_rel_rotation_measures + numPoseLandmarkMeasurements() +
+      numLandmarkPriors();
+
+  // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_rotation_precision_matrix =
-      SparseMatrix(num_pose_pose_measurements, num_pose_pose_measurements);
-
-  auto num_pose_landmark_measurements = numPoseLandmarkMeasurements();
-  auto num_translations = numTranslationalStates();
-  auto num_pose_measurements =
-      num_pose_pose_measurements + num_pose_landmark_measurements;
-  std::cout << "Num pose-pose and pose-landmark measurements: "
-            << num_pose_measurements << std::endl;
-
-  // priors will be implemented as measurements from the origin pose
-  auto num_pose_priors = numPosePriors();
-  auto num_landmark_priors = numLandmarkPriors();
-  num_pose_measurements += num_pose_priors + num_landmark_priors;
-  std::cout << "Num pose-pose, pose-landmark, and priors: "
-            << num_pose_measurements << std::endl;
-
-  // if there are priors (landmark or pose), throw an error because we don't
-  // support them yet
-  if (pose_priors_.size() > 0 || landmark_priors_.size() > 0) {
-    // throw std::runtime_error("Priors are not yet supported");
-  }
+      SparseMatrix(num_rel_rotation_measures, num_rel_rotation_measures);
+  data_submatrices_.rel_pose_incidence_matrix =
+      SparseMatrix(num_rel_translation_measures, numTranslationalStates());
+  data_submatrices_.rel_pose_translation_data_matrix =
+      SparseMatrix(num_rel_translation_measures, numPosesDim());
+  data_submatrices_.rel_pose_translation_precision_matrix =
+      SparseMatrix(num_rel_translation_measures, num_rel_translation_measures);
 
   // need to account for the fact that the indices will be offset by the
   // dimension of the rotation and the range variables that precede the
   // translations
   auto translation_offset = rotAndRangeMatrixSize();
 
-  // initialize the submatrices to the correct sizes
-  data_submatrices_.rel_pose_incidence_matrix =
-      SparseMatrix(num_pose_measurements, num_translations);
-  data_submatrices_.rel_pose_translation_data_matrix =
-      SparseMatrix(num_pose_measurements, numPosesDim());
-  data_submatrices_.rel_pose_translation_precision_matrix =
-      SparseMatrix(num_pose_measurements, num_pose_measurements);
-
-  int measures_added = 0;
+  int measure_idx = 0;
 
   // pose-pose measures
   // std::cout << "adding pose-pose measures" << std::endl;
-  for (int measure_idx = 0; measure_idx < num_pose_pose_measurements;
-       measure_idx++) {
-    RelativePoseMeasurement rpm = rel_pose_pose_measurements_[measure_idx];
-
+  // for (int measure_idx = 0; measure_idx < num_pose_pose_measurements;
+  //      measure_idx++) {
+  for (auto rpm : rel_pose_pose_measurements_) {
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
         measure_idx, measure_idx) = rpm.getTransPrecision();
@@ -211,14 +194,12 @@ void Problem::fillRelPoseSubmatrices() {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
           measure_idx, id1 * dim_ + k) = -rpm.t(k);
     }
+    measure_idx++;
   }
-  measures_added += num_pose_pose_measurements;
 
   // pose priors
   // std::cout << "adding pose priors" << std::endl;
-  for (int measure_idx = measures_added;
-       measure_idx < measures_added + num_pose_priors; measure_idx++) {
-    PosePrior pp = pose_priors_[measure_idx - measures_added];
+  for (auto pp : pose_priors_) {
 
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
@@ -238,16 +219,12 @@ void Problem::fillRelPoseSubmatrices() {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
           measure_idx, id1 * dim_ + k) = -pp.t(k);
     }
+    measure_idx++;
   }
-  measures_added += num_pose_priors;
 
   // pose-landmark measures
   // std::cout << "adding pose-landmark measures" << std::endl;
-  for (int measure_idx = measures_added;
-       measure_idx < measures_added + num_pose_landmark_measurements;
-       measure_idx++) {
-    RelativePoseLandmarkMeasurement rplm =
-        rel_pose_landmark_measurements_[measure_idx - measures_added];
+  for (auto rplm : rel_pose_landmark_measurements_) {
 
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
@@ -265,14 +242,12 @@ void Problem::fillRelPoseSubmatrices() {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
           measure_idx, id1 * dim_ + k) = -rplm.t(k);
     }
+    measure_idx++;
   }
-  measures_added += num_pose_landmark_measurements;
 
   // landmark priors
   // std::cout << "adding landmark priors" << std::endl;
-  for (int measure_idx = measures_added;
-       measure_idx < measures_added + num_landmark_priors; measure_idx++) {
-    LandmarkPrior lp = landmark_priors_[measure_idx - measures_added];
+  for (auto lp : landmark_priors_) {
 
     // fill in precision matrices
     data_submatrices_.rel_pose_translation_precision_matrix.insert(
@@ -290,8 +265,8 @@ void Problem::fillRelPoseSubmatrices() {
       data_submatrices_.rel_pose_translation_data_matrix.insert(
           measure_idx, id1 * dim_ + k) = -lp.p(k);
     }
+    measure_idx++;
   }
-  measures_added += num_landmark_priors;
 }
 
 void Problem::fillRotConnLaplacian() {
@@ -499,11 +474,21 @@ SparseMatrix Problem::getDataMatrix() {
 
 void Problem::updateProblemData() {
   // update the relevant submatrices
+  std::cout << "Updating problem data..." << std::endl;
+
+  std::cout << "Range submatrices..." << std::endl;
   fillRangeSubmatrices();
+
+  std::cout << "Relative pose submatrices..." << std::endl;
   fillRelPoseSubmatrices();
+
+  std::cout << "Filling data matrix..." << std::endl;
   fillDataMatrix();
+
+  std::cout << "Preconditioner..." << std::endl;
   updatePreconditioner();
   if (formulation_ == Formulation::Implicit) {
+    std::cout << "Filling implicit formulation matrices..." << std::endl;
     fillImplicitFormulationMatrices();
   }
   problem_data_up_to_date_ = true;
@@ -1000,20 +985,29 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   // (unit spheres) so we need to offset by the dimension of the rotations and
   // the number of range measurements
   size_t idx_offset = rotAndRangeMatrixSize();
+  size_t idx = -1;
 
   // is a pose translation
   auto pose_search_it = pose_symbol_idxs_.find(trans_symbol);
   if (pose_search_it != pose_symbol_idxs_.end()) {
-    return static_cast<Index>(pose_search_it->second + idx_offset);
+    // auto pose_idx = static_cast<Index>(pose_search_it->second + idx_offset);
+    idx = pose_search_it->second + idx_offset;
+  } else {
+    auto landmark_search_it = landmark_symbol_idxs_.find(trans_symbol);
+    if (landmark_search_it != landmark_symbol_idxs_.end()) {
+      // need to offset by the number of poses because the landmark variables
+      // come after the pose translations
+      idx = landmark_search_it->second + idx_offset + numPoses();
+    }
   }
 
-  // is a landmark translation
-  auto landmark_search_it = landmark_symbol_idxs_.find(trans_symbol);
-  if (landmark_search_it != landmark_symbol_idxs_.end()) {
-    // need to offset by the number of poses because the landmark variables
-    // come after the pose translations
-    return static_cast<Index>(landmark_search_it->second + idx_offset +
-                              numPoses());
+  if (idx != -1) {
+    // check that index is in range
+    if (idx < 0 || idx >= getDataMatrixSize()) {
+      throw std::out_of_range("Translation index out of range" +
+                              std::to_string(idx));
+    }
+    return static_cast<Index>(idx);
   }
 
   // if we get here, we didn't find the translation symbol
@@ -1022,7 +1016,7 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
 
 Matrix Problem::getRandomInitialGuess() const {
   // assert that the problem data must be up to date
-  assert(problem_data_up_to_date_);
+  checkUpToDate();
   Matrix x0 = Matrix::Random(getExpectedVariableSize(), relaxation_rank_);
   return projectToManifold(x0);
 }
@@ -1166,17 +1160,16 @@ SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
 }
 
 Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
+
+  std::cout << "Converting to translation-explicit solution" << std::endl;
+
   // the matrix Y should be a point in the translation-implicit form of the
   // problem, so we need to convert it to the translation-explicit form
   checkMatrixShape("Problem::getTranslationExplicitSolution::Y",
                    rotAndRangeMatrixSize(), Y.cols(), Y.rows(), Y.cols());
 
-  // function Xfull = extract_translations_from_marginalized_solution(X,
-  // problem)
-  //     % t* = - (X*)' * Qxy * Qyy^{-1};
-  //     translations = - (X' * problem.LeftOperator) / problem.Ltrans;
-  //     Xfull = [X; translations'];
-  // end
+  // this doesn't work if the matrices aren't up to date
+  checkUpToDate();
 
   // t = - [LtransCholRed \ (TransOffDiagRed' * Y); zeros(1, size(Y, 2))];
   Matrix t_pinned = -LtransCholRed_->solve(TransOffDiagRed_.transpose() * Y);

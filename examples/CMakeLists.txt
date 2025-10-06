@@ -1,6 +1,9 @@
 add_executable(cora_example main.cpp)
 target_link_libraries(cora_example CORA)
 
+add_executable(example_solve_expand example_solve_expand.cpp)
+target_link_libraries(example_solve_expand CORA)
+
 if(${ENABLE_VISUALIZATION})
   message(STATUS "Building CORAVis example")
   add_executable(cora_vis cora_vis_test.cpp)

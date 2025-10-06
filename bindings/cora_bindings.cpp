@@ -210,22 +210,22 @@ PYBIND11_MODULE(cora, m) {
       "Extract translation vector for a point from a solution matrix. Returns "
       "ndarray");
 
-  // InitializationMap bindings
-  py::class_<CORA::InitializationMap>(m, "InitializationMap")
+  // Values bindings
+  py::class_<CORA::Values>(m, "Values")
       .def(py::init<>())
-      .def("clear", &CORA::InitializationMap::clear)
+      .def("clear", &CORA::Values::clear)
       .def(
-          "set_pose_initialization",
-          [](CORA::InitializationMap &im, const CORA::Symbol &sym,
+          "set_pose",
+          [](CORA::Values &im, const CORA::Symbol &sym,
              const CORA::Matrix &R,
-             const CORA::Vector &t) { im.setPoseInitialization(sym, R, t); },
+             const CORA::Vector &t) { im.setPose(sym, R, t); },
           py::arg("symbol"), py::arg("R"), py::arg("t"))
-      .def("has_pose_initialization",
-           [](const CORA::InitializationMap &im, const CORA::Symbol &sym) {
-             return im.hasPoseInitialization(sym);
+      .def("has_pose",
+           [](const CORA::Values &im, const CORA::Symbol &sym) {
+             return im.hasPose(sym);
            })
       .def("get_pose_rotation",
-           [](const CORA::InitializationMap &im,
+           [](const CORA::Values &im,
               const CORA::Symbol &sym) -> py::object {
              const CORA::Matrix *m = im.getPoseRotation(sym);
              if (!m)
@@ -233,7 +233,7 @@ PYBIND11_MODULE(cora, m) {
              return py::cast(*m);
            })
       .def("get_pose_translation",
-           [](const CORA::InitializationMap &im,
+           [](const CORA::Values &im,
               const CORA::Symbol &sym) -> py::object {
              const CORA::Vector *v = im.getPoseTranslation(sym);
              if (!v)
@@ -241,21 +241,80 @@ PYBIND11_MODULE(cora, m) {
              return py::cast(*v);
            })
       .def(
-          "set_landmark_initialization",
-          [](CORA::InitializationMap &im, const CORA::Symbol &sym,
-             const CORA::Vector &p) { im.setLandmarkInitialization(sym, p); },
+          "set_landmark",
+          [](CORA::Values &im, const CORA::Symbol &sym,
+             const CORA::Vector &p) { im.setLandmark(sym, p); },
           py::arg("symbol"), py::arg("p"))
-      .def("has_landmark_initialization",
-           [](const CORA::InitializationMap &im, const CORA::Symbol &sym) {
-             return im.hasLandmarkInitialization(sym);
+      .def("has_landmark",
+           [](const CORA::Values &im, const CORA::Symbol &sym) {
+             return im.hasLandmark(sym);
            })
       .def("get_landmark",
-           [](const CORA::InitializationMap &im,
+           [](const CORA::Values &im,
               const CORA::Symbol &sym) -> py::object {
              const CORA::Vector *v = im.getLandmark(sym);
              if (!v)
                return py::none();
              return py::cast(*v);
            });
+
+    // Variable / Values management helpers (from CORA_variable_management.h)
+    m.def(
+            "getValuesFromVarMatrix",
+            [](const CORA::Problem &problem, const CORA::Matrix &x0) {
+                return CORA::getValuesFromVarMatrix(problem, x0);
+            },
+            py::arg("problem"), py::arg("x0"),
+            "Construct a CORA::Values container by reading an initialization matrix x0.");
+
+    m.def(
+            "getVarMatrixFromValues",
+            [](const CORA::Problem &problem, const CORA::Values &inits) {
+                return CORA::getVarMatrixFromValues(problem, inits);
+            },
+            py::arg("problem"), py::arg("inits"),
+            "Pack a CORA::Values container into an initialization matrix x0.");
+
+    m.def(
+            "updateValuesFromVarMatrix",
+            [](const CORA::Problem &problem, CORA::Values &inits,
+                 const CORA::Matrix &x0) {
+                CORA::updateValuesFromVarMatrix(problem, inits, x0);
+            },
+            py::arg("problem"), py::arg("inits"), py::arg("x0"),
+            "Update a CORA::Values container in-place from an initialization matrix x0.");
+
+    // Functions that update a Matrix& in C++ are exposed to Python as returning a
+    // modified copy for convenience (so callers can use the returned matrix).
+    m.def(
+            "updateVarMatrixRangesBasedOnTranslationVals",
+            [](const CORA::Problem &problem, const CORA::Matrix &x0) {
+                CORA::Matrix out = x0;
+                CORA::updateVarMatrixRangesBasedOnTranslationVals(problem, out);
+                return out;
+            },
+            py::arg("problem"), py::arg("x0"),
+            "Return a copy of x0 with its range measurement rows updated based on translation values.");
+
+    m.def(
+            "updateVarMatrixFromValues",
+            [](const CORA::Problem &problem, const CORA::Values &inits,
+                 const CORA::Matrix &x0) {
+                CORA::Matrix out = x0;
+                CORA::updateVarMatrixFromValues(problem, inits, out);
+                return out;
+            },
+            py::arg("problem"), py::arg("inits"), py::arg("x0"),
+            "Return a copy of x0 where values from 'inits' have been written into the matrix.");
+
+    m.def(
+            "getRandomValues",
+            [](const CORA::Problem &problem) { return CORA::getRandomValues(problem); },
+            py::arg("problem"), "Generate a random CORA::Values containing initializations for the problem.");
+
+    m.def(
+            "getRandomVarMatrix",
+            [](const CORA::Problem &problem) { return CORA::getRandomVarMatrix(problem); },
+            py::arg("problem"), "Generate a random initialization matrix x0 for the problem.");
 
 }
