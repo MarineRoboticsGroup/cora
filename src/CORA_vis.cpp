@@ -137,7 +137,7 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
         }
 
   // Extract rotation and translation in CORA's native dimension
-  auto pose_pair = CORA::extractPose(problem, soln, pose_sym);
+  auto pose_pair = CORA::extractRelaxedPose(problem, soln, pose_sym);
   const CORA::Matrix &rotation = pose_pair.first;
   const CORA::Vector &translation = pose_pair.second;
 
@@ -166,7 +166,7 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
     for (auto [landmark_sym, landmark_idx] : landmark_sym_to_idx) {
   // Convert CORA::Vector to Eigen::Vector3d for the visualizer
   {
-    CORA::Vector pvec = CORA::extractPoint(problem, soln, landmark_sym);
+    CORA::Vector pvec = CORA::extractRelaxedPoint(problem, soln, landmark_sym);
     Eigen::Vector3d p3 = Eigen::Vector3d::Zero();
     p3.block(0, 0, problem.dim(), 1) = pvec;
     viz->AddVizLandmark(p3);
@@ -181,8 +181,8 @@ void CORAVis::dataPlaybackLoop(const std::shared_ptr<mrg::Visualizer> &viz,
           range_measurement_idx % num_ranges_to_skip != 0) {
         continue;
       }
-  CORA::Vector p1_vec = CORA::extractPoint(problem, soln, range_measurement.first_id);
-  CORA::Vector p2_vec = CORA::extractPoint(problem, soln, range_measurement.second_id);
+  CORA::Vector p1_vec = CORA::extractRelaxedPoint(problem, soln, range_measurement.first_id);
+  CORA::Vector p2_vec = CORA::extractRelaxedPoint(problem, soln, range_measurement.second_id);
   Eigen::Vector3d p1 = Eigen::Vector3d::Zero();
   Eigen::Vector3d p2 = Eigen::Vector3d::Zero();
   p1.block(0, 0, problem.dim(), 1) = p1_vec;
@@ -224,7 +224,7 @@ void CORAVis::renderLoop(const std::shared_ptr<mrg::Visualizer> &viz) {
   alive = false;
 }
 
-// getPose/getPoint removed: use CORA::extractPose / CORA::extractPoint
+// getPose/getPoint removed: use CORA::extractRelaxedPose / CORA::extractRelaxedPoint
 
 } // namespace CORA
 

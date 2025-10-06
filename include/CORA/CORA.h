@@ -34,24 +34,43 @@ Matrix saddleEscape(const Problem &problem, const Matrix &Y, Scalar theta,
                     const Vector &v, Scalar gradient_tolerance,
                     Scalar preconditioned_gradient_tolerance);
 
+/**
+ * @brief Project a candidate solution to the feasible set of the original
+ * problem, by truncating to the correct rank via thin SVD and projecting each
+ * variable to the correct manifold.
+ */
 Matrix projectSolution(const Problem &problem, const Matrix &Y,
                        bool verbose = false);
 
 /**
- * @brief Extract the rotation matrix and translation vector for a pose from
+ * @brief Extract the stiefel matrix and translation vector for a pose from
  * a candidate solution. Both returned types use CORA's Matrix/Vector aliases
- * and are sized according to the problem dimension. This keeps the core
+ * and are sized according to the provided solution. This keeps the core
  * library dimension-agnostic; any repackaging to SE(3)/SE(2) should be done
  * by consumers (e.g., visualization).
+ *
+ * NOTE: Requires a full solution is passed in. If solving in translation implicit
+ * mode, you must first reconstruct a full solution using getTranslationExplicitSolution().
+ *
+ * WARNING: The returned rotation/translation may be higher dimensional, if
+ * providing a solution from a relaxation with rank greater than the
+ * problem dimension.
  */
-std::pair<Matrix, Vector> extractPose(const Problem &problem,
-                                      const Matrix &solution_matrix,
-                                      const Symbol &pose_sym);
+std::pair<Matrix, Vector> extractRelaxedPose(const Problem &problem,
+                                             const Matrix &solution_matrix,
+                                             const Symbol &pose_sym);
 
 /**
  * @brief Extract a translation vector for a point from a candidate solution.
- * Returns a CORA::Vector sized to the problem dimension.
+ * Returns a CORA::Vector of size based on the provided solution.
+ *
+ * NOTE: Requires a full solution is passed in. If solving in translation implicit
+ * mode, you must first reconstruct a full solution using getTranslationExplicitSolution().
+ *
+ * WARNING: The returned vector may be higher dimensional, if providing a
+ * solution from a relaxation with rank greater than the problem dimension.
  */
-Vector extractPoint(const Problem &problem, const Matrix &solution_matrix,
-                    const Symbol &point_sym);
+Vector extractRelaxedPoint(const Problem &problem,
+                           const Matrix &solution_matrix,
+                           const Symbol &point_sym);
 } // namespace CORA

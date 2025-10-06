@@ -20,9 +20,9 @@ np.set_printoptions(precision=2, suppress=True)
 def add_core_variables_and_measurements(problem: cora.Problem):
     # Add two poses and one landmark; add priors & measurements to make the
     # problem well-constrained for a quick solve.
-    p0 = cora.Symbol('x', 0)
-    p1 = cora.Symbol('x', 1)
-    l0 = cora.Symbol('l', 0)
+    p0 = cora.Symbol("x", 0)
+    p1 = cora.Symbol("x", 1)
+    l0 = cora.Symbol("l", 0)
 
     problem.addPoseVariable(p0)
     problem.addPoseVariable(p1)
@@ -56,22 +56,28 @@ def add_core_variables_and_measurements(problem: cora.Problem):
 
 def solve_and_extract(problem: cora.Problem, x0: np.ndarray, expect_num_poses: int):
     problem.updateProblemData()
-    print('Solving problem (expecting', expect_num_poses, 'poses)')
-    res, iters = cora.solveCORA(problem, x0, max_relaxation_rank=problem.getRelaxationRank(), verbose=False)
-    print('Solver objective f =', res.f)
+    res, iters = cora.solveCORA(
+        problem, x0, max_relaxation_rank=problem.getRelaxationRank(), verbose=False
+    )
 
     Y = res.x
+    Y_full = problem.getTranslationExplicitSolution(Y)
     # Extract poses and landmarks from solution
     poses = []
     for i in range(expect_num_poses):
-        s = cora.Symbol('x', i)
-        pr = cora.extractPose(problem, Y, s)
+        s = cora.Symbol("x", i)
+        pr = cora.extractRelaxedPose(problem, Y_full, s)
         Rsol, tsol = pr[0], pr[1]
+
 
         # check that the rotation is valid
         should_be_identity = Rsol @ Rsol.T
-        assert np.allclose(should_be_identity, np.eye(problem.dim()), atol=1e-5), 'extracted rotation is not orthogonal'
-        assert np.isclose(np.linalg.det(Rsol), 1.0, atol=1e-5), 'extracted rotation is not proper (det!=1)'
+        assert np.allclose(
+            should_be_identity, np.eye(problem.dim()), atol=1e-5
+        ), "extracted rotation is not orthogonal"
+        assert np.isclose(
+            np.linalg.det(Rsol), 1.0, atol=1e-5
+        ), "extracted rotation is not proper (det!=1)"
 
         poses.append((Rsol, tsol))
 
@@ -79,9 +85,8 @@ def solve_and_extract(problem: cora.Problem, x0: np.ndarray, expect_num_poses: i
     landmarks = []
     # We'll attempt to extract landmark 0 if present
     try:
-        l0 = cora.Symbol('l', 0)
-        pv = cora.extractPoint(problem, Y, l0)
-        print('Landmark l0:', pv)
+        l0 = cora.Symbol("l", 0)
+        pv = cora.extractRelaxedPoint(problem, Y_full, l0)
         landmarks.append(pv)
     except Exception:
         # Some problems may not have landmarks — ignore
@@ -96,37 +101,39 @@ def main():
     problem = cora.Problem(dim, relax_rank)
     problem.setFormulation(cora.Formulation.Implicit)
 
-    print('Creating initial problem with 2 poses and 1 landmark')
     add_core_variables_and_measurements(problem)
-    print("Updating problem data")
     problem.updateProblemData()
 
     # get a random initialization
-    print(f"Requesting a random initial guess x0 of shape ({problem.getExpectedVariableSize()}, {problem.getRelaxationRank()})")
     x0 = cora.getRandomVarMatrix(problem)
 
     # Solve the original small problem
-    print(f"Solving original problem")
     res, poses, landmarks = solve_and_extract(problem, x0, expect_num_poses=2)
 
     # Convert solver solution into a Values map
-    print('Converting solution matrix into Values')
     vals = cora.getValuesFromVarMatrix(problem, res.x)
 
     # Expand the problem: add another pose and landmark and measurements
-    print('Expanding problem: adding pose x2 and landmark l1, and measurements')
-    p2 = cora.Symbol('x', 2)
-    l1 = cora.Symbol('l', 1)
+    p2 = cora.Symbol("x", 2)
+    l1 = cora.Symbol("l", 1)
     problem.addPoseVariable(p2)
     problem.addLandmarkVariable(l1)
 
     # Connect p2 to p1 with a relative pose measurement
     R_id = np.eye(dim)
     rel_t2 = np.array([0.3] * dim)
-    problem.addRelativePoseMeasurement(cora.RelativePoseMeasurement(cora.Symbol('x', 1), p2, R_id, rel_t2, np.eye(dim) * 1e-2))
+    problem.addRelativePoseMeasurement(
+        cora.RelativePoseMeasurement(
+            cora.Symbol("x", 1), p2, R_id, rel_t2, np.eye(dim) * 1e-2
+        )
+    )
 
     # Connect new landmark to p2 with a relative pose-landmark measurement
-    problem.addRelativePoseLandmarkMeasurement(cora.RelativePoseLandmarkMeasurement(p2, l1, np.array([0.2]*dim), np.eye(dim) * 1e-2))
+    problem.addRelativePoseLandmarkMeasurement(
+        cora.RelativePoseLandmarkMeasurement(
+            p2, l1, np.array([0.2] * dim), np.eye(dim) * 1e-2
+        )
+    )
 
     # Add a range measurement between p2 and l1
     problem.addRangeMeasurement(cora.RangeMeasurement(p2, l1, 0.5, 0.01))
@@ -135,9 +142,7 @@ def main():
 
     # Now build a new x0 using Values from the previous solution (existing symbols)
     # getVarMatrixFromValues will fill unspecified new variables randomly
-    print('Packing previous Values into a new x0 for the expanded problem')
     new_x0 = cora.getVarMatrixFromValues(problem, vals)
-    print('New x0 shape:', new_x0.shape)
 
     # Optionally update ranges based on translation values
     new_x0 = cora.updateVarMatrixRangesBasedOnTranslationVals(problem, new_x0)
@@ -145,8 +150,8 @@ def main():
     # Solve the expanded problem
     res2, poses2, landmarks2 = solve_and_extract(problem, new_x0, expect_num_poses=3)
 
-    print('Expanded problem solved. Final objective:', res2.f)
+    print("Expanded problem solved. Final objective:", res2.f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

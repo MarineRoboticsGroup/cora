@@ -33,10 +33,10 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     checkMatrixShape("solveCora::Explicit", problem.getDataMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   } else {
-    std::cout << "Solving problem in translation implicit mode. Make sure that "
-                 "the initial guess only contains rotation and range "
-                 "variables."
-              << std::endl;
+    printIfVerbose(
+        verbose,
+        "Solving problem in translation implicit mode. Make sure that the "
+        "initial guess only contains rotation and range variables.");
     checkMatrixShape("solveCora::Implicit", problem.rotAndRangeMatrixSize(),
                      x0.cols(), x0.rows(), x0.cols());
   }
@@ -228,7 +228,6 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
     }
 
     // let's check if the solution is certified
-    std::cout << "Checking certification of refined solution." << std::endl;
     eta = thresholdVal(result.f * REL_CERT_ETA, MIN_CERT_ETA, MAX_CERT_ETA);
     cert_results = problem.certify_solution(result.x, eta, LOBPCG_BLOCK_SIZE,
                                             eigvec_bootstrap);
@@ -244,28 +243,39 @@ CoraResult solveCORA(Problem &problem, // NOLINT(runtime/references)
   return std::make_pair(result, iterates);
 }
 
-std::pair<Matrix, Vector> extractPose(const Problem &problem,
-                                      const Matrix &solution_matrix,
-                                      const Symbol &pose_sym) {
+std::pair<Matrix, Vector> extractRelaxedPose(const Problem &problem,
+                                             const Matrix &solution_matrix,
+                                             const Symbol &pose_sym) {
+  checkMatrixShape("extractRelaxedPose", problem.getDataMatrixSize(),
+                   problem.getRelaxationRank(), solution_matrix.rows(),
+                   solution_matrix.cols());
   auto dim = problem.dim();
   auto rotation_idx = problem.getRotationIdx(pose_sym);
+
+  // get the rotation (Stiefel) part of the solution
   Matrix rotation =
-      solution_matrix.block(rotation_idx * dim, 0, dim, dim).transpose();
-  Vector translation =
-      solution_matrix.block(problem.getTranslationIdx(pose_sym), 0, 1, dim)
+      solution_matrix.block(rotation_idx * dim, 0, dim, solution_matrix.cols())
           .transpose();
-  // Note: rotation is stored so that the block corresponds to R^T in the
-  // solution matrix representation — consumers should transpose if they
-  // require the conventional rotation matrix.
+
+  // get the translation part of the solution
+  Vector translation = solution_matrix
+                           .block(problem.getTranslationIdx(pose_sym), 0, 1,
+                                  solution_matrix.cols())
+                           .transpose();
   return std::make_pair(rotation, translation);
 }
 
-Vector extractPoint(const Problem &problem, const Matrix &solution_matrix,
-                    const Symbol &point_sym) {
+Vector extractRelaxedPoint(const Problem &problem,
+                           const Matrix &solution_matrix,
+                           const Symbol &point_sym) {
+  checkMatrixShape("extractRelaxedPoint", problem.getDataMatrixSize(),
+                   problem.getRelaxationRank(), solution_matrix.rows(),
+                   solution_matrix.cols());
   Vector point = Vector::Zero(problem.dim());
   point.block(0, 0, problem.dim(), 1) =
       solution_matrix
-          .block(problem.getTranslationIdx(point_sym), 0, 1, problem.dim())
+          .block(problem.getTranslationIdx(point_sym), 0, 1,
+                 solution_matrix.cols())
           .transpose();
   return point;
 }

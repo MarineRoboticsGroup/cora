@@ -12,6 +12,7 @@
 
 #include "Optimization/Riemannian/TNT.h"
 
+
 class NotImplementedException : public std::logic_error {
 public:
   explicit NotImplementedException(std::string const &str)

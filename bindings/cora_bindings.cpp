@@ -76,6 +76,8 @@ PYBIND11_MODULE(cora, m) {
       .def("numRangeMeasurements", &CORA::Problem::numRangeMeasurements)
       .def("numPosesDim", &CORA::Problem::numPosesDim)
       .def("projectToManifold", &CORA::Problem::projectToManifold)
+      .def("getTranslationExplicitSolution",
+           &CORA::Problem::getTranslationExplicitSolution)
       .def("__repr__", [](const CORA::Problem &p) {
         return "<cora.Problem with " + std::to_string(p.numPoses()) +
                " poses and " + std::to_string(p.numLandmarks()) + " landmarks>";
@@ -186,14 +188,16 @@ PYBIND11_MODULE(cora, m) {
 
   m.def("projectSolution", &CORA::projectSolution, py::arg("problem"),
         py::arg("Y"), py::arg("verbose") = false,
-        "Project a solution to the correct rank and refine properties");
+        "Project a candidate solution to the feasible set of the original "
+        "problem, by truncating to the correct rank via thin SVD and "
+        "projecting each variable to the correct manifold.");
 
   // Expose core extraction helpers (rotation matrix, translation vector)
   m.def(
-      "extractPose",
+      "extractRelaxedPose",
       [](const CORA::Problem &problem, const CORA::Matrix &Y,
          const CORA::Symbol &sym) {
-        auto pr = CORA::extractPose(problem, Y, sym);
+        auto pr = CORA::extractRelaxedPose(problem, Y, sym);
         return py::make_tuple(pr.first, pr.second);
       },
       py::arg("problem"), py::arg("Y"), py::arg("pose_sym"),
@@ -201,10 +205,10 @@ PYBIND11_MODULE(cora, m) {
       "Returns (ndarray, ndarray)");
 
   m.def(
-      "extractPoint",
+      "extractRelaxedPoint",
       [](const CORA::Problem &problem, const CORA::Matrix &Y,
          const CORA::Symbol &sym) {
-        return CORA::extractPoint(problem, Y, sym);
+        return CORA::extractRelaxedPoint(problem, Y, sym);
       },
       py::arg("problem"), py::arg("Y"), py::arg("point_sym"),
       "Extract translation vector for a point from a solution matrix. Returns "

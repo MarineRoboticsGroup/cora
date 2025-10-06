@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <iomanip>
 
 namespace CORA {
 void Problem::addPoseVariable(const Symbol &pose_id) {
@@ -150,9 +151,9 @@ void Problem::fillRelPoseSubmatrices() {
   fillRotConnLaplacian();
 
   auto num_rel_rotation_measures = numPosePoseMeasurements() + numPosePriors();
-  auto num_rel_translation_measures =
-      num_rel_rotation_measures + numPoseLandmarkMeasurements() +
-      numLandmarkPriors();
+  auto num_rel_translation_measures = num_rel_rotation_measures +
+                                      numPoseLandmarkMeasurements() +
+                                      numLandmarkPriors();
 
   // initialize the submatrices to the correct sizes
   data_submatrices_.rel_pose_rotation_precision_matrix =
@@ -474,21 +475,11 @@ SparseMatrix Problem::getDataMatrix() {
 
 void Problem::updateProblemData() {
   // update the relevant submatrices
-  std::cout << "Updating problem data..." << std::endl;
-
-  std::cout << "Range submatrices..." << std::endl;
   fillRangeSubmatrices();
-
-  std::cout << "Relative pose submatrices..." << std::endl;
   fillRelPoseSubmatrices();
-
-  std::cout << "Filling data matrix..." << std::endl;
   fillDataMatrix();
-
-  std::cout << "Preconditioner..." << std::endl;
   updatePreconditioner();
   if (formulation_ == Formulation::Implicit) {
-    std::cout << "Filling implicit formulation matrices..." << std::endl;
     fillImplicitFormulationMatrices();
   }
   problem_data_up_to_date_ = true;
@@ -1161,8 +1152,6 @@ SparseMatrix Problem::get_certificate_matrix(const Matrix &Y) const {
 
 Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
 
-  std::cout << "Converting to translation-explicit solution" << std::endl;
-
   // the matrix Y should be a point in the translation-implicit form of the
   // problem, so we need to convert it to the translation-explicit form
   checkMatrixShape("Problem::getTranslationExplicitSolution::Y",
@@ -1184,8 +1173,6 @@ Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
   Xfull.block(rotAndRangeMatrixSize(), 0, numTranslationalStates() - 1,
               Y.cols()) = t_pinned;
 
-  checkVariablesAreValid(Xfull);
-
   return Xfull;
 }
 
@@ -1197,6 +1184,9 @@ void Problem::checkVariablesAreValid(const Matrix &Y) const {
     Matrix rot_block = Y.block(i * dim_, 0, dim_, Y.cols());
     // check R * R^T = I
     Matrix rot_prod = rot_block * rot_block.transpose();
+
+    std::cout << std::fixed << std::setprecision(2);
+    // std::cout << "R R^T for pose " << i << ":\n" << rot_prod << std::endl;
     if (!rot_prod.isApprox(Matrix::Identity(dim_, dim_))) {
       std::cout << "R^T R for pose " << i << " is not the identity"
                 << std::endl;

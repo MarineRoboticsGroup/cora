@@ -60,7 +60,7 @@ void updateValuesFromVarMatrix(const Problem &problem, Values &inits,
 
   // Unpack pose rotations and translations
   for (const auto &[sym, idx] : problem.getPoseSymbolMap()) {
-    auto pose_vals = extractPose(problem, Y, sym);
+    auto pose_vals = extractRelaxedPose(problem, Y, sym);
     Matrix R = pose_vals.first;
     Vector t = pose_vals.second;
     inits.setPose(sym, R, t);
@@ -68,7 +68,7 @@ void updateValuesFromVarMatrix(const Problem &problem, Values &inits,
 
   // Unpack landmarks
   for (const auto &[sym, idx] : problem.getLandmarkSymbolMap()) {
-    Vector p = extractPoint(problem, Y, sym);
+    Vector p = extractRelaxedPoint(problem, Y, sym);
     inits.setLandmark(sym, p);
   }
 }
@@ -110,10 +110,11 @@ void updateVarMatrixFromValues(const Problem &problem, const Values &inits,
                    problem.getRelaxationRank(), x0.rows(), x0.cols());
 
   bool is_implicit = problem.getFormulation() == Formulation::Implicit;
+  int d = problem.dim();
 
   // set all of the rotations
   for (const auto &[sym, R] : inits.getAllPoseRotations()) {
-    x0.block(problem.getRotationIdx(sym), 0, R.cols(), R.rows()) =
+    x0.block(problem.getRotationIdx(sym) * d, 0, R.cols(), R.rows()) =
         R.transpose();
   }
 
