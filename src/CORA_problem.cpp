@@ -140,10 +140,19 @@ void Problem::fillRangeSubmatrices() {
         measure.getPrecision();
 
     // update the incidence matrix
-    auto id1 = getTranslationIdx(measure.first_id) - translation_offset;
-    auto id2 = getTranslationIdx(measure.second_id) - translation_offset;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = -1.0;
-    data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = 1.0;
+    try
+    {
+      auto id1 = getTranslationIdx(measure.first_id) - translation_offset;
+      auto id2 = getTranslationIdx(measure.second_id) - translation_offset;
+      data_submatrices_.range_incidence_matrix.insert(measure_idx, id1) = -1.0;
+      data_submatrices_.range_incidence_matrix.insert(measure_idx, id2) = 1.0;
+    }
+    catch(const std::exception& e)
+    {
+      throw std::runtime_error("Error filling range incidence matrix for measure " +
+                               measure.first_id.string() + " -> " +
+                               measure.second_id.string() + ": " + e.what());
+    }
   }
 }
 
@@ -475,13 +484,38 @@ SparseMatrix Problem::getDataMatrix() {
 
 void Problem::updateProblemData() {
   // update the relevant submatrices
-  fillRangeSubmatrices();
-  fillRelPoseSubmatrices();
-  fillDataMatrix();
-  updatePreconditioner();
-  if (formulation_ == Formulation::Implicit) {
-    fillImplicitFormulationMatrices();
+  try {
+    fillRangeSubmatrices();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::updateProblemData: fillRangeSubmatrices failed: ") + e.what());
   }
+
+  try {
+    fillRelPoseSubmatrices();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::updateProblemData: fillRelPoseSubmatrices failed: ") + e.what());
+  }
+
+  try {
+    fillDataMatrix();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::updateProblemData: fillDataMatrix failed: ") + e.what());
+  }
+
+  try {
+    updatePreconditioner();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::updateProblemData: updatePreconditioner failed: ") + e.what());
+  }
+
+  if (formulation_ == Formulation::Implicit) {
+    try {
+      fillImplicitFormulationMatrices();
+    } catch (const std::exception &e) {
+      throw std::runtime_error(std::string("Problem::updateProblemData: fillImplicitFormulationMatrices failed: ") + e.what());
+    }
+  }
+
   problem_data_up_to_date_ = true;
 }
 
@@ -728,17 +762,25 @@ Matrix Problem::dataMatrixProduct(const Matrix &Y) const {
 
     return QY - P3;
   } else {
-    throw std::invalid_argument("Unknown formulation");
+    throw std::invalid_argument("Unknown formulation" + std::to_string(static_cast<int>(formulation_)));
   }
 }
 
 Scalar Problem::evaluateObjective(const Matrix &Y) const {
-  checkUpToDate();
+  try {
+    checkUpToDate();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::evaluateObjective: ") + e.what());
+  }
   return 0.5 * (Y.transpose() * dataMatrixProduct(Y)).trace();
 }
 
 Matrix Problem::Euclidean_gradient(const Matrix &Y) const {
-  checkUpToDate();
+  try {
+    checkUpToDate();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::Euclidean_gradient: ") + e.what());
+  }
   Matrix egrad = dataMatrixProduct(Y);
   checkMatrixShape("Problem::Euclidean_gradient", Y.rows(), Y.cols(),
                    egrad.rows(), egrad.cols());
@@ -751,7 +793,11 @@ Matrix Problem::Riemannian_gradient(const Matrix &Y) const {
 
 Matrix Problem::Riemannian_gradient(const Matrix &Y,
                                     const Matrix &NablaF_Y) const {
-  checkUpToDate();
+  try {
+    checkUpToDate();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::Riemannian_gradient: ") + e.what());
+  }
   return tangent_space_projection(Y, NablaF_Y);
 }
 
@@ -859,7 +905,7 @@ Matrix Problem::precondition(const Matrix &V) const {
           preconditioner_matrices_.block_chol_factor_ptrs_, V_lift);
       res = res_lift.topRows(rotAndRangeMatrixSize());
     } else {
-      throw std::invalid_argument("Unknown formulation");
+      throw std::invalid_argument("Unknown formulation" + std::to_string(static_cast<int>(formulation_)));
     }
   } else if (preconditioner_ == Preconditioner::Jacobi) {
     res = preconditioner_matrices_.jacobi_preconditioner_ * V;
@@ -923,7 +969,7 @@ int Problem::getExpectedVariableSize() const {
   } else if (formulation_ == Formulation::Implicit) {
     return rotAndRangeMatrixSize();
   } else {
-    throw std::invalid_argument("Unknown formulation");
+    throw std::invalid_argument("Unknown formulation" + std::to_string(static_cast<int>(formulation_)));
   }
 }
 
@@ -968,7 +1014,8 @@ Index Problem::getRangeIdx(const SymbolPair &range_symbol_pair) const {
   }
 
   // if we get here, we didn't find the range symbol
-  throw std::invalid_argument("Unknown range symbol");
+  throw std::invalid_argument("Unknown range symbol" + range_symbol_pair.first.string() +
+                              " -> " + range_symbol_pair.second.string());
 }
 
 Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
@@ -1002,12 +1049,16 @@ Index Problem::getTranslationIdx(const Symbol &trans_symbol) const {
   }
 
   // if we get here, we didn't find the translation symbol
-  throw std::invalid_argument("Unknown translation symbol");
+  throw std::invalid_argument("Unknown translation symbol " + trans_symbol.string());
 }
 
 Matrix Problem::getRandomInitialGuess() const {
   // assert that the problem data must be up to date
-  checkUpToDate();
+  try {
+    checkUpToDate();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::getRandomInitialGuess: ") + e.what());
+  }
   Matrix x0 = Matrix::Random(getExpectedVariableSize(), relaxation_rank_);
   return projectToManifold(x0);
 }
@@ -1158,7 +1209,11 @@ Matrix Problem::getTranslationExplicitSolution(const Matrix &Y) const {
                    rotAndRangeMatrixSize(), Y.cols(), Y.rows(), Y.cols());
 
   // this doesn't work if the matrices aren't up to date
-  checkUpToDate();
+  try {
+    checkUpToDate();
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("Problem::getTranslationExplicitSolution: ") + e.what());
+  }
 
   // t = - [LtransCholRed \ (TransOffDiagRed' * Y); zeros(1, size(Y, 2))];
   Matrix t_pinned = -LtransCholRed_->solve(TransOffDiagRed_.transpose() * Y);

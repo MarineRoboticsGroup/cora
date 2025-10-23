@@ -13,6 +13,9 @@
 
 #include <string>
 #include <utility>
+#include <cctype>
+#include <limits>
+#include <stdexcept>
 
 namespace CORA {
 
@@ -23,7 +26,18 @@ protected:
   uint64_t j_;
 
 public:
-  Symbol(unsigned char c, uint64_t j) : c_(c), j_(j) {}
+  Symbol(unsigned char c, uint64_t j) : c_(c), j_(j) {
+    // Validate that the character is alphabetic
+    if (!std::isalpha(static_cast<unsigned char>(c_))) {
+      throw std::invalid_argument("Symbol: character must be a letter (a-z or A-Z). Received: " +
+                                  std::string(1, c_));
+    }
+    // Validate that the index is not the reserved maximum value
+    if (j_ == std::numeric_limits<uint64_t>::max()) {
+      throw std::invalid_argument("Symbol: index value is reserved/invalid. Received: " +
+                                  std::to_string(j_));
+    }
+  }
   Symbol(const Symbol &other) : c_(other.c_), j_(other.j_) {}
   explicit Symbol(std::string s);
   explicit Symbol(Key key);
